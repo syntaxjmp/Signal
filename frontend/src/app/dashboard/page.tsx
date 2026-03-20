@@ -674,6 +674,7 @@ export default function DashboardPage() {
           type="button"
           className="dash-user"
           aria-label="Signed in user"
+          aria-expanded={showLogout}
           onClick={() => setShowLogout((v) => !v)}
         >
           <span className="dash-user__icon" aria-hidden="true">
@@ -685,13 +686,34 @@ export default function DashboardPage() {
           <span className="dash-user__name">{String(displayName)}</span>
         </button>
         {showLogout ? (
-          <button type="button" className="dash-user__logout" onClick={handleLogout}>
-            Log out
-          </button>
+          <div className="dash-user__dropdown" role="menu">
+            <div className="dash-user__dropdown-header">
+              <span className="dash-user__dropdown-avatar" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              <div className="dash-user__dropdown-info">
+                <span className="dash-user__dropdown-name">{String(displayName)}</span>
+                {(session as any)?.user?.email ? (
+                  <span className="dash-user__dropdown-email">{String((session as any).user.email)}</span>
+                ) : null}
+              </div>
+            </div>
+            <button type="button" className="dash-user__logout" role="menuitem" onClick={handleLogout}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Log out
+            </button>
+          </div>
         ) : null}
       </div>
     );
-  }, [displayName, handleLogout, isAuthed, isPending, showLogout]);
+  }, [displayName, handleLogout, isAuthed, isPending, session, showLogout]);
 
   if (booting && bootChecked) {
     return (
