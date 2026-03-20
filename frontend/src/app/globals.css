@@ -49,321 +49,7 @@ a {
   border: 0;
 }
 
-/* —— Architecture Diagram —— */
-.arch {
-  position: relative;
-  z-index: 5;
-  padding: clamp(5rem, 10vw, 8rem) 0 clamp(5.5rem, 10vw, 9rem);
-  background:
-    radial-gradient(ellipse 60% 50% at 50% 40%, rgba(255, 88, 53, 0.1), transparent 70%),
-    radial-gradient(circle at 20% 80%, rgba(255, 90, 52, 0.08), transparent 40%),
-    linear-gradient(180deg, #180402 0%, #1c0503 50%, #200100 100%);
-  overflow: hidden;
-}
-
-.arch__inner {
-  width: min(1300px, calc(100% - 2rem));
-  margin: 0 auto;
-}
-
-.arch__tagline {
-  text-align: center;
-  margin-bottom: clamp(3rem, 6vw, 4.5rem);
-}
-
-.arch__logo {
-  display: inline-block;
-  width: 2.8rem;
-  height: auto;
-  margin-bottom: 0.8rem;
-  filter: drop-shadow(0 0 12px rgba(255, 90, 52, 0.4));
-}
-
-.arch__tagline p {
-  margin: 0;
-  font-family: var(--heading-font), "Trebuchet MS", sans-serif;
-  font-size: clamp(1.3rem, 2.8vw, 1.65rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: rgba(248, 236, 232, 0.85);
-}
-
-.arch__diagram {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: clamp(2.5rem, 5vw, 5rem);
-  align-items: center;
-}
-
-/* — Columns (left / right) — */
-.arch__col {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.arch__col-label {
-  margin: 0 0 0.4rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 200, 180, 0.55);
-}
-
-.arch__icon-grid {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.arch__icon-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  width: 3.4rem;
-  padding: 0.55rem 0.35rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  transition: border-color 200ms ease, background 200ms ease;
-}
-
-.arch__icon-cell:hover {
-  border-color: rgba(120, 100, 220, 0.4);
-  background: rgba(120, 100, 220, 0.08);
-}
-
-.arch__icon-glyph {
-  font-size: 1.15rem;
-  line-height: 1;
-  color: rgba(255, 230, 220, 0.9);
-}
-
-.arch__icon-name {
-  font-size: 0.62rem;
-  font-weight: 600;
-  color: rgba(255, 220, 210, 0.5);
-  white-space: nowrap;
-}
-
-/* — Center panels — */
-.arch__panels-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.arch__panels {
-  display: flex;
-  gap: 0;
-  perspective: 900px;
-  transform-style: preserve-3d;
-  padding: 2rem 0;
-}
-
-.arch__panel {
-  position: relative;
-  width: clamp(8rem, 12vw, 10rem);
-  height: clamp(14rem, 25vw, 19rem);
-  flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  padding: 1.1rem 0.85rem;
-  border-radius: 10px;
-  font-family: var(--heading-font), "Trebuchet MS", sans-serif;
-  font-size: clamp(0.78rem, 1.05vw, 0.92rem);
-  font-weight: 700;
-  line-height: 1.3;
-  color: rgba(255, 255, 255, 0.92);
-  word-break: break-word;
-  hyphens: auto;
-  background: linear-gradient(
-    160deg,
-    rgba(255, 90, 52, 0.45) 0%,
-    rgba(180, 40, 15, 0.38) 40%,
-    rgba(80, 15, 5, 0.5) 100%
-  );
-  border: 1px solid rgba(255, 113, 87, 0.25);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.3) inset,
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 0 20px rgba(255, 90, 52, 0.08);
-  backdrop-filter: blur(8px);
-  transform: rotateY(18deg);
-  z-index: var(--panel-i);
-  transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
-}
-
-.arch__panel:hover {
-  transform: rotateY(0deg) translateY(-6px);
-  border-color: rgba(255, 140, 100, 0.5);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.3) inset,
-    0 16px 48px rgba(0, 0, 0, 0.5),
-    0 0 30px rgba(255, 90, 52, 0.15);
-  z-index: 10;
-}
-
-.arch__panel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 160, 130, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-}
-
-.arch__platform-label {
-  margin: 0;
-  padding: 0.55rem 1.4rem;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  color: rgba(255, 230, 220, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-/* — Right output blocks — */
-.arch__output-block {
-  padding: 0.65rem 0.75rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.arch__output-block h4 {
-  margin: 0 0 0.45rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: rgba(255, 220, 210, 0.7);
-}
-
-.arch__output-pills {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.arch__output-pill {
-  padding: 0.28rem 0.55rem;
-  border-radius: 6px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: rgba(200, 180, 255, 0.9);
-  background: rgba(100, 80, 200, 0.15);
-  border: 1px solid rgba(130, 110, 240, 0.2);
-}
-
-/* Curved SVG connectors */
-.arch__col {
-  overflow: visible;
-}
-
-.arch__icon-grid,
-.arch__output-block {
-  position: relative;
-}
-
-.arch__curve {
-  position: absolute;
-  pointer-events: none;
-  overflow: visible;
-  width: clamp(2.5rem, 5vw, 5rem);
-  height: 70px;
-}
-
-.arch__curve--l1,
-.arch__curve--l2 {
-  top: 50%;
-  left: 100%;
-  transform: translateY(-50%);
-}
-
-.arch__curve--r1,
-.arch__curve--r2,
-.arch__curve--r3 {
-  top: 50%;
-  right: 100%;
-  width: clamp(2.5rem, 5vw, 5rem);
-  transform: translateY(-50%);
-}
-
-.arch__curve-line {
-  fill: none;
-  stroke: rgba(255, 113, 87, 0.22);
-  stroke-width: 1.2;
-  stroke-linecap: round;
-}
-
-.arch__curve-glow {
-  fill: none;
-  stroke: rgba(255, 90, 52, 0.9);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 4px rgba(255, 90, 52, 0.6)) drop-shadow(0 0 10px rgba(255, 90, 52, 0.25));
-  stroke-dasharray: 15 85;
-  animation: curve-flow 2.6s ease-in-out infinite;
-}
-
-.arch__curve--l2 .arch__curve-glow { animation-delay: 0.7s; }
-.arch__curve--r1 .arch__curve-glow { animation-delay: 0.3s; }
-.arch__curve--r2 .arch__curve-glow { animation-delay: 1s; }
-.arch__curve--r3 .arch__curve-glow { animation-delay: 1.6s; }
-
-@keyframes curve-flow {
-  0% { stroke-dashoffset: 100; opacity: 0; }
-  12% { opacity: 1; }
-  88% { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 0; }
-}
-
-@media (max-width: 900px) {
-  .arch__diagram {
-    grid-template-columns: 1fr;
-    gap: 2.5rem;
-    justify-items: center;
-  }
-
-  .arch__curve {
-    display: none;
-  }
-
-  .arch__col {
-    align-items: center;
-    text-align: center;
-  }
-
-  .arch__panels {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.6rem;
-    perspective: none;
-  }
-
-  .arch__panel {
-    transform: none;
-    width: clamp(6rem, 28vw, 8rem);
-    height: clamp(10rem, 35vw, 13rem);
-  }
-
-  .arch__panel:hover {
-    transform: translateY(-6px);
-  }
-}
-
-
-@media (max-width: 640px) {
-  .arch__panel {
-    width: clamp(5.5rem, 40vw, 7rem);
-    height: clamp(9rem, 32vw, 11rem);
-    font-size: 0.72rem;
-    padding: 0.7rem 0.6rem;
-  }
-}
+/* (Architecture diagram styles are in landing.css) */
 
 /* —— Features / Accordion —— */
 .features {
@@ -400,15 +86,70 @@ a {
 .features__visual {
   position: sticky;
   top: 2rem;
-  aspect-ratio: 4 / 3;
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 113, 87, 0.12);
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
 }
 
-.features__visual-img {
+.features__visual-bg {
   object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Mac-style window chrome */
+.mac-window {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #1a1a1e;
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+.mac-window__titlebar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  background: #2c2c2e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mac-window__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mac-window__dot--red {
+  background: #ff5f57;
+}
+
+.mac-window__dot--yellow {
+  background: #febc2e;
+}
+
+.mac-window__dot--green {
+  background: #28c840;
+}
+
+.mac-window__body {
+  position: relative;
+  background: #0e0e10;
+}
+
+.mac-window__video {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .features__accordion {
@@ -540,7 +281,6 @@ a {
   .features__visual {
     position: relative;
     top: 0;
-    aspect-ratio: 16 / 9;
   }
 }
 
