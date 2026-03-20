@@ -10,7 +10,7 @@
 .landing-surface {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  overflow: visible;
   background:
     radial-gradient(circle at 50% 64%, rgba(255, 88, 53, 0.24), transparent 38%),
     linear-gradient(180deg, #2a0604 0%, #200100 50%, #0e0706 85%, #0a0505 100%);
@@ -488,7 +488,7 @@ h1 {
     radial-gradient(ellipse 60% 50% at 50% 40%, rgba(255, 88, 53, 0.1), transparent 70%),
     radial-gradient(circle at 20% 80%, rgba(255, 90, 52, 0.08), transparent 40%),
     linear-gradient(180deg, #180402 0%, #1c0503 50%, #200100 100%);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .arch__inner {

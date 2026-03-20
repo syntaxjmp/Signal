@@ -270,6 +270,21 @@ export default function FindingsReportPage() {
     };
   }, [payload]);
 
+  const fileBreakdown = useMemo(() => {
+    if (!payload?.data?.length) return [];
+    const map: Record<string, { count: number; path: string }> = {};
+    for (const f of payload.data) {
+      const name = getFileBaseName(f.filePath);
+      if (!map[name]) map[name] = { count: 0, path: f.filePath };
+      map[name].count += 1;
+    }
+    const rows = Object.entries(map).map(([file, v]) => ({ file, count: v.count, path: v.path }));
+    rows.sort((a, b) => b.count - a.count);
+    return rows;
+  }, [payload]);
+
+  const fileMax = useMemo(() => Math.max(1, ...fileBreakdown.map((r) => r.count)), [fileBreakdown]);
+
   const securityScoreRaw = payload?.summary?.securityScore ?? payload?.summary?.summary?.securityScore ?? null;
   const findingsPrUrl = payload?.summary?.prUrl ?? resolvePrUrl ?? null;
   const securityScore = securityScoreRaw == null ? null : Math.round(Number(securityScoreRaw));
@@ -422,12 +437,72 @@ export default function FindingsReportPage() {
                 </div>
               </div>
 
-              <div className="report-card">
+              <div className="report-card report-card--summary">
                 <div className="report-card__label">General Summary</div>
                 <div className="report-summary">
                   Total findings: {payload.pagination.total} across {payload.summary?.scannedFilesCount ?? 0} scanned files.
-                  {payload.summary?.status ? ` Latest scan status: ${payload.summary.status}.` : ""}
+                  {payload.summary?.status && (
+                    <div className="report-scanStatus">
+                      Latest scan status: <span className={`report-scanStatus__value report-scanStatus--${payload.summary.status}`}>{payload.summary.status}</span>
+                    </div>
+                  )}
                 </div>
+                {fileBreakdown.length > 0 && (() => {
+                  const n = fileBreakdown.length;
+                  const scale = n <= 2 ? 1.6 : n <= 4 ? 1.25 : 1;
+                  const barH = Math.round(14 * scale);
+                  const gap = n <= 2 ? 0.55 : n <= 4 ? 0.42 : 0.32;
+                  const nameFz = `${(0.72 * scale).toFixed(2)}rem`;
+                  const countFz = `${(0.76 * scale).toFixed(2)}rem`;
+                  const nameW = Math.round(110 * scale);
+                  const countW = Math.round(30 * scale);
+                  return (
+                    <div className="report-catChart">
+                      <div className="report-catChart__label" style={{ fontSize: `${(0.72 * scale).toFixed(2)}rem` }}>
+                        Findings by File
+                      </div>
+                      <div className="report-catChart__rows" style={{ gap: `${gap}rem` }}>
+                        {fileBreakdown.map((row) => {
+                          const ratio = row.count / fileMax;
+                          const hue = Math.round(120 * (1 - ratio));
+                          return (
+                            <div
+                              key={row.file}
+                              className="report-catChart__row"
+                              style={{ gridTemplateColumns: `${nameW}px 1fr ${countW}px` }}
+                            >
+                              <span className="report-catChart__name" title={row.file} style={{ fontSize: nameFz }}>
+                                {getFileIconSrc(row.path) && (
+                                  <Image
+                                    src={getFileIconSrc(row.path)!}
+                                    alt=""
+                                    width={Math.round(16 * scale)}
+                                    height={Math.round(16 * scale)}
+                                    className="report-catChart__icon"
+                                    aria-hidden
+                                  />
+                                )}
+                                {row.file}
+                              </span>
+                              <div className="report-catChart__track" style={{ height: `${barH}px`, borderRadius: `${barH / 2}px` }}>
+                                <div
+                                  className="report-catChart__fill"
+                                  style={{
+                                    width: `${ratio * 100}%`,
+                                    borderRadius: `${barH / 2}px`,
+                                    background: `linear-gradient(90deg, hsla(${hue}, 72%, 52%, 0.8), hsla(${hue}, 72%, 52%, 1))`,
+                                    boxShadow: `0 0 8px hsla(${hue}, 72%, 52%, 0.35)`,
+                                  }}
+                                />
+                              </div>
+                              <span className="report-catChart__count" style={{ fontSize: countFz }}>{row.count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </section>
 

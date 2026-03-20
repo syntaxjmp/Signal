@@ -134,9 +134,9 @@ export default function Home() {
               <a className="action action-primary" href="#features">
                 Stay up to Speed
               </a>
-              <a className="action action-secondary" href="#">
+              <Link className="action action-secondary" href="/docs">
                 Read Documentation
-              </a>
+              </Link>
             </div>
           </div>
         </section>

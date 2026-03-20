@@ -141,6 +141,8 @@
   width: 126px;
   height: 126px;
   margin-top: 0.65rem;
+  margin-left: auto;
+  margin-right: auto;
   border-radius: 999px;
   position: relative;
   background: conic-gradient(
@@ -242,6 +244,34 @@
   color: rgba(255, 220, 210, 0.9);
 }
 
+:global(.report-scanStatus) {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: rgba(255, 220, 210, 0.9);
+}
+
+:global(.report-scanStatus__value) {
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+:global(.report-scanStatus--completed) {
+  color: #79ddaa;
+}
+
+:global(.report-scanStatus--running) {
+  color: #ffd089;
+}
+
+:global(.report-scanStatus--failed) {
+  color: #ff9e9e;
+}
+
+:global(.report-scanStatus--pending),
+:global(.report-scanStatus--queued) {
+  color: rgba(255, 220, 210, 0.7);
+}
+
 :global(.report-tableTitle) {
   font-size: 1.08rem;
   font-weight: 950;
@@ -337,6 +367,81 @@
   border: 1px solid rgba(255, 100, 80, 0.35);
 }
 
+/* --- General Summary category chart --- */
+
+:global(.report-card--summary) {
+  display: flex;
+  flex-direction: column;
+}
+
+:global(.report-catChart) {
+  margin-top: 0.7rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+:global(.report-catChart__label) {
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 190, 170, 0.7);
+  margin-bottom: 0.45rem;
+}
+
+:global(.report-catChart__rows) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+:global(.report-catChart__row) {
+  display: grid;
+  grid-template-columns: 110px 1fr 30px;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+:global(.report-catChart__name) {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(255, 240, 234, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+:global(.report-catChart__icon) {
+  flex-shrink: 0;
+  border-radius: 4px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+:global(.report-catChart__track) {
+  height: 14px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+:global(.report-catChart__fill) {
+  height: 100%;
+  border-radius: 7px;
+  min-width: 6px;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:global(.report-catChart__count) {
+  font-size: 0.76rem;
+  font-weight: 900;
+  color: rgba(255, 240, 234, 0.92);
+  text-align: right;
+}
+
 /* --- Skeleton loading --- */
 
 :global(.report-loading) {
@@ -415,6 +520,7 @@
   margin-top: 0.9rem;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.7rem;
 }
 
