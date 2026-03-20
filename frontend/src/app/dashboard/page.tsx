@@ -1191,7 +1191,7 @@ export default function DashboardPage() {
               <div className="dash-section__header">
                 <div>
                   <div className="dash-section__title">Audit</div>
-                  <div className="dash-section__subtitle">Discord-style scan history and diffs</div>
+                  <div className="dash-section__subtitle">Scan history and diff summaries</div>
                 </div>
 
                 {projects.length > 0 ? (
