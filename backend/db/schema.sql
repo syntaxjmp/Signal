@@ -146,6 +146,7 @@ CREATE TABLE IF NOT EXISTS `projects` (
 CREATE TABLE IF NOT EXISTS `project_scans` (
   `id` CHAR(36) NOT NULL,
   `project_id` CHAR(36) NOT NULL,
+  `user_id` VARCHAR(191) NULL COMMENT 'better-auth user id',
   `status` ENUM('pending', 'running', 'completed', 'failed') NOT NULL DEFAULT 'pending',
   `findings_count` INT UNSIGNED NOT NULL DEFAULT 0,
   `scanned_files_count` INT UNSIGNED NOT NULL DEFAULT 0,
@@ -156,6 +157,7 @@ CREATE TABLE IF NOT EXISTS `project_scans` (
   `finished_at` TIMESTAMP NULL,
   PRIMARY KEY (`id`),
   KEY `idx_project_scans_project` (`project_id`),
+  KEY `idx_project_scans_user` (`user_id`),
   KEY `idx_project_scans_created` (`created_at`),
   CONSTRAINT `fk_project_scans_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
