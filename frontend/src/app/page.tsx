@@ -308,27 +308,14 @@ export default function Home() {
             <div className="arch__col">
               {[
                 {
-                  title: "CI/CD",
-                  pills: ["GitHub Actions", "GitLab CI", "Jenkins"],
-                  curve: "r1",
-                },
-                {
                   title: "Issue Tracking",
                   pills: ["Jira", "Linear", "Asana"],
+                  curve: "r1",
                 },
                 {
                   title: "Alerting",
                   pills: ["Slack", "Teams", "Discord"],
                   curve: "r2",
-                },
-                {
-                  title: "Compliance",
-                  pills: ["SOC 2", "ISO 27001", "OWASP"],
-                },
-                {
-                  title: "APIs & Webhooks",
-                  pills: ["Webhooks"],
-                  curve: "r3",
                 },
               ].map((block) => (
                 <div key={block.title} className="arch__output-block">
