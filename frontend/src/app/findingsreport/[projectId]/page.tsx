@@ -163,7 +163,7 @@ export default function FindingsReportPage() {
   return (
     <main className={`report ${styles.root}`}>
       <div className="report-topnav">
-        <Link href="/dashboard" className="report-brand" aria-label="Signal Findings">
+        <Link href="/" className="report-brand" aria-label="Signal home">
           <Image
             src="/signal_evenbigger.png"
             alt=""
@@ -179,8 +179,8 @@ export default function FindingsReportPage() {
             <span className="report-brand__item">Findings</span>
           </div>
         </Link>
-        <Link href="/dashboard" className="report-btn report-btn--ghost">
-          Back to dashboard
+        <Link href="/" className="report-btn report-btn--ghost">
+          Back to landing
         </Link>
       </div>
 

@@ -726,7 +726,7 @@ export default function DashboardPage() {
   return (
     <div className={`dashboard ${styles.root}`}>
       <div className="dash-topnav">
-        <Link href="/dashboard" className="brand" aria-label="Signal Dashboard">
+        <Link href="/" className="brand" aria-label="Signal Dashboard">
           <Image
             src="/signal_evenbigger.png"
             alt=""
@@ -852,7 +852,7 @@ export default function DashboardPage() {
                 <div className="dash-empty dash-projects-enter">
                   <div className="dash-empty__title">Start by adding a GitHub repo</div>
                   <div className="dash-empty__subtitle">
-                    Click "Add codebase" and enter the GitHub URL, project name, and optional team members.
+                    Click &quot;Add codebase&quot; and enter the GitHub URL, project name, and optional team members.
                   </div>
                 </div>
               ) : (
