@@ -5,10 +5,16 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import OpenAI from 'openai';
+import pLimit from 'p-limit';
 import { vulnAgentPrompt } from '../ai/vulnAgentPrompt.js';
 
 const MAX_FILE_BYTES = 1024 * 1024;
-const SNIPPET_LINES = 20;
+const SNIPPET_WINDOW = 60;
+const SNIPPET_STEP = 40; // 20-line overlap between windows
+const SCAN_CONCURRENCY = Number(process.env.SCAN_CONCURRENCY) || 10;
+const SCAN_MAX_FILES = Number(process.env.SCAN_MAX_FILES) || 100;
+const MAX_RETRIES = 3;
+
 const SOURCE_EXTENSIONS = new Set([
   '.js',
   '.jsx',
@@ -27,13 +33,42 @@ const SOURCE_EXTENSIONS = new Set([
   '.kt',
   '.kts',
   '.sql',
-  '.json',
   '.yml',
   '.yaml',
-  '.md',
   '.sh',
   '.bash',
 ]);
+
+// --- File priority patterns (higher = scanned first) ---
+
+const HIGH_PRIORITY_PATTERNS = [
+  /auth/i, /login/i, /password/i, /session/i, /middleware/i,
+  /route/i, /controller/i, /api\//i, /db/i, /database/i,
+  /query/i, /sql/i, /admin/i, /upload/i, /config/i, /\.env/i,
+];
+
+const MEDIUM_PRIORITY_PATTERNS = [
+  /service/i, /model/i, /crypto/i, /hash/i, /token/i,
+  /jwt/i, /cors/i, /helmet/i, /util/i, /helper/i,
+];
+
+const SKIP_PATTERNS = [
+  /\.test\./i, /\.spec\./i, /__tests__\//i, /\.d\.ts$/i,
+  /\.stories\./i, /\.snap$/i, /fixture/i, /mock/i,
+];
+
+function filePriority(relPath) {
+  for (const pat of SKIP_PATTERNS) {
+    if (pat.test(relPath)) return -1; // skip entirely
+  }
+  for (const pat of HIGH_PRIORITY_PATTERNS) {
+    if (pat.test(relPath)) return 2;
+  }
+  for (const pat of MEDIUM_PRIORITY_PATTERNS) {
+    if (pat.test(relPath)) return 1;
+  }
+  return 0;
+}
 
 function parseGitHubUrl(githubUrl) {
   let url;
@@ -104,30 +139,70 @@ async function collectFiles(root, current = root, out = []) {
   return out;
 }
 
+function prioritizeAndFilter(files) {
+  const scored = files
+    .map((f) => ({ ...f, priority: filePriority(f.rel) }))
+    .filter((f) => f.priority >= 0) // drop files matching SKIP_PATTERNS
+    .sort((a, b) => b.priority - a.priority); // high-priority first
+
+  return scored.slice(0, SCAN_MAX_FILES);
+}
+
 function makeSnippets(content) {
   const lines = content.split(/\r?\n/);
+  if (lines.length === 0) return [];
   const snippets = [];
-  for (let i = 0; i < lines.length; i += SNIPPET_LINES) {
-    const chunk = lines.slice(i, i + SNIPPET_LINES);
+  for (let i = 0; i < lines.length; i += SNIPPET_STEP) {
+    const chunk = lines.slice(i, i + SNIPPET_WINDOW);
     if (chunk.join('').trim() === '') continue;
     snippets.push({
       startLine: i + 1,
       text: chunk.map((line, idx) => `${i + idx + 1}: ${line}`).join('\n'),
     });
+    // If this chunk already reaches end-of-file, stop
+    if (i + SNIPPET_WINDOW >= lines.length) break;
   }
   return snippets;
 }
 
-async function analyzeSnippet(client, model, snippetPayload) {
-  const response = await client.chat.completions.create({
-    model,
-    temperature: 0,
-    messages: [
-      { role: 'system', content: vulnAgentPrompt },
-      { role: 'user', content: snippetPayload },
-    ],
-  });
-  return safeArrayJson(response.choices?.[0]?.message?.content || '[]');
+function extractImports(content) {
+  const lines = content.split(/\r?\n/).slice(0, 15);
+  const imports = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed) || /^from\s/.test(trimmed)) {
+      imports.push(trimmed);
+    }
+  }
+  return imports.length > 0 ? imports.join('\n') : null;
+}
+
+async function analyzeSnippetWithRetry(client, model, snippetPayload) {
+  let lastError;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await client.chat.completions.create({
+        model,
+        temperature: 0,
+        messages: [
+          { role: 'system', content: vulnAgentPrompt },
+          { role: 'user', content: snippetPayload },
+        ],
+      });
+      return safeArrayJson(response.choices?.[0]?.message?.content || '[]');
+    } catch (err) {
+      lastError = err;
+      const status = err?.status || err?.response?.status;
+      if (status === 429 || (status >= 500 && status < 600)) {
+        const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+        console.warn(`[scan] API retry ${attempt}/${MAX_RETRIES} after ${delay}ms (status ${status})`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err; // non-retryable error
+    }
+  }
+  throw lastError;
 }
 
 export async function scanGitHubProject({
@@ -141,6 +216,7 @@ export async function scanGitHubProject({
     throw new Error('Invalid GitHub URL');
   }
 
+  const scanStart = Date.now();
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'signal-scan-'));
   const zipPath = path.join(tempDir, 'repo.zip');
   let extractedRoot = tempDir;
@@ -168,42 +244,76 @@ export async function scanGitHubProject({
       .map((e) => path.join(tempDir, e.name));
     if (dirs.length > 0) extractedRoot = dirs[0];
 
-    const files = await collectFiles(extractedRoot);
-    const client = new OpenAI({ apiKey: openAiApiKey });
-    const findings = [];
+    const allFiles = await collectFiles(extractedRoot);
+    const files = prioritizeAndFilter(allFiles);
+    console.info(`[scan] ${allFiles.length} files found, ${files.length} after priority filter`);
 
+    const client = new OpenAI({ apiKey: openAiApiKey });
+    const limit = pLimit(SCAN_CONCURRENCY);
+
+    // Build all tasks upfront
+    const tasks = [];
     for (const f of files) {
       const content = await readFile(f.full, 'utf8').catch(() => '');
       if (!content.trim()) continue;
       const snippets = makeSnippets(content);
+      const fileImports = extractImports(content);
+
       for (const snippet of snippets) {
-        const userPrompt = [
+        const promptParts = [
           `Repository: ${parsed.owner}/${parsed.repo}`,
           `File: ${f.rel}`,
-          `Snippet starts at line ${snippet.startLine}:`,
-          snippet.text,
-        ].join('\n\n');
-        const rawFindings = await analyzeSnippet(client, openAiModel, userPrompt);
-        for (const item of rawFindings) {
-          const severity = normalizeSeverity(item.severity);
-          const weightedScore = severityToWeight(severity);
-          const lineNumber =
-            Number.isFinite(Number(item.lineNumber)) && Number(item.lineNumber) > 0
-              ? Number(item.lineNumber)
-              : null;
-          findings.push({
-            severity,
-            category: String(item.category || 'General'),
-            description: String(item.description || 'Potential security issue detected'),
-            lineNumber,
-            weightedScore,
-            filePath: f.rel,
-            snippet: snippet.text,
-          });
+        ];
+        if (fileImports) {
+          promptParts.push(`File imports:\n${fileImports}`);
         }
+        promptParts.push(
+          `Snippet (lines ${snippet.startLine}–${snippet.startLine + SNIPPET_WINDOW - 1}):`,
+          snippet.text,
+        );
+        tasks.push({
+          file: f,
+          snippet,
+          userPrompt: promptParts.join('\n\n'),
+        });
       }
     }
 
+    console.info(`[scan] ${tasks.length} snippet tasks queued, concurrency=${SCAN_CONCURRENCY}`);
+
+    // Execute all tasks concurrently with p-limit
+    const results = await Promise.all(
+      tasks.map((task) =>
+        limit(async () => {
+          const rawFindings = await analyzeSnippetWithRetry(client, openAiModel, task.userPrompt);
+          return { task, rawFindings };
+        }),
+      ),
+    );
+
+    // Collect findings
+    const findings = [];
+    for (const { task, rawFindings } of results) {
+      for (const item of rawFindings) {
+        const severity = normalizeSeverity(item.severity);
+        const weightedScore = severityToWeight(severity);
+        const lineNumber =
+          Number.isFinite(Number(item.lineNumber)) && Number(item.lineNumber) > 0
+            ? Number(item.lineNumber)
+            : null;
+        findings.push({
+          severity,
+          category: String(item.category || 'General'),
+          description: String(item.description || 'Potential security issue detected'),
+          lineNumber,
+          weightedScore,
+          filePath: task.file.rel,
+          snippet: task.snippet.text,
+        });
+      }
+    }
+
+    // Deduplicate
     const dedupe = new Map();
     for (const f of findings) {
       const fingerprint = crypto
@@ -235,6 +345,9 @@ export async function scanGitHubProject({
     const securityScore = Math.max(0, Math.min(30, Math.round(30 * Math.exp(-riskIndex / 180))));
     const scorePenalty = 30 - securityScore;
 
+    const elapsed = ((Date.now() - scanStart) / 1000).toFixed(1);
+    console.info(`[scan] completed in ${elapsed}s — ${uniqueFindings.length} findings from ${files.length} files`);
+
     return {
       scannedFilesCount: files.length,
       findings: uniqueFindings,
@@ -256,4 +369,3 @@ export async function scanGitHubProject({
 export function validateGitHubUrl(githubUrl) {
   return parseGitHubUrl(githubUrl) !== null;
 }
-

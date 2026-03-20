@@ -60,4 +60,8 @@ export const env = {
   github: {
     token: process.env.GITHUB_TOKEN || '',
   },
+  scan: {
+    concurrency: Number(process.env.SCAN_CONCURRENCY) || 10,
+    maxFiles: Number(process.env.SCAN_MAX_FILES) || 100,
+  },
 };
