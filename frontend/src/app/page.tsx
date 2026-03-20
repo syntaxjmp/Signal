@@ -176,8 +176,25 @@ export default function Home() {
                 src="/BabaDefault_stylized_volcano_with_flowing_lava_abstract_and_m_3838cd46-84a0-4ddf-883a-b44898df5784_0.png"
                 alt="Stylized volcano with flowing lava"
                 fill
-                className="features__visual-img"
+                className="features__visual-bg"
               />
+              <div className="mac-window">
+                <div className="mac-window__titlebar">
+                  <span className="mac-window__dot mac-window__dot--red" />
+                  <span className="mac-window__dot mac-window__dot--yellow" />
+                  <span className="mac-window__dot mac-window__dot--green" />
+                </div>
+                <div className="mac-window__body">
+                  <video
+                    className="mac-window__video"
+                    src="/FindingsDemo.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="features__accordion">

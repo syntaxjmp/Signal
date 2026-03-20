@@ -870,7 +870,7 @@ h1 {
 
 .features__split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.3fr 1fr;
   gap: clamp(1.5rem, 3vw, 2.5rem);
   align-items: start;
 }
@@ -880,13 +880,71 @@ h1 {
   top: 2rem;
   aspect-ratio: 4 / 3;
   border-radius: 14px;
+  overflow: hidden;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 113, 87, 0.12);
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
 }
 
-.features__visual-img {
+.features__visual-bg {
   object-fit: cover;
+  z-index: 0;
+  opacity: 0.45;
+}
+
+/* — Mac window chrome — */
+.mac-window {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.mac-window__titlebar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  background: #2a2a2a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mac-window__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mac-window__dot--red {
+  background: #ff5f57;
+}
+
+.mac-window__dot--yellow {
+  background: #febc2e;
+}
+
+.mac-window__dot--green {
+  background: #28c840;
+}
+
+.mac-window__body {
+  line-height: 0;
+}
+
+.mac-window__video {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .features__accordion {
@@ -1018,7 +1076,6 @@ h1 {
   .features__visual {
     position: relative;
     top: 0;
-    aspect-ratio: 16 / 9;
   }
 }
 
