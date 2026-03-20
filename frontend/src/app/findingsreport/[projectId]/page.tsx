@@ -74,6 +74,7 @@ export default function FindingsReportPage() {
   const [payload, setPayload] = useState<FindingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gaugeReady, setGaugeReady] = useState(false);
 
   useEffect(() => {
     // Fetch session once to avoid continuous polling pressure on MySQL.
@@ -126,6 +127,16 @@ export default function FindingsReportPage() {
     void load();
   }, [projectId, scanId, page, refreshTick]);
 
+  // Trigger gauge fill animation after data loads
+  useEffect(() => {
+    if (!loading && payload) {
+      // Small delay so the element is mounted before we animate
+      const id = requestAnimationFrame(() => setGaugeReady(true));
+      return () => cancelAnimationFrame(id);
+    }
+    setGaugeReady(false);
+  }, [loading, payload]);
+
   const severityCounts = useMemo(() => {
     const s = payload?.summary?.summary?.severityCounts || {};
     return {
@@ -139,7 +150,7 @@ export default function FindingsReportPage() {
   const securityScoreRaw = payload?.summary?.securityScore ?? payload?.summary?.summary?.securityScore ?? null;
   const securityScore = securityScoreRaw == null ? null : Math.round(Number(securityScoreRaw));
   const scoreValue = Math.max(0, Math.min(50, Number(securityScore ?? 0)));
-  const scorePercent = Number.isFinite(scoreValue) ? (scoreValue / 50) * 100 : 0;
+  const scorePercent = Number.isFinite(scoreValue) ? ((50 - scoreValue) / 50) * 100 : 0;
   const scoreDelta = Math.round(securityScore ?? 0);
   const tone = scoreTone(securityScore);
 
@@ -195,16 +206,25 @@ export default function FindingsReportPage() {
         </header>
 
         {error ? <div className="report-error">{error}</div> : null}
-        {loading ? <div className="report-loading">Loading findings...</div> : null}
+        {loading ? (
+          <div className="report-loading">
+            <div className="report-loading__topgrid">
+              <div className="report-loading__skel report-loading__skel--score" />
+              <div className="report-loading__skel report-loading__skel--breakdown" />
+              <div className="report-loading__skel report-loading__skel--summary" />
+            </div>
+            <div className="report-loading__skel report-loading__skel--table" />
+          </div>
+        ) : null}
 
         {!loading && payload ? (
           <>
-            <section className="report-topgrid">
+            <section className="report-topgrid report-fadein">
               <div className="report-card">
                 <div className="report-card__label">Security Score</div>
                 <div
                   className={`report-gauge report-gauge--${tone}`}
-                  style={{ ["--p" as any]: `${scorePercent}%` }}
+                  style={{ ["--gauge-fill" as any]: gaugeReady ? `${scorePercent}%` : "0%" }}
                   aria-label={`Security score ${securityScore ?? "not scored"} out of 50`}
                 >
                   <div className="report-gauge__inner">
@@ -239,10 +259,10 @@ export default function FindingsReportPage() {
               </div>
             </section>
 
-            <section className="report-card">
+            <section className="report-card report-fadein" style={{ animationDelay: "0.12s" }}>
               <div className="report-tableTitle">Vulnerabilities</div>
               {payload.data.length === 0 ? (
-                <div className="report-empty">No findings for this scan.</div>
+                <div className="report-empty">No vulernabilites found, your codebase looks good!</div>
               ) : (
                 <div className="report-tableWrap">
                   <table className="report-table">
