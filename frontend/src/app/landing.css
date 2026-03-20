@@ -757,7 +757,7 @@ h1 {
 
 .arch__panel {
   position: relative;
-  width: clamp(8rem, 12vw, 10rem);
+  width: clamp(9.5rem, 14vw, 12rem);
   height: clamp(14rem, 25vw, 19rem);
   flex-shrink: 0;
   display: flex;
@@ -791,7 +791,7 @@ h1 {
 }
 
 .arch__panel:hover {
-  transform: rotateY(0deg) translateY(-6px);
+  transform: rotateY(0deg) translateZ(80px) translateY(-6px);
   border-color: rgba(255, 140, 100, 0.5);
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.3) inset,
@@ -810,7 +810,7 @@ h1 {
 }
 
 .arch__panel + .arch__panel {
-  margin-left: -2.5rem;
+  margin-left: -3rem;
 }
 
 .arch__panel-desc {
@@ -849,7 +849,6 @@ h1 {
 
 .arch__zone {
   position: relative;
-  border: 1px solid rgba(255, 113, 87, 0.1);
   border-radius: 14px;
   padding: 0;
 }
@@ -930,6 +929,7 @@ h1 {
   right: 100%;
   width: calc(clamp(2.5rem, 5vw, 5rem) + 3rem);
   transform: translateY(-50%);
+  z-index: -1;
 }
 
 .arch__curve-line {
@@ -995,7 +995,7 @@ h1 {
   }
 
   .arch__panel:hover {
-    transform: translateY(-6px);
+    transform: translateZ(40px) translateY(-6px);
   }
 
   .arch__zone {
