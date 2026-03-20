@@ -1,0 +1,4 @@
+{"sessionId":"bc93bd","location":"HeroLock.tsx:LockGroup","message":"LockGroup mounted","data":{"hasRef":true},"timestamp":1773986304812}
+{"sessionId":"bc93bd","location":"HeroLock.tsx:HeroLock","message":"HeroLock mounted, parent dimensions","data":{"parentWidth":624,"parentHeight":320},"timestamp":1773986314820}
+{"sessionId":"bc93bd","location":"HeroLock.tsx:SceneDebug","message":"R3F scene state","data":{"alpha":true,"clearColor":"#000000","clearAlpha":0,"canvasWidth":624,"canvasHeight":150,"cameraPos":[0,0.3,2.8],"meshCount":5},"timestamp":1773986338915}
+{"sessionId":"bc93bd","location":"HeroLock.tsx:LockGroup","message":"LockGroup mounted","data":{"hasRef":true},"timestamp":1773986338917}
