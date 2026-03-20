@@ -1,6 +1,6 @@
 "use client";
 
-import React, { startTransition, useCallback, useEffect, useMemo, useState } from "react";
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -355,6 +355,8 @@ export default function DashboardPage() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [allowSignal, setAllowSignal] = useState<boolean>(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [showLogout, setShowLogout] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     startTransition(() => {
@@ -397,6 +399,28 @@ export default function DashboardPage() {
     (session as any)?.user?.email ??
     "Account";
 
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!userMenuRef.current) return;
+      if (!userMenuRef.current.contains(e.target as Node)) {
+        setShowLogout(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await authClient.signOut();
+    } catch {
+      // no-op
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  }, [router]);
+
   const headerRight = useMemo(() => {
     if (isPending) return <span className="dash-pill">Checking session…</span>;
     if (!isAuthed)
@@ -406,17 +430,29 @@ export default function DashboardPage() {
         </Link>
       );
     return (
-      <div className="dash-user" aria-label="Signed in user">
-        <span className="dash-user__icon" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </span>
-        <span className="dash-user__name">{String(displayName)}</span>
+      <div className="dash-userMenu" ref={userMenuRef}>
+        <button
+          type="button"
+          className="dash-user"
+          aria-label="Signed in user"
+          onClick={() => setShowLogout((v) => !v)}
+        >
+          <span className="dash-user__icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </span>
+          <span className="dash-user__name">{String(displayName)}</span>
+        </button>
+        {showLogout ? (
+          <button type="button" className="dash-user__logout" onClick={handleLogout}>
+            Log out
+          </button>
+        ) : null}
       </div>
     );
-  }, [displayName, isAuthed, isPending]);
+  }, [displayName, handleLogout, isAuthed, isPending, showLogout]);
 
   return (
     <div className={`dashboard ${styles.root}`}>
