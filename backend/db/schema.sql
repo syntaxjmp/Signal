@@ -126,3 +126,58 @@ INSERT INTO `vulnerability_check_types`
   ('prototype_pollution', 'Prototype pollution', 'Deep merge or object assignment from untrusted input (JS).', 'logic', 'high', 1321, NULL),
   ('race_condition', 'Race condition / TOCTOU', 'Time-of-check to time-of-use pattern in security-sensitive flow.', 'concurrency', 'medium', 367, NULL),
   ('missing_authz', 'Missing authorization check', 'Route or handler without explicit authz (heuristic).', 'access_control', 'high', 862, 'API5:2023 — Broken Function Level Authorization');
+
+-- Project scanning pipeline tables
+CREATE TABLE IF NOT EXISTS `projects` (
+  `id` CHAR(36) NOT NULL,
+  `user_id` VARCHAR(191) NOT NULL COMMENT 'better-auth user id',
+  `project_name` VARCHAR(255) NOT NULL,
+  `github_url` VARCHAR(1024) NOT NULL,
+  `description` TEXT NULL,
+  `latest_scan_id` CHAR(36) NULL,
+  `security_score` DECIMAL(5,2) NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_projects_user` (`user_id`),
+  KEY `idx_projects_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `project_scans` (
+  `id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `status` ENUM('pending', 'running', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+  `findings_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `scanned_files_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `security_score` DECIMAL(5,2) NULL,
+  `summary_json` JSON NULL,
+  `error_message` TEXT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `finished_at` TIMESTAMP NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_project_scans_project` (`project_id`),
+  KEY `idx_project_scans_created` (`created_at`),
+  CONSTRAINT `fk_project_scans_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `project_findings` (
+  `id` CHAR(36) NOT NULL,
+  `scan_id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `severity` ENUM('critical', 'high', 'medium', 'low') NOT NULL,
+  `category` VARCHAR(255) NOT NULL,
+  `description` TEXT NOT NULL,
+  `line_number` INT UNSIGNED NULL,
+  `weighted_score` DECIMAL(5,2) NOT NULL DEFAULT 0,
+  `file_path` VARCHAR(1024) NOT NULL,
+  `snippet` MEDIUMTEXT NULL,
+  `fingerprint` CHAR(64) NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_project_findings_scan_fingerprint` (`scan_id`, `fingerprint`),
+  KEY `idx_project_findings_project` (`project_id`),
+  KEY `idx_project_findings_scan` (`scan_id`),
+  KEY `idx_project_findings_score` (`weighted_score`),
+  CONSTRAINT `fk_project_findings_scan` FOREIGN KEY (`scan_id`) REFERENCES `project_scans` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_project_findings_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

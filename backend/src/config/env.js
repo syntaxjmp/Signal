@@ -53,4 +53,15 @@ export const env = {
     connectionLimit: Number(process.env.MYSQL_CONNECTION_LIMIT) || 10,
   },
   dbAutoMigrate: process.env.DB_AUTO_MIGRATE === '1',
+  openAi: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+  },
+  github: {
+    token: process.env.GITHUB_TOKEN || '',
+  },
+  scan: {
+    concurrency: Number(process.env.SCAN_CONCURRENCY) || 10,
+    maxFiles: Number(process.env.SCAN_MAX_FILES) || 100,
+  },
 };

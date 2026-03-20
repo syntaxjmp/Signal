@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { healthRouter } from './health.js';
 import { sessionRouter } from './session.js';
 import { vulnerabilityChecksRouter } from './vulnerabilityChecks.js';
+import { projectsRouter } from './projects.js';
 
 export const apiRouter = Router();
 
 apiRouter.use(healthRouter);
 apiRouter.use(sessionRouter);
 apiRouter.use(vulnerabilityChecksRouter);
+apiRouter.use(projectsRouter);
 
 apiRouter.get('/', (_req, res) => {
   res.json({

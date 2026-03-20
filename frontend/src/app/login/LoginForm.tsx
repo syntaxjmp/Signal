@@ -1,15 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import PasswordField from "./PasswordField";
 
 export default function LoginForm() {
   const router = useRouter();
+  const { data: session, isPending: sessionPending } = authClient.useSession();
   const [error, setError] = useState<string | null>(null);
   const [errorTick, setErrorTick] = useState(0);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (sessionPending) return;
+    if (session) {
+      try {
+        sessionStorage.setItem("signal_dashboard_boot", "1");
+      } catch {
+        // no-op
+      }
+      router.replace("/dashboard");
+      router.refresh();
+    }
+  }, [router, session, sessionPending]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,6 +45,11 @@ export default function LoginForm() {
       setErrorTick((t) => t + 1);
       setError(signError.message ?? "Could not sign in");
       return;
+    }
+    try {
+      sessionStorage.setItem("signal_dashboard_boot", "1");
+    } catch {
+      // no-op
     }
     router.push("/dashboard");
     router.refresh();
