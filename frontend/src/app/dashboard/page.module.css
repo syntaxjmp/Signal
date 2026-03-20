@@ -282,6 +282,10 @@
   color: rgba(255, 215, 205, 0.6);
 }
 
+:global(.dash-left) {
+  min-width: 0;
+}
+
 :global(.dash-team) {
   margin-top: 0.6rem;
   display: flex;
@@ -302,6 +306,138 @@
   color: rgba(255, 235, 230, 0.95);
   font-weight: 800;
   font-size: 0.84rem;
+}
+
+:global(.dash-teamForm) {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem;
+}
+
+:global(.dash-memberList) {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+:global(.dash-member) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 90, 52, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+:global(.dash-member__email) {
+  color: #fff0ea;
+  font-weight: 850;
+  font-size: 0.92rem;
+  word-break: break-all;
+}
+
+:global(.dash-member__role) {
+  margin-top: 0.2rem;
+  color: rgba(255, 205, 188, 0.82);
+  font-size: 0.83rem;
+}
+
+:global(.dash-teamPanel) {
+  margin-top: 1.2rem;
+}
+
+:global(.dash-teamTabs) {
+  margin-top: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-bottom: 1px solid rgba(255, 90, 52, 0.2);
+  padding-bottom: 0.45rem;
+}
+
+:global(.dash-teamTabs__tab) {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255, 215, 205, 0.76);
+  font-weight: 850;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+:global(.dash-teamTabs__tab--active) {
+  color: #fff3ef;
+  border-color: rgba(255, 90, 52, 0.3);
+  background: rgba(255, 90, 52, 0.09);
+}
+
+:global(.dash-teamTableWrap) {
+  margin-top: 0.85rem;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 90, 52, 0.18);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+:global(.dash-teamTable) {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 920px;
+}
+
+:global(.dash-teamTable th) {
+  text-align: left;
+  padding: 0.75rem 0.7rem;
+  color: rgba(255, 215, 205, 0.8);
+  font-size: 0.82rem;
+  font-weight: 900;
+  border-bottom: 1px solid rgba(255, 90, 52, 0.16);
+}
+
+:global(.dash-teamTable td) {
+  padding: 0.7rem;
+  color: #fff0ea;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255, 90, 52, 0.1);
+  vertical-align: middle;
+}
+
+:global(.dash-teamTable tbody tr:last-child td) {
+  border-bottom: none;
+}
+
+:global(.dash-teamRole) {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 90, 52, 0.28);
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  font-weight: 900;
+  color: rgba(255, 235, 230, 0.95);
+  background: rgba(255, 90, 52, 0.09);
+}
+
+:global(.dash-avatar) {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #ffddd3;
+  border: 1px solid rgba(255, 90, 52, 0.3);
+  background: rgba(255, 90, 52, 0.15);
+}
+
+:global(.dash-teamTable__muted) {
+  color: rgba(255, 210, 196, 0.6);
 }
 
 :global(.dash-dropzone) {
@@ -666,6 +802,10 @@
 
 @media (max-width: 980px) {
   :global(.dash-main) {
+    grid-template-columns: 1fr;
+  }
+
+  :global(.dash-teamForm) {
     grid-template-columns: 1fr;
   }
 

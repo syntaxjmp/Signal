@@ -3,11 +3,12 @@
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import styles from "./page.module.css";
 
 type TeamMember = { email: string };
+type TeamRow = { email: string; createdAt: string; updatedAt: string };
 
 type Project = {
   id: string;
@@ -22,6 +23,7 @@ type Project = {
 };
 
 const ALLOW_KEY = "signal_dashboard_allow_v1";
+const TEAM_KEY = "signal_dashboard_team_v1";
 
 async function readApiResponse(response: Response) {
   const text = await response.text();
@@ -81,6 +83,26 @@ function shortUrl(url: string) {
   } catch {
     return url;
   }
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function usernameFromEmail(email: string) {
+  return normalizeEmail(email).split("@")[0] || "member";
+}
+
+function timeAgo(ts: string) {
+  const then = new Date(ts).getTime();
+  if (!Number.isFinite(then)) return "just now";
+  const diff = Date.now() - then;
+  const mins = Math.max(1, Math.floor(diff / 60000));
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 function ProjectCreateModal({
@@ -345,7 +367,6 @@ function CodebaseDropzone({
 
 export default function DashboardPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const { data: session, isPending } = authClient.useSession();
 
   const isAuthed = !!session;
@@ -356,6 +377,11 @@ export default function DashboardPage() {
   const [allowSignal, setAllowSignal] = useState<boolean>(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const [activeSection, setActiveSection] = useState<"home" | "teams">("home");
+  const [teamView, setTeamView] = useState<"members" | "settings">("members");
+  const [teamMembers, setTeamMembers] = useState<TeamRow[]>([]);
+  const [teamInvite, setTeamInvite] = useState("");
+  const [teamError, setTeamError] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -363,6 +389,42 @@ export default function DashboardPage() {
       setAllowSignal(localStorage.getItem(ALLOW_KEY) === "1");
     });
   }, []);
+
+  useEffect(() => {
+    if (!isAuthed) {
+      setTeamMembers([]);
+      return;
+    }
+    const ownerEmail = normalizeEmail(String((session as any)?.user?.email ?? ""));
+    let stored: string[] = [];
+    try {
+      const raw = localStorage.getItem(TEAM_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        stored = parsed
+          .map((v) => {
+            if (typeof v === "string") return normalizeEmail(v);
+            if (v && typeof v === "object" && "email" in (v as any)) return normalizeEmail(String((v as any).email));
+            return "";
+          })
+          .filter(Boolean);
+      }
+    } catch {
+      stored = [];
+    }
+    const nowIso = new Date().toISOString();
+    const merged = Array.from(new Set([ownerEmail, ...stored].filter(Boolean))).map((email) => ({
+      email,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }));
+    setTeamMembers(merged);
+  }, [isAuthed, session]);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    localStorage.setItem(TEAM_KEY, JSON.stringify(teamMembers));
+  }, [isAuthed, teamMembers]);
 
   const loadProjects = useCallback(async () => {
     if (!isAuthed) {
@@ -392,6 +454,8 @@ export default function DashboardPage() {
   }, [isAuthed, loadProjects]);
 
   const projectsCount = projects.length;
+  const ownerEmail = normalizeEmail(String((session as any)?.user?.email ?? ""));
+  const teamCount = teamMembers.length;
 
   const displayName =
     (session as any)?.user?.name ??
@@ -479,58 +543,60 @@ export default function DashboardPage() {
       </div>
 
       <div className="dash-shell">
-        <div className="dash-banner">
-          <div className="dash-banner__content">
-            <div className="dash-banner__text">
-              <div className="dash-banner__title">Allow Signal to view your code base</div>
-              <div className="dash-banner__subtitle">
-                To get started, drop a codebase in the file dropper to the right. You can also add a repo archive link instead.
-              </div>
-              <div className="dash-banner__actions">
-                {allowSignal ? (
-                  <span className="dash-pill dash-pill--ok">Allowed</span>
-                ) : (
-                  <button
-                    className="dash-btn dash-btn--primary"
-                    type="button"
-                    onClick={() => {
-                      localStorage.setItem(ALLOW_KEY, "1");
-                      setAllowSignal(true);
+        {activeSection === "home" ? (
+          <>
+            <div className="dash-banner">
+              <div className="dash-banner__content">
+                <div className="dash-banner__text">
+                  <div className="dash-banner__title">Allow Signal to view your code base</div>
+                  <div className="dash-banner__subtitle">
+                    To get started, drop a codebase in the file dropper to the right. You can also add a repo archive link instead.
+                  </div>
+                  <div className="dash-banner__actions">
+                    {allowSignal ? (
+                      <span className="dash-pill dash-pill--ok">Allowed</span>
+                    ) : (
+                      <button
+                        className="dash-btn dash-btn--primary"
+                        type="button"
+                        onClick={() => {
+                          localStorage.setItem(ALLOW_KEY, "1");
+                          setAllowSignal(true);
+                        }}
+                      >
+                        Allow Signal
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="dash-banner__drop">
+                  <CodebaseDropzone
+                    variant="banner"
+                    disabled={!isAuthed || !allowSignal}
+                    onOpenCreate={() => {
+                      if (!isAuthed) {
+                        router.push("/login");
+                        return;
+                      }
+                      if (!allowSignal) return;
+                      setCreateOpen(true);
                     }}
-                  >
-                    Allow Signal
-                  </button>
-                )}
+                    onOpenArchiveLink={() => {
+                      if (!isAuthed) {
+                        router.push("/login");
+                        return;
+                      }
+                      if (!allowSignal) return;
+                      setCreateOpen(true);
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="dash-banner__drop">
-              <CodebaseDropzone
-                variant="banner"
-                disabled={!isAuthed || !allowSignal}
-                onOpenCreate={() => {
-                  if (!isAuthed) {
-                    router.push("/login");
-                    return;
-                  }
-                  if (!allowSignal) return;
-                  setCreateOpen(true);
-                }}
-                onOpenArchiveLink={() => {
-                  if (!isAuthed) {
-                    router.push("/login");
-                    return;
-                  }
-                  if (!allowSignal) return;
-                  setCreateOpen(true);
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="dash-main">
-          <div className="dash-right">
+            <div className="dash-main">
+              <div className="dash-right">
             <div className="dash-section">
               <div className="dash-section__header">
                 <div>
@@ -669,8 +735,134 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <section className="dash-teamPanel" id="teams">
+            <div className="dash-section">
+              <div className="dash-section__header">
+                <div>
+                  <div className="dash-section__title">Team</div>
+                  <div className="dash-section__subtitle">Manage team members and settings</div>
+                </div>
+              </div>
+
+              <div className="dash-teamTabs" role="tablist" aria-label="Team section tabs">
+                <button
+                  type="button"
+                  className={teamView === "members" ? "dash-teamTabs__tab dash-teamTabs__tab--active" : "dash-teamTabs__tab"}
+                  onClick={() => setTeamView("members")}
+                >
+                  Members
+                </button>
+                <button
+                  type="button"
+                  className={teamView === "settings" ? "dash-teamTabs__tab dash-teamTabs__tab--active" : "dash-teamTabs__tab"}
+                  onClick={() => setTeamView("settings")}
+                >
+                  Settings
+                </button>
+              </div>
+
+              {teamView === "members" ? (
+                <>
+                  <form
+                    className="dash-teamForm"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setTeamError(null);
+                      if (!isAuthed) {
+                        setTeamError("Log in first to invite team members.");
+                        return;
+                      }
+                      const email = normalizeEmail(teamInvite);
+                      if (!email || !email.includes("@") || !email.includes(".")) {
+                        setTeamError("Please enter a valid email.");
+                        return;
+                      }
+                      if (teamMembers.some((m) => m.email === email)) {
+                        setTeamError("This member is already added.");
+                        return;
+                      }
+                      const nowIso = new Date().toISOString();
+                      setTeamMembers((prev) => [...prev, { email, createdAt: nowIso, updatedAt: nowIso }]);
+                      setTeamInvite("");
+                    }}
+                  >
+                    <input
+                      className="dash-input"
+                      placeholder="teammate@company.com"
+                      value={teamInvite}
+                      onChange={(e) => setTeamInvite(e.target.value)}
+                      disabled={!isAuthed}
+                    />
+                    <button type="submit" className="dash-btn dash-btn--secondary" disabled={!isAuthed}>
+                      Invite
+                    </button>
+                  </form>
+                  {teamError ? (
+                    <div className="dash-inline-error" role="alert">
+                      {teamError}
+                    </div>
+                  ) : null}
+
+                  <div className="dash-teamTableWrap">
+                    <table className="dash-teamTable">
+                      <thead>
+                        <tr>
+                          <th>Avatar</th>
+                          <th>Username</th>
+                          <th>Email</th>
+                          <th>Role</th>
+                          <th>Created At</th>
+                          <th>Updated At</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamMembers.map((member) => (
+                          <tr key={member.email}>
+                            <td>
+                              <span className="dash-avatar">{usernameFromEmail(member.email).slice(0, 1).toUpperCase()}</span>
+                            </td>
+                            <td>{usernameFromEmail(member.email)}</td>
+                            <td>{member.email}</td>
+                            <td>
+                              <span className="dash-teamRole">{member.email === ownerEmail ? "OWNER" : "MEMBER"}</span>
+                            </td>
+                            <td>{timeAgo(member.createdAt)}</td>
+                            <td>{timeAgo(member.updatedAt)}</td>
+                            <td>
+                              {member.email === ownerEmail ? (
+                                <span className="dash-teamTable__muted">-</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="dash-btn dash-btn--secondary"
+                                  onClick={() => setTeamMembers((prev) => prev.filter((m) => m.email !== member.email))}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="dash-empty">
+                  <div className="dash-empty__title">Team settings</div>
+                  <div className="dash-empty__subtitle">
+                    Organization roles, permission scopes, and environment-level access controls can be added here next.
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </div>
 
       <ProjectCreateModal
@@ -699,8 +891,9 @@ export default function DashboardPage() {
       <nav className="dash-bottomnav" aria-label="Dashboard navigation">
         <Link
           href="/dashboard"
-          className={pathname === "/dashboard" ? "dash-bottomnav__item dash-bottomnav__item--active" : "dash-bottomnav__item"}
-          aria-current={pathname === "/dashboard" ? "page" : undefined}
+          className={activeSection === "home" ? "dash-bottomnav__item dash-bottomnav__item--active" : "dash-bottomnav__item"}
+          aria-current={activeSection === "home" ? "page" : undefined}
+          onClick={() => setActiveSection("home")}
         >
           <span className="dash-bottomnav__icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -712,8 +905,9 @@ export default function DashboardPage() {
         </Link>
 
         <Link
-          href="/dashboard"
-          className={pathname === "/teams" ? "dash-bottomnav__item dash-bottomnav__item--active" : "dash-bottomnav__item"}
+          href="/dashboard#teams"
+          className={activeSection === "teams" ? "dash-bottomnav__item dash-bottomnav__item--active" : "dash-bottomnav__item"}
+          onClick={() => setActiveSection("teams")}
         >
           <span className="dash-bottomnav__icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
