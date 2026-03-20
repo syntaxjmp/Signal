@@ -406,23 +406,6 @@ export default function Home() {
               <span className="landing-footer__copyBrand">Signal</span> © All rights reserved.
             </div>
 
-            <div className="landing-footer__auth">
-              <Link href="/login" className="landing-footer__authLink">
-                Log in
-              </Link>
-              <Link href="/signup" className="landing-footer__authLink landing-footer__authLink--accent">
-                Register
-              </Link>
-            </div>
-
-            <div className="landing-footer__social" aria-label="Social links">
-              <a href="#" className="landing-footer__socialLink" aria-label="X">
-                X
-              </a>
-              <a href="#" className="landing-footer__socialLink" aria-label="YouTube">
-                ▶
-              </a>
-            </div>
           </div>
         </div>
       </footer>
