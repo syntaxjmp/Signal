@@ -511,6 +511,67 @@ function CodebaseDropzone({
   );
 }
 
+/* ── Custom project dropdown for Audit section ── */
+function AuditProjectDropdown({
+  projects,
+  value,
+  onChange,
+}: {
+  projects: { id: string; projectName: string }[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = projects.find((p) => p.id === value);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div className="dash-auditSelectWrap" ref={ref}>
+      <span className="dash-auditSelectLabel">Project</span>
+      <button
+        type="button"
+        className="dash-auditDropdownBtn"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="dash-auditDropdownBtnText">{selected?.projectName ?? "Select project"}</span>
+        <svg
+          className={`dash-auditDropdownChevron${open ? " dash-auditDropdownChevronOpen" : ""}`}
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+        >
+          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <ul className="dash-auditDropdownMenu">
+          {projects.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                className={`dash-auditDropdownItem${p.id === value ? " dash-auditDropdownItemActive" : ""}`}
+                onClick={() => { onChange(p.id); setOpen(false); }}
+              >
+                {p.projectName}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [session, setSession] = useState<any | null>(null);
@@ -1195,21 +1256,11 @@ export default function DashboardPage() {
                 </div>
 
                 {projects.length > 0 ? (
-                  <div className="dash-auditSelectWrap">
-                    <span className="dash-auditSelectLabel">Project</span>
-                    <select
-                      className="dash-input dash-auditSelect"
-                      value={auditProject?.id ?? ""}
-                      onChange={(e) => setAuditProjectId(e.target.value)}
-                      disabled={projects.length === 0}
-                    >
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.projectName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <AuditProjectDropdown
+                    projects={projects}
+                    value={auditProject?.id ?? ""}
+                    onChange={setAuditProjectId}
+                  />
                 ) : null}
               </div>
 
