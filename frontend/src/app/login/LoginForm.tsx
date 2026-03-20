@@ -23,7 +23,7 @@ export default function LoginForm() {
     const { error: signError } = await authClient.signIn.email({
       email,
       password,
-      callbackURL: "/",
+      callbackURL: "/dashboard",
     });
 
     setPending(false);
@@ -32,7 +32,7 @@ export default function LoginForm() {
       setError(signError.message ?? "Could not sign in");
       return;
     }
-    router.push("/");
+    router.push("/dashboard");
     router.refresh();
   }
 
