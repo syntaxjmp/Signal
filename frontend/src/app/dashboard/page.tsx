@@ -261,6 +261,88 @@ function ProjectCreateModal({
   );
 }
 
+function DeleteConfirmModal({
+  open,
+  projectName,
+  deleting,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  projectName: string;
+  deleting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="dash-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Delete project"
+      onMouseDown={(e) => {
+        if (!deleting && e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="dash-modal dash-modal--delete">
+        <div className="dash-delete__icon-wrap" aria-hidden="true">
+          <div className="dash-delete__icon-bg">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="dash-delete__body">
+          <div className="dash-delete__title">Delete project</div>
+          <div className="dash-delete__desc">
+            Are you sure you want to delete <strong>{projectName}</strong>? This will permanently remove the project along with all its scans and findings. This action cannot be undone.
+          </div>
+        </div>
+
+        {deleting && (
+          <div className="dash-delete__progress">
+            <div className="dash-delete__spinner" aria-hidden="true" />
+            <span>Deleting project and all associated data&hellip;</span>
+          </div>
+        )}
+
+        <div className="dash-delete__actions">
+          <button
+            className="dash-btn dash-btn--secondary"
+            type="button"
+            onClick={onClose}
+            disabled={deleting}
+          >
+            Cancel
+          </button>
+          <button
+            className="dash-btn dash-btn--danger"
+            type="button"
+            onClick={onConfirm}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting…" : "Delete project"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CodebaseDropzone({
   disabled,
   onOpenCreate,
@@ -376,6 +458,7 @@ export default function DashboardPage() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [allowSignal, setAllowSignal] = useState<boolean>(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [showLogout, setShowLogout] = useState(false);
   const [booting, setBooting] = useState<boolean>(false);
   const [bootChecked, setBootChecked] = useState<boolean>(false);
@@ -750,13 +833,11 @@ export default function DashboardPage() {
                             onClick={async () => {
                               setScanBusy((s) => ({ ...s, [p.id]: true }));
                               try {
-                                const key = window.prompt("OpenAI API key (leave blank to use backend OPENAI_API_KEY):", "") ?? "";
-                                const r = await fetch(`/api/projects/${p.id}/scan`, {
+                                  const r = await fetch(`/api/projects/${p.id}/scan`, {
                                   method: "POST",
                                   headers: { "content-type": "application/json" },
                                   credentials: "include",
                                   cache: "no-store",
-                                  body: JSON.stringify({ openAiApiKey: key || undefined }),
                                 });
                                 const json = await readApiResponse(r);
                                 if (!r.ok) throw new Error(json?.error || "Scan failed");
@@ -774,6 +855,7 @@ export default function DashboardPage() {
                           >
                             {scanBusy[p.id] ? "Scanning..." : "Run scan"}
                           </button>
+                          {p.latestScanStatus && p.latestScanStatus !== "not started" && (
                           <button
                             type="button"
                             className="dash-btn dash-btn--secondary"
@@ -783,32 +865,19 @@ export default function DashboardPage() {
                           >
                             View findings
                           </button>
+                          )}
                           <button
                             type="button"
-                            className="dash-btn dash-btn--secondary"
+                            className="dash-btn dash-btn--delete-trigger"
                             disabled={!!deleteBusy[p.id]}
-                            onClick={async () => {
-                              if (!window.confirm(`Delete project "${p.projectName}"? This also removes scans and findings.`)) {
-                                return;
-                              }
-                              setDeleteBusy((s) => ({ ...s, [p.id]: true })); 
-                              try {
-                                const r = await fetch(`/api/projects/${p.id}`, {
-                                  method: "DELETE",
-                                  credentials: "include",
-                                  cache: "no-store",
-                                });
-                                const json = await readApiResponse(r);
-                                if (!r.ok) throw new Error(json?.error || "Delete failed");
-                                await loadProjects();
-                              } catch (err) {
-                                alert(err instanceof Error ? err.message : "Delete failed");
-                              } finally {
-                                setDeleteBusy((s) => ({ ...s, [p.id]: false }));
-                              }
-                            }}
+                            onClick={() => setDeleteTarget(p)}
                           >
-                            {deleteBusy[p.id] ? "Deleting..." : "Delete"}
+                            {deleteBusy[p.id] ? (
+                              <>
+                                <span className="dash-delete__spinner dash-delete__spinner--inline" aria-hidden="true" />
+                                Deleting…
+                              </>
+                            ) : "Delete"}
                           </button>
                         </div>
                       </div>
@@ -966,6 +1035,35 @@ export default function DashboardPage() {
             throw new Error(json?.error || "Could not create project");
           }
           await loadProjects();
+        }}
+      />
+
+      <DeleteConfirmModal
+        open={!!deleteTarget}
+        projectName={deleteTarget?.projectName ?? ""}
+        deleting={!!deleteTarget && !!deleteBusy[deleteTarget.id]}
+        onClose={() => {
+          if (deleteTarget && deleteBusy[deleteTarget.id]) return;
+          setDeleteTarget(null);
+        }}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          setDeleteBusy((s) => ({ ...s, [deleteTarget.id]: true }));
+          try {
+            const r = await fetch(`/api/projects/${deleteTarget.id}`, {
+              method: "DELETE",
+              credentials: "include",
+              cache: "no-store",
+            });
+            const json = await readApiResponse(r);
+            if (!r.ok) throw new Error(json?.error || "Delete failed");
+            setDeleteTarget(null);
+            await loadProjects();
+          } catch (err) {
+            alert(err instanceof Error ? err.message : "Delete failed");
+          } finally {
+            setDeleteBusy((s) => ({ ...s, [deleteTarget.id]: false }));
+          }
         }}
       />
 
