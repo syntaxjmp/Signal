@@ -174,12 +174,32 @@ CREATE TABLE IF NOT EXISTS `project_findings` (
   `file_path` VARCHAR(1024) NOT NULL,
   `snippet` MEDIUMTEXT NULL,
   `fingerprint` CHAR(64) NOT NULL,
+  `status` ENUM('open', 'in_progress', 'resolved') NOT NULL DEFAULT 'open',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_project_findings_scan_fingerprint` (`scan_id`, `fingerprint`),
   KEY `idx_project_findings_project` (`project_id`),
   KEY `idx_project_findings_scan` (`scan_id`),
   KEY `idx_project_findings_score` (`weighted_score`),
+  KEY `idx_project_findings_status` (`status`),
   CONSTRAINT `fk_project_findings_scan` FOREIGN KEY (`scan_id`) REFERENCES `project_scans` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_project_findings_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `resolution_jobs` (
+  `id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `user_id` VARCHAR(191) NOT NULL,
+  `status` ENUM('pending', 'running', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+  `finding_ids` JSON NOT NULL COMMENT 'Array of finding IDs targeted by this job',
+  `pr_url` VARCHAR(1024) NULL,
+  `branch_name` VARCHAR(255) NULL,
+  `error_message` TEXT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_resolution_jobs_project` (`project_id`),
+  KEY `idx_resolution_jobs_user` (`user_id`),
+  KEY `idx_resolution_jobs_status` (`status`),
+  CONSTRAINT `fk_resolution_jobs_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

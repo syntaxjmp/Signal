@@ -58,7 +58,7 @@ export const env = {
     model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
   },
   github: {
-    token: process.env.GITHUB_TOKEN || '',
+    token: process.env.GITHUB_TOKEN || process.env.PAT || '',
   },
   scan: {
     concurrency: Number(process.env.SCAN_CONCURRENCY) || 10,

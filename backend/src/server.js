@@ -73,9 +73,65 @@ async function maybeEnsureProjectScansUserId() {
   }
 }
 
+async function maybeEnsureResolutionTables() {
+  if (env.isProd) return;
+
+  const conn = await mysql.createConnection({
+    host: env.mysql.host,
+    port: env.mysql.port,
+    user: env.mysql.user,
+    password: env.mysql.password,
+    database: env.mysql.database,
+    multipleStatements: true,
+  });
+
+  try {
+    // Add status column to project_findings if missing
+    const [statusRows] = await conn.query(
+      `SELECT COUNT(*) AS cnt
+       FROM information_schema.columns
+       WHERE table_schema = ?
+         AND table_name = 'project_findings'
+         AND column_name = 'status'`,
+      [env.mysql.database],
+    );
+    if (Number(statusRows?.[0]?.cnt || 0) === 0) {
+      await conn.query(
+        `ALTER TABLE project_findings
+         ADD COLUMN status ENUM('open', 'in_progress', 'resolved') NOT NULL DEFAULT 'open'`,
+      );
+    }
+
+    // Create resolution_jobs table if missing
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS resolution_jobs (
+        id CHAR(36) NOT NULL,
+        project_id CHAR(36) NOT NULL,
+        user_id VARCHAR(191) NOT NULL,
+        status ENUM('pending', 'running', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+        finding_ids JSON NOT NULL,
+        pr_url VARCHAR(1024) NULL,
+        branch_name VARCHAR(255) NULL,
+        error_message TEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_resolution_jobs_project (project_id),
+        KEY idx_resolution_jobs_status (status),
+        CONSTRAINT fk_resolution_jobs_project FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+  } catch (e) {
+    console.warn('[db:migrate] resolution tables migration skipped', e instanceof Error ? e.message : String(e));
+  } finally {
+    await conn.end();
+  }
+}
+
 async function main() {
   await maybeAutoMigrate();
   await maybeEnsureProjectScansUserId();
+  await maybeEnsureResolutionTables();
 
   const app = createApp();
   const server = app.listen(env.port, () => {

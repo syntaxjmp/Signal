@@ -16,6 +16,7 @@ type Finding = {
   weightedScore: number;
   filePath: string;
   snippet?: string | null;
+  status?: "open" | "in_progress" | "resolved";
 };
 
 type FindingsResponse = {
@@ -98,6 +99,95 @@ export default function FindingsReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const gaugeRef = useRef<HTMLDivElement>(null);
+
+  // --- Resolution state ---
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [resolveStatus, setResolveStatus] = useState<string | null>(null);
+  const [resolvePrUrl, setResolvePrUrl] = useState<string | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
+
+  async function promptResolve(target: "all" | string) {
+    setResolveStatus("starting");
+    setResolveError(null);
+    setResolvePrUrl(null);
+    try {
+      const url =
+        target === "all"
+          ? `/api/projects/${projectId}/resolve-all`
+          : `/api/projects/${projectId}/findings/${target}/resolve`;
+      const r = await fetch(url, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = await readApiResponse(r);
+      if (!r.ok) throw new Error(json?.error || "Failed to start resolution");
+      setActiveJobId(json.jobId);
+      setResolveStatus("running");
+    } catch (e) {
+      setResolveError(e instanceof Error ? e.message : "Resolution failed");
+      setResolveStatus(null);
+    }
+  }
+
+  // Poll resolution job
+  useEffect(() => {
+    if (!activeJobId || !projectId) return;
+    let cancelled = false;
+    async function poll() {
+      try {
+        const r = await fetch(`/api/projects/${projectId}/resolution-jobs/${activeJobId}`, {
+          credentials: "include",
+        });
+        const json = await readApiResponse(r);
+        if (cancelled) return;
+        if (json.status === "completed") {
+          setResolveStatus("completed");
+          setResolvePrUrl(json.prUrl || null);
+          setActiveJobId(null);
+          setRefreshTick((t) => t + 1);
+        } else if (json.status === "failed") {
+          setResolveStatus("failed");
+          setResolveError(json.errorMessage || "Resolution failed");
+          setActiveJobId(null);
+          setRefreshTick((t) => t + 1);
+        } else {
+          setTimeout(poll, 3000);
+        }
+      } catch {
+        if (!cancelled) setTimeout(poll, 5000);
+      }
+    }
+    const t = setTimeout(poll, 2000);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [activeJobId, projectId]);
+
+  async function toggleFindingStatus(findingId: string, newStatus: "open" | "resolved") {
+    setTogglingStatus(findingId);
+    try {
+      const r = await fetch(`/api/projects/${projectId}/findings/${findingId}/status`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (r.ok) {
+        setPayload((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            data: prev.data.map((f) => (f.id === findingId ? { ...f, status: newStatus } : f)),
+          };
+        });
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setTogglingStatus(null);
+    }
+  }
 
   useEffect(() => {
     // Fetch session once to avoid continuous polling pressure on MySQL.
@@ -320,8 +410,40 @@ export default function FindingsReportPage() {
               </div>
             </section>
 
+            {/* Resolution status banner */}
+            {resolveStatus === "running" || resolveStatus === "starting" ? (
+              <div className="report-resolve-banner report-resolve-banner--running report-fadein">
+                <span className="report-resolve-spinner" />
+                Resolving vulnerabilities — this may take a minute…
+              </div>
+            ) : null}
+            {resolveStatus === "completed" && resolvePrUrl ? (
+              <div className="report-resolve-banner report-resolve-banner--success report-fadein">
+                PR created successfully!{" "}
+                <a href={resolvePrUrl} target="_blank" rel="noopener noreferrer" className="report-resolve-link">
+                  View Pull Request
+                </a>
+              </div>
+            ) : null}
+            {resolveStatus === "failed" && resolveError ? (
+              <div className="report-resolve-banner report-resolve-banner--error report-fadein">
+                Resolution failed: {resolveError}
+              </div>
+            ) : null}
+
             <section className="report-card report-fadein" style={{ animationDelay: "0.12s" }}>
-              <div className="report-tableTitle">Vulnerabilities</div>
+              <div className="report-tableHeader">
+                <div className="report-tableTitle">Vulnerabilities</div>
+                {payload.data.some((f) => !f.status || f.status === "open") ? (
+                  <button
+                    className="report-btn report-btn--resolve"
+                    onClick={() => promptResolve("all")}
+                    disabled={resolveStatus === "running" || resolveStatus === "starting"}
+                  >
+                    Resolve All
+                  </button>
+                ) : null}
+              </div>
               {payload.data.length === 0 ? (
                 <div className="report-empty">No vulernabilites found, your codebase looks good!</div>
               ) : (
@@ -334,6 +456,8 @@ export default function FindingsReportPage() {
                         <th>Description</th>
                         <th>File</th>
                         <th>Score</th>
+                        <th>Status</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -341,8 +465,9 @@ export default function FindingsReportPage() {
                         (() => {
                           const fileBaseName = getFileBaseName(f.filePath);
                           const iconSrc = getFileIconSrc(f.filePath);
+                          const fStatus = f.status || "open";
                           return (
-                            <tr key={f.id}>
+                            <tr key={f.id} className={fStatus === "resolved" ? "report-row--resolved" : ""}>
                               <td>
                                 <span className={`sev sev--${f.severity}`}>{f.severity}</span>
                               </td>
@@ -365,6 +490,29 @@ export default function FindingsReportPage() {
                                 </div>
                               </td>
                               <td>{f.weightedScore}</td>
+                              <td>
+                                <button
+                                  className={`report-statusBadge report-statusBadge--${fStatus}`}
+                                  disabled={togglingStatus === f.id}
+                                  onClick={() =>
+                                    toggleFindingStatus(f.id, fStatus === "resolved" ? "open" : "resolved")
+                                  }
+                                  title={fStatus === "resolved" ? "Click to reopen" : "Click to mark resolved"}
+                                >
+                                  {fStatus === "in_progress" ? "in progress" : fStatus}
+                                </button>
+                              </td>
+                              <td className="report-resolveCell">
+                                {fStatus === "open" ? (
+                                  <button
+                                    className="report-btn report-btn--sm report-btn--resolve"
+                                    onClick={() => promptResolve(f.id)}
+                                    disabled={resolveStatus === "running" || resolveStatus === "starting"}
+                                  >
+                                    Resolve
+                                  </button>
+                                ) : null}
+                              </td>
                             </tr>
                           );
                         })()
@@ -397,6 +545,7 @@ export default function FindingsReportPage() {
           </>
         ) : null}
       </div>
+
     </main>
   );
 }
