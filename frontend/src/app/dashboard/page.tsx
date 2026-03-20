@@ -148,6 +148,22 @@ function formatDateTime(ts: string | null | undefined) {
   });
 }
 
+function clampScore50(score: number | string | null | undefined): number | null {
+  if (score == null) return null;
+  const n = Number(score);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(50, n));
+}
+
+function scoreGaugeTone(score: number | null | undefined): "strong" | "warn" | "critical" | "unknown" {
+  if (score == null) return "unknown";
+  const s = clampScore50(score);
+  if (s == null) return "unknown";
+  if (s <= 10) return "strong";
+  if (s <= 25) return "warn";
+  return "critical";
+}
+
 function ProjectCreateModal({
   open,
   onClose,
@@ -1032,19 +1048,30 @@ export default function DashboardPage() {
                       <div key={p.id} className="dash-project-card">
                         <div className="dash-project-card__top">
                           <div className="dash-project-card__name">{p.projectName}</div>
-                          <a
-                            className="dash-project-card__link"
-                            href={p.githubUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                          <div
+                            className="dash-project-card__topRight"
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-end",
+                              gap: "0.5rem",
+                              minWidth: 220,
+                            }}
                           >
-                            <span className="dash-project-card__linkIcon" aria-hidden="true">
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.1.82-.26.82-.58v-2.17c-3.34.73-4.04-1.61-4.04-1.61-.55-1.37-1.34-1.74-1.34-1.74-1.1-.75.08-.73.08-.73 1.2.09 1.84 1.22 1.84 1.22 1.07 1.82 2.8 1.3 3.49.99.11-.77.42-1.3.76-1.6-2.67-.3-5.47-1.32-5.47-5.9 0-1.3.47-2.36 1.24-3.2-.13-.3-.54-1.52.12-3.16 0 0 1.01-.32 3.3 1.22a11.5 11.5 0 0 1 6 0c2.28-1.54 3.29-1.22 3.29-1.22.66 1.64.25 2.86.12 3.16.77.84 1.24 1.9 1.24 3.2 0 4.59-2.8 5.6-5.48 5.9.43.37.81 1.1.81 2.22v3.3c0 .32.21.69.83.57A12 12 0 0 0 12 .5Z" />
-                              </svg>
-                            </span>
-                            {shortUrl(p.githubUrl)}
-                          </a>
+                            <a
+                              className="dash-project-card__link"
+                              href={p.githubUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <span className="dash-project-card__linkIcon" aria-hidden="true">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.1.82-.26.82-.58v-2.17c-3.34.73-4.04-1.61-4.04-1.61-.55-1.37-1.34-1.74-1.34-1.74-1.1-.75.08-.73.08-.73 1.2.09 1.84 1.22 1.84 1.22 1.07 1.82 2.8 1.3 3.49.99.11-.77.42-1.3.76-1.6-2.67-.3-5.47-1.32-5.47-5.9 0-1.3.47-2.36 1.24-3.2-.13-.3-.54-1.52.12-3.16 0 0 1.01-.32 3.3 1.22a11.5 11.5 0 0 1 6 0c2.28-1.54 3.29-1.22 3.29-1.22.66 1.64.25 2.86.12 3.16.77.84 1.24 1.9 1.24 3.2 0 4.59-2.8 5.6-5.48 5.9.43.37.81 1.1.81 2.22v3.3c0 .32.21.69.83.57A12 12 0 0 0 12 .5Z" />
+                                </svg>
+                              </span>
+                              {shortUrl(p.githubUrl)}
+                            </a>
+                          </div>
                         </div>
                         {p.description ? (
                           <div className="dash-project-card__desc">{p.description}</div>
@@ -1054,9 +1081,6 @@ export default function DashboardPage() {
                           </div>
                         )}
                         <div className="dash-team">
-                          <span className="dash-team__pill">
-                            Security Score: {p.securityScore ?? "N/A"}
-                          </span>
                           <span className="dash-team__pill">
                             Scan: {p.latestScanStatus ?? "not started"}
                           </span>
@@ -1113,6 +1137,69 @@ export default function DashboardPage() {
                               </>
                             ) : "Delete"}
                           </button>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            marginTop: "0.95rem",
+                            marginRight: "0.9rem",
+                          }}
+                          aria-label={`Latest scan score ${p.securityScore ?? "N/A"}`}
+                        >
+                          {(() => {
+                            const scoreClamped = clampScore50(p.securityScore);
+                            const tone = scoreGaugeTone(scoreClamped);
+                            const percent = scoreClamped == null ? 0 : (scoreClamped / 50) * 100;
+                            const scoreInt = scoreClamped == null ? null : Math.round(Number(scoreClamped));
+
+                            const toneColor =
+                              tone === "strong"
+                                ? "#52d6a2"
+                                : tone === "warn"
+                                  ? "#f5b84f"
+                                  : tone === "critical"
+                                    ? "#ff5b5b"
+                                    : "rgba(255, 230, 220, 0.55)";
+                            const trackColor = "rgba(255, 255, 255, 0.09)";
+                            const r = 34;
+                            const stroke = 7;
+                            const circumference = 2 * Math.PI * r;
+                            const dashOffset = circumference * (1 - percent / 100);
+
+                            return (
+                              <svg width="78" height="78" viewBox="0 0 78 78" aria-hidden>
+                                <circle cx="39" cy="39" r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
+                                <circle
+                                  cx="39"
+                                  cy="39"
+                                  r={r}
+                                  fill="none"
+                                  stroke={toneColor}
+                                  strokeWidth={stroke}
+                                  strokeLinecap="round"
+                                  strokeDasharray={`${circumference} ${circumference}`}
+                                  strokeDashoffset={dashOffset}
+                                  transform="rotate(-90 39 39)"
+                                />
+                                <circle
+                                  cx="39"
+                                  cy="39"
+                                  r={r - stroke / 2 - 2}
+                                  fill="rgba(14, 8, 8, 0.95)"
+                                  stroke="rgba(255, 255, 255, 0.08)"
+                                  strokeWidth="1"
+                                />
+                                <text x="39" y="38" textAnchor="middle" dominantBaseline="middle" fill="#fef8f6" fontSize="28" fontWeight="900">
+                                  {scoreInt == null ? "--" : scoreInt}
+                                </text>
+                                <text x="39" y="54" textAnchor="middle" dominantBaseline="middle" fill="rgba(255, 220, 210, 0.78)" fontSize="12" fontWeight="850">
+                                  / 50
+                                </text>
+                              </svg>
+                            );
+                          })()}
                         </div>
                       </div>
                     ))}
