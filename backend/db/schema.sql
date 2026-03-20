@@ -28,7 +28,6 @@ CREATE TABLE `vulnerability_check_types` (
   KEY `idx_vct_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Uploaded / extracted code (ZIP, tarball, git bundle, etc.) — populated when uploader exists
 CREATE TABLE `codebase_artifacts` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `storage_key` VARCHAR(512) NOT NULL COMMENT 'Object store or disk path',
@@ -50,14 +49,18 @@ CREATE TABLE `scans` (
   `artifact_id` BIGINT UNSIGNED NULL,
   `status` ENUM('pending', 'running', 'completed', 'failed', 'cancelled') NOT NULL DEFAULT 'pending',
   `scanner_version` VARCHAR(32) NULL,
+  `scanned_files` JSON NOT NULL DEFAULT (JSON_ARRAY()) COMMENT 'JSON array of relative paths (or URIs) of files included in the scan',
+  `files_scanned_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Denormalized count; should match length of scanned_files array',
   `started_at` TIMESTAMP NULL,
   `finished_at` TIMESTAMP NULL,
-  `summary` JSON NULL COMMENT 'counts by severity, duration, etc.',
+  `duration_ms` INT UNSIGNED NULL COMMENT 'Wall-clock time to complete scan',
+  `summary` JSON NULL COMMENT 'Aggregates: counts by severity, top rules, etc.',
   `error_message` TEXT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_scans_artifact` (`artifact_id`),
   KEY `idx_scans_status` (`status`),
+  KEY `idx_scans_created` (`created_at`),
   CONSTRAINT `fk_scans_artifact` FOREIGN KEY (`artifact_id`) REFERENCES `codebase_artifacts` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

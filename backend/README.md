@@ -55,7 +55,7 @@ npm run dev
 
 - **`vulnerability_check_types`** — canonical slugs and metadata for every class of issue Signal can report (seeded in `db/schema.sql`).
 - **`codebase_artifacts`** — uploaded archives / extraction output (for the future uploader + extractor pipeline).
-- **`scans`** — one row per analysis run, optionally linked to an artifact.
+- **`scans`** — one row per run: **`id`**, optional **`artifact_id`**, **`scanned_files`** (JSON array of relative paths scanned), **`files_scanned_count`**, **`started_at`** / **`finished_at`**, **`duration_ms`**, **`summary`** (JSON aggregates), **`status`**, **`error_message`**.
 - **`findings`** — individual matches tied to a scan and check type (file, lines, severity, snippet, JSON metadata).
 
 ## Production notes
