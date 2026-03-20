@@ -88,6 +88,7 @@ export default function Home() {
   ];
 
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [hoveredPanel, setHoveredPanel] = useState<string | null>(null);
 
   return (
     <main className="landing">
@@ -220,16 +221,22 @@ export default function Home() {
                 </div>
               </div>
               <div>
-                <h3 className="arch__col-label">Build Tools</h3>
+                <h3 className="arch__col-label">Languages</h3>
                 <div className="arch__icon-grid">
                   {[
-                    { glyph: "⚡", name: "Vite" },
-                    { glyph: "📦", name: "Webpack" },
-                    { glyph: "✓", name: "ESLint" },
-                  ].map((tool) => (
-                    <div key={tool.name} className="arch__icon-cell">
-                      <span className="arch__icon-glyph">{tool.glyph}</span>
-                      <span className="arch__icon-name">{tool.name}</span>
+                    { src: "/js.png", name: "JS" },
+                    { src: "/python.png", name: "Python" },
+                    { src: "/typescript.png", name: "TS" },
+                  ].map((lang) => (
+                    <div key={lang.name} className="arch__icon-cell">
+                      <Image
+                        src={lang.src}
+                        alt={lang.name}
+                        width={24}
+                        height={24}
+                        className="arch__icon-img"
+                      />
+                      <span className="arch__icon-name">{lang.name}</span>
                     </div>
                   ))}
                   <svg className="arch__curve arch__curve--l2" viewBox="0 0 100 70">
@@ -287,8 +294,13 @@ export default function Home() {
                   ].map((panel) => (
                     <div
                       key={panel.label}
-                      className="arch__panel"
-                      style={{ "--panel-i": panel.z } as CSSProperties}
+                      className={`arch__panel${hoveredPanel === panel.label ? " arch__panel--active" : ""}`}
+                      style={{
+                        "--panel-i": panel.z,
+                        zIndex: hoveredPanel === panel.label ? 100 : panel.z,
+                      } as CSSProperties}
+                      onMouseEnter={() => setHoveredPanel(panel.label)}
+                      onMouseLeave={() => setHoveredPanel(null)}
                     >
                       <div>
                         {panel.label}
@@ -316,7 +328,7 @@ export default function Home() {
                   title: "Alerting",
                   pills: ["Slack", "Teams", "Discord"],
                   curve: "r2",
-                },
+                }
               ].map((block) => (
                 <div key={block.title} className="arch__output-block">
                   <h4>{block.title}</h4>
