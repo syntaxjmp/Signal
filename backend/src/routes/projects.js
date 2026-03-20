@@ -6,8 +6,24 @@ import { getPool } from '../config/database.js';
 import { env } from '../config/env.js';
 import { scanGitHubProject, validateGitHubUrl } from '../services/projectScanner.js';
 import { runResolutionJob } from '../services/resolutionAgent.js';
+import {
+  clearUserWebhook,
+  getUserWebhook,
+  isValidDiscordWebhookUrl,
+  sendWebhookForUser,
+  setUserWebhook,
+} from '../services/webhookHandler.js';
 
 export const projectsRouter = Router();
+
+function repoPathFromUrl(githubUrl) {
+  try {
+    const u = new URL(githubUrl);
+    return u.pathname.replace(/^\/+/, '').replace(/\.git$/i, '');
+  } catch {
+    return githubUrl;
+  }
+}
 
 async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiApiKey }) {
   try {
@@ -130,6 +146,56 @@ projectsRouter.post('/projects', requireUser, async (req, res, next) => {
       githubUrl: String(githubUrl).trim(),
       description: String(description),
     });
+
+    void sendWebhookForUser(req.userId, {
+      title: 'New Codebase Added',
+      description: `A new project was added to Signal.`,
+      fields: [
+        { name: 'Project', value: String(projectName).trim(), inline: true },
+        { name: 'Repository', value: repoPathFromUrl(String(githubUrl).trim()), inline: true },
+      ],
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.get('/projects/webhook', requireUser, async (req, res, next) => {
+  try {
+    const hook = await getUserWebhook(req.userId);
+    res.json({
+      enabled: !!hook?.isActive,
+      webhookUrl: hook?.isActive ? hook.webhookUrl : '',
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.put('/projects/webhook', requireUser, async (req, res, next) => {
+  try {
+    const webhookUrl = String(req.body?.webhookUrl || '').trim();
+    if (!isValidDiscordWebhookUrl(webhookUrl)) {
+      res.status(400).json({ error: 'Please provide a valid Discord webhook URL.' });
+      return;
+    }
+    await setUserWebhook({ userId: req.userId, webhookUrl });
+    res.json({ ok: true, enabled: true, webhookUrl });
+
+    void sendWebhookForUser(req.userId, {
+      title: 'Webhook Connected',
+      description: 'Signal notifications are now enabled for this Discord channel.',
+      fields: [{ name: 'Status', value: 'Connected', inline: true }],
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.delete('/projects/webhook', requireUser, async (req, res, next) => {
+  try {
+    await clearUserWebhook(req.userId);
+    res.json({ ok: true, enabled: false });
   } catch (e) {
     next(e);
   }
@@ -224,6 +290,16 @@ projectsRouter.post('/projects/:id/scan', requireUser, async (req, res, next) =>
     res.status(202).json({
       scanId,
       status: 'running',
+    });
+
+    void sendWebhookForUser(req.userId, {
+      title: 'New Scan Started',
+      description: 'Signal started scanning your repository.',
+      fields: [
+        { name: 'Project ID', value: projectId, inline: true },
+        { name: 'Scan ID', value: scanId, inline: true },
+        { name: 'Repository', value: repoPathFromUrl(project.githubUrl), inline: false },
+      ],
     });
 
     // Continue scanning after response returns to avoid frontend/proxy timeouts.
@@ -670,6 +746,16 @@ projectsRouter.post('/projects/:id/findings/:findingId/resolve', requireUser, as
 
     res.status(202).json({ jobId, status: 'pending' });
 
+    void sendWebhookForUser(req.userId, {
+      title: 'Resolve Job Started',
+      description: 'Signal Bot started resolving a finding.',
+      fields: [
+        { name: 'Project ID', value: projectId, inline: true },
+        { name: 'Finding ID', value: findingId, inline: true },
+        { name: 'Job ID', value: jobId, inline: true },
+      ],
+    });
+
     setImmediate(() => {
       runResolutionJob({
         jobId,
@@ -737,6 +823,16 @@ projectsRouter.post('/projects/:id/resolve-all', requireUser, async (req, res, n
     );
 
     res.status(202).json({ jobId, status: 'pending', findingsCount: findingIds.length });
+
+    void sendWebhookForUser(req.userId, {
+      title: 'Resolve-All Started',
+      description: 'Signal Bot started resolving open findings.',
+      fields: [
+        { name: 'Project ID', value: projectId, inline: true },
+        { name: 'Job ID', value: jobId, inline: true },
+        { name: 'Findings', value: String(findingIds.length), inline: true },
+      ],
+    });
 
     setImmediate(() => {
       runResolutionJob({
