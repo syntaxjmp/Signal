@@ -162,6 +162,204 @@ export default function Home() {
         </section>
       </section>
 
+      {/* Architecture Diagram */}
+      <section className="arch">
+        <div className="arch__inner">
+          <svg style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
+            <defs>
+              <marker
+                id="arch-diamond"
+                viewBox="0 0 12 12"
+                refX="6"
+                refY="6"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto"
+              >
+                <path d="M6,1 L11,6 L6,11 L1,6 Z" fill="rgba(255,113,87,0.45)" />
+              </marker>
+            </defs>
+          </svg>
+
+          <div className="arch__tagline">
+            <Image
+              src="/signal_bigger.png"
+              alt=""
+              width={56}
+              height={56}
+              className="arch__logo"
+              style={{ width: "auto", height: "auto" }}
+            />
+            <p>One Scan. Complete Coverage.</p>
+          </div>
+
+          <div className="arch__diagram">
+            {/* Left: Inputs */}
+            <div className="arch__col">
+              <div>
+                <h3 className="arch__col-label">Frameworks</h3>
+                <div className="arch__icon-grid">
+                  {[
+                    { glyph: "⚛", name: "React" },
+                    { glyph: "◆", name: "Vue" },
+                    { glyph: "▲", name: "Angular" },
+                  ].map((fw) => (
+                    <div key={fw.name} className="arch__icon-cell">
+                      <span className="arch__icon-glyph">{fw.glyph}</span>
+                      <span className="arch__icon-name">{fw.name}</span>
+                    </div>
+                  ))}
+                  <svg className="arch__curve arch__curve--l1" viewBox="0 0 100 70">
+                    <path
+                      className="arch__curve-line"
+                      d="M0,35 C30,35 70,35 100,35"
+                      markerEnd="url(#arch-diamond)"
+                    />
+                    <path className="arch__curve-glow" d="M0,35 C30,35 70,35 100,35" />
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <h3 className="arch__col-label">Build Tools</h3>
+                <div className="arch__icon-grid">
+                  {[
+                    { glyph: "⚡", name: "Vite" },
+                    { glyph: "📦", name: "Webpack" },
+                    { glyph: "✓", name: "ESLint" },
+                  ].map((tool) => (
+                    <div key={tool.name} className="arch__icon-cell">
+                      <span className="arch__icon-glyph">{tool.glyph}</span>
+                      <span className="arch__icon-name">{tool.name}</span>
+                    </div>
+                  ))}
+                  <svg className="arch__curve arch__curve--l2" viewBox="0 0 100 70">
+                    <path
+                      className="arch__curve-line"
+                      d="M0,35 C30,35 70,35 100,35"
+                      markerEnd="url(#arch-diamond)"
+                    />
+                    <path className="arch__curve-glow" d="M0,35 C30,35 70,35 100,35" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Center: Security Panels */}
+            <div className="arch__panels-wrap">
+              <div className="arch__zone">
+                <div className="arch__panels">
+                  {[
+                    {
+                      label: "Dependency Scanning",
+                      desc: "Deep analysis of npm, yarn, and pnpm packages for known CVEs and advisories.",
+                      z: 1,
+                    },
+                    {
+                      label: "Code Analysis",
+                      desc: "Static analysis of source code for security anti-patterns and injection risks.",
+                      z: 2,
+                    },
+                    {
+                      label: "Config Auditing",
+                      desc: "Review build configs, environment variables, and deployment settings for leaks.",
+                      z: 4,
+                    },
+                    {
+                      label: "Vulnerability Detection",
+                      desc: "Comprehensive detection across your entire frontend codebase, dependencies, and configurations.",
+                      z: 7,
+                    },
+                    {
+                      label: "Compliance Mapping",
+                      desc: "Map findings to SOC 2, ISO 27001, and OWASP standards automatically.",
+                      z: 4,
+                    },
+                    {
+                      label: "Runtime Monitoring",
+                      desc: "Continuous monitoring with instant alerts when new threats are disclosed.",
+                      z: 2,
+                    },
+                    {
+                      label: "Threat Reports",
+                      desc: "Generate compliance-ready reports and share findings in one click.",
+                      z: 1,
+                    },
+                  ].map((panel) => (
+                    <div
+                      key={panel.label}
+                      className="arch__panel"
+                      style={{ "--panel-i": panel.z } as CSSProperties}
+                    >
+                      <div>
+                        {panel.label}
+                        <p className="arch__panel-desc">{panel.desc}</p>
+                        <span className="arch__panel-link">
+                          Learn more <span aria-hidden="true">→</span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="arch__platform-label">Frontend Security Platform</p>
+            </div>
+
+            {/* Right: Outputs */}
+            <div className="arch__col">
+              {[
+                {
+                  title: "CI/CD",
+                  pills: ["GitHub Actions", "GitLab CI", "Jenkins"],
+                  curve: "r1",
+                },
+                {
+                  title: "Issue Tracking",
+                  pills: ["Jira", "Linear", "Asana"],
+                },
+                {
+                  title: "Alerting",
+                  pills: ["Slack", "Teams", "Discord"],
+                  curve: "r2",
+                },
+                {
+                  title: "Compliance",
+                  pills: ["SOC 2", "ISO 27001", "OWASP"],
+                },
+                {
+                  title: "APIs & Webhooks",
+                  pills: ["Webhooks"],
+                  curve: "r3",
+                },
+              ].map((block) => (
+                <div key={block.title} className="arch__output-block">
+                  <h4>{block.title}</h4>
+                  <div className="arch__output-pills">
+                    {block.pills.map((pill) => (
+                      <span key={pill} className="arch__output-pill">
+                        {pill}
+                      </span>
+                    ))}
+                  </div>
+                  {block.curve && (
+                    <svg
+                      className={`arch__curve arch__curve--${block.curve}`}
+                      viewBox="0 0 100 70"
+                    >
+                      <path
+                        className="arch__curve-line"
+                        d="M100,35 C70,35 30,35 0,35"
+                        markerStart="url(#arch-diamond)"
+                      />
+                      <path className="arch__curve-glow" d="M100,35 C70,35 30,35 0,35" />
+                    </svg>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="features" id="features">
         <div className="features__inner">
           <h2 className="features__heading">
@@ -174,10 +372,11 @@ export default function Home() {
             <div className="features__visual">
               <Image
                 src="/BabaDefault_stylized_volcano_with_flowing_lava_abstract_and_m_3838cd46-84a0-4ddf-883a-b44898df5784_0.png"
-                alt="Stylized volcano with flowing lava"
+                alt=""
                 fill
                 sizes="(max-width: 900px) 90vw, 50vw"
                 className="features__visual-bg"
+                aria-hidden
               />
               <div className="mac-window">
                 <div className="mac-window__titlebar">
@@ -240,124 +439,6 @@ export default function Home() {
                 );
               })}
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="arch" id="architecture">
-        <div className="arch__inner">
-          <div className="arch__tagline">
-            <Image
-              src="/signal_evenbigger.png"
-              alt=""
-              width={48}
-              height={48}
-              className="arch__logo"
-            />
-            <p>Secure Code at the Speed of Shipping.</p>
-          </div>
-
-          <div className="arch__diagram">
-            {/* Left — Developer Inputs */}
-            <aside className="arch__col arch__col--left">
-              <h3 className="arch__col-label">Developer Inputs</h3>
-              <div className="arch__icon-grid">
-                {[
-                  { name: "Python", src: "/python.png" },
-                  { name: "JavaScript", src: "/js.png" },
-                  { name: "Rust", src: "/rust.png" }
-                ].map((item) => (
-                  <span key={item.name} className="arch__icon-cell">
-                    <span className="arch__icon-glyph" aria-hidden="true">
-                      <Image
-                        src={item.src}
-                        alt=""
-                        width={26}
-                        height={26}
-                        unoptimized={item.src.endsWith(".svg")}
-                        className="arch__icon-img"
-                      />
-                    </span>
-                    <span className="arch__icon-name">{item.name}</span>
-                  </span>
-                ))}
-                <svg className="arch__curve arch__curve--l1" viewBox="0 0 100 70" fill="none" preserveAspectRatio="none" aria-hidden="true">
-                  <path pathLength={100} d="M0,20 C25,20 50,50 100,55" className="arch__curve-line" />
-                  <path pathLength={100} d="M0,20 C25,20 50,50 100,55" className="arch__curve-glow" />
-                </svg>
-              </div>
-              <div className="arch__icon-grid">
-                {[
-                  { name: "GitHub", src: "/github.png" },
-                  { name: "AWS", src: "/amazon.png" },
-                  { name: "Docker", src: "/docker.png" },
-                ].map((item) => (
-                  <span key={item.name} className="arch__icon-cell">
-                    <span className="arch__icon-glyph" aria-hidden="true">
-                      <Image
-                        src={item.src}
-                        alt=""
-                        width={26}
-                        height={26}
-                        unoptimized={item.src.endsWith(".svg")}
-                        className="arch__icon-img"
-                      />
-                    </span>
-                    <span className="arch__icon-name">{item.name}</span>
-                  </span>
-                ))}
-                <svg className="arch__curve arch__curve--l2" viewBox="0 0 100 70" fill="none" preserveAspectRatio="none" aria-hidden="true">
-                  <path pathLength={100} d="M0,50 C25,50 50,20 100,15" className="arch__curve-line" />
-                  <path pathLength={100} d="M0,50 C25,50 50,20 100,15" className="arch__curve-glow" />
-                </svg>
-              </div>
-            </aside>
-
-            {/* Center — 3D Glass Panels */}
-            <div className="arch__panels-wrap">
-              <div className="arch__panels">
-                {[
-                  "Contextual Mapping",
-                  "Logic Analysis",
-                  "Dependency Audit",
-                  "LLM Red Teaming",
-                  "Exploit Simulation",
-                  "Real-time Remediation",
-                ].map((label, i) => (
-                  <div
-                    key={label}
-                    className="arch__panel"
-                    style={{ "--panel-i": i } as CSSProperties}
-                  >
-                    <span>{label}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="arch__platform-label">Integrated Security Engine</p>
-            </div>
-
-            {/* Right — Security Intelligence */}
-            <aside className="arch__col arch__col--right">
-              <h3 className="arch__col-label">Security Intelligence</h3>
-              {[
-                { title: "Risk Ratings", items: ["Critical", "High", "Medium"], curve: "M0,40 C35,40 65,25 100,25" },
-                { title: "Vulnerability Reports", items: ["CVE Index", "SBOM", "Advisories"], curve: "M0,35 C35,35 65,35 100,35" },
-                { title: "Auto-Fix PRs", items: ["Patches", "Upgrades", "Config"], curve: "M0,30 C35,30 65,45 100,45" },
-              ].map((block, idx) => (
-                <div key={block.title} className="arch__output-block">
-                  <svg className={`arch__curve arch__curve--r${idx + 1}`} viewBox="0 0 100 70" fill="none" preserveAspectRatio="none" aria-hidden="true">
-                    <path pathLength={100} d={block.curve} className="arch__curve-line" />
-                    <path pathLength={100} d={block.curve} className="arch__curve-glow" />
-                  </svg>
-                  <h4>{block.title}</h4>
-                  <div className="arch__output-pills">
-                    {block.items.map((item) => (
-                      <span key={item} className="arch__output-pill">{item}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </aside>
           </div>
         </div>
       </section>
