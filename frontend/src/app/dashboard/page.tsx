@@ -471,7 +471,7 @@ export default function DashboardPage() {
   const [teamInvite, setTeamInvite] = useState("");
   const [teamError, setTeamError] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
-  const BOOT_ANIM_MS = 1850;
+  const BOOT_ANIM_MS = 3200; // 2s logo pulse + loading bar
 
   useEffect(() => {
     startTransition(() => {
@@ -667,6 +667,10 @@ export default function DashboardPage() {
             <span className="dash-boot__signal">Signal</span>
             <span className="dash-boot__sep">/</span>
             <span className="dash-boot__item">Dashboard</span>
+          </div>
+
+          <div className="dash-boot__bar" aria-hidden="true">
+            <div className="dash-boot__barFill" />
           </div>
         </div>
       </main>

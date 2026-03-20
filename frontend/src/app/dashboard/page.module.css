@@ -959,7 +959,7 @@
 
 :global(.dash-boot__logo) {
   filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55));
-  animation: dash-boot-logo-pop-slide var(--boot-ms, 1850ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: dash-boot-logo-pulse-slide var(--boot-ms, 3200ms) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 :global(.dash-boot__title) {
@@ -1054,6 +1054,106 @@
       transform: translateY(-10vh) translateX(-14vw) scale(0.78);
       filter: blur(6px) drop-shadow(0 18px 40px rgba(0, 0, 0, 0.35));
     }
+  }
+}
+
+/* Added: 2s orange pulse + loading bar for Login -> Dashboard */
+:global(.dash-boot__bar) {
+  width: min(560px, 88vw);
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 90, 52, 0.12);
+  border: 1px solid rgba(255, 90, 52, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.3) inset,
+    0 18px 40px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: dash-boot-bar-show 250ms ease 2000ms both;
+}
+
+:global(.dash-boot__barFill) {
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 90, 52, 0.35),
+    rgba(255, 90, 52, 1),
+    rgba(255, 140, 100, 0.95)
+  );
+  animation: dash-boot-bar-fill 1200ms cubic-bezier(0.22, 1, 0.36, 1) 2000ms both,
+    dash-boot-bar-glow 900ms ease-in-out 2000ms infinite;
+}
+
+@keyframes dash-boot-bar-show {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scaleX(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleX(1);
+  }
+}
+
+@keyframes dash-boot-bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes dash-boot-bar-glow {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 0 rgba(255, 90, 52, 0));
+  }
+  50% {
+    filter: brightness(1.1) drop-shadow(0 0 22px rgba(255, 90, 52, 0.35));
+  }
+}
+
+@keyframes dash-boot-logo-pulse-slide {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.62);
+    filter: blur(10px) drop-shadow(0 18px 40px rgba(255, 90, 52, 0));
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0) scale(1.06);
+    filter: blur(0) drop-shadow(0 18px 40px rgba(255, 90, 52, 0.42));
+  }
+  22% {
+    transform: translateY(0) scale(0.98);
+    filter: blur(0) drop-shadow(0 18px 40px rgba(255, 90, 52, 0.32));
+  }
+  35% {
+    transform: translateY(0) scale(1.12);
+    filter: blur(0) drop-shadow(0 18px 40px rgba(255, 90, 52, 0.52));
+  }
+  48% {
+    transform: translateY(0) scale(0.99);
+    filter: blur(0) drop-shadow(0 18px 40px rgba(255, 90, 52, 0.35));
+  }
+  62% {
+    transform: translateY(0) scale(1);
+    filter: blur(0) drop-shadow(0 18px 40px rgba(255, 90, 52, 0.42));
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(-10vh) translateX(-18vw) scale(0.86);
+    filter: blur(2px) drop-shadow(0 18px 40px rgba(255, 90, 52, 0.18));
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14vh) translateX(-22vw) scale(0.78);
+    filter: blur(6px) drop-shadow(0 18px 40px rgba(255, 90, 52, 0));
   }
 }
 
