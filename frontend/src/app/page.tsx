@@ -177,8 +177,25 @@ export default function Home() {
                 alt="Stylized volcano with flowing lava"
                 fill
                 sizes="(max-width: 900px) 90vw, 50vw"
-                className="features__visual-img"
+                className="features__visual-bg"
               />
+              <div className="mac-window">
+                <div className="mac-window__titlebar">
+                  <span className="mac-window__dot mac-window__dot--red" />
+                  <span className="mac-window__dot mac-window__dot--yellow" />
+                  <span className="mac-window__dot mac-window__dot--green" />
+                </div>
+                <div className="mac-window__body">
+                  <video
+                    className="mac-window__video"
+                    src="/FindingsDemo.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="features__accordion">
