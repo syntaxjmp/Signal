@@ -391,6 +391,8 @@ export default function Home() {
                     loop
                     muted
                     playsInline
+                    preload="metadata"
+                    controls
                   />
                 </div>
               </div>

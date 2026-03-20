@@ -144,12 +144,15 @@ a {
 .mac-window__body {
   position: relative;
   background: #0e0e10;
+  aspect-ratio: 16 / 9;
+  min-height: 260px;
 }
 
 .mac-window__video {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
 }
 
 .features__accordion {
