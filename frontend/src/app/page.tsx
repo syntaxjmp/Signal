@@ -115,12 +115,6 @@ export default function Home() {
             <a href="#">Resources</a>
             <Link href="/login">Log in</Link>
             <Link href="/signup">Sign up</Link>
-            <a className="social-box" href="#" aria-label="X">
-              X
-            </a>
-            <a className="social-box" href="#" aria-label="LinkedIn">
-              in
-            </a>
           </nav>
         </header>
 
