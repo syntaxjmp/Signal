@@ -176,6 +176,7 @@ export default function Home() {
                 src="/BabaDefault_stylized_volcano_with_flowing_lava_abstract_and_m_3838cd46-84a0-4ddf-883a-b44898df5784_0.png"
                 alt="Stylized volcano with flowing lava"
                 fill
+                sizes="(max-width: 900px) 90vw, 50vw"
                 className="features__visual-img"
               />
             </div>
@@ -244,10 +245,23 @@ export default function Home() {
             <aside className="arch__col arch__col--left">
               <h3 className="arch__col-label">Developer Inputs</h3>
               <div className="arch__icon-grid">
-                {["Python", "JavaScript", "Rust"].map((lang) => (
-                  <span key={lang} className="arch__icon-cell">
-                    <span className="arch__icon-glyph">{lang === "Python" ? "🐍" : lang === "JavaScript" ? "JS" : "🦀"}</span>
-                    <span className="arch__icon-name">{lang}</span>
+                {[
+                  { name: "Python", src: "/python.png" },
+                  { name: "JavaScript", src: "/js.png" },
+                  { name: "Rust", src: "/rust.png" }
+                ].map((item) => (
+                  <span key={item.name} className="arch__icon-cell">
+                    <span className="arch__icon-glyph" aria-hidden="true">
+                      <Image
+                        src={item.src}
+                        alt=""
+                        width={26}
+                        height={26}
+                        unoptimized={item.src.endsWith(".svg")}
+                        className="arch__icon-img"
+                      />
+                    </span>
+                    <span className="arch__icon-name">{item.name}</span>
                   </span>
                 ))}
                 <svg className="arch__curve arch__curve--l1" viewBox="0 0 100 70" fill="none" preserveAspectRatio="none" aria-hidden="true">
@@ -256,10 +270,23 @@ export default function Home() {
                 </svg>
               </div>
               <div className="arch__icon-grid">
-                {["GitHub", "AWS", "Docker"].map((svc) => (
-                  <span key={svc} className="arch__icon-cell">
-                    <span className="arch__icon-glyph">{svc === "GitHub" ? "GH" : svc === "AWS" ? "☁" : "🐳"}</span>
-                    <span className="arch__icon-name">{svc}</span>
+                {[
+                  { name: "GitHub", src: "/github.png" },
+                  { name: "AWS", src: "/amazon.png" },
+                  { name: "Docker", src: "/docker.png" },
+                ].map((item) => (
+                  <span key={item.name} className="arch__icon-cell">
+                    <span className="arch__icon-glyph" aria-hidden="true">
+                      <Image
+                        src={item.src}
+                        alt=""
+                        width={26}
+                        height={26}
+                        unoptimized={item.src.endsWith(".svg")}
+                        className="arch__icon-img"
+                      />
+                    </span>
+                    <span className="arch__icon-name">{item.name}</span>
                   </span>
                 ))}
                 <svg className="arch__curve arch__curve--l2" viewBox="0 0 100 70" fill="none" preserveAspectRatio="none" aria-hidden="true">

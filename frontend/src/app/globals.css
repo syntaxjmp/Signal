@@ -618,6 +618,10 @@ h1 {
   color: rgba(255, 230, 220, 0.9);
 }
 
+.arch__icon-img {
+  display: block;
+}
+
 .arch__icon-name {
   font-size: 0.62rem;
   font-weight: 600;
@@ -876,8 +880,7 @@ h1 {
 }
 
 .features__visual {
-  position: sticky;
-  top: 2rem;
+  position: relative;
   aspect-ratio: 4 / 3;
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.5);
