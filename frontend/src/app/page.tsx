@@ -344,6 +344,71 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <footer className="landing-footer" aria-label="Footer">
+        <div className="landing-footer__inner">
+          <div className="landing-footer__top">
+            <div className="landing-footer__logo" aria-hidden="true">
+              <Image
+                src="/signal_bigger.png"
+                alt=""
+                width={44}
+                height={44}
+                className="landing-footer__logoImg"
+                priority
+              />
+            </div>
+
+            <div className="landing-footer__cols">
+              <div className="landing-footer__col">
+                <h4 className="landing-footer__heading">Developers</h4>
+                <div className="landing-footer__links">
+                  <Link href="/dashboard">Dashboard</Link>
+                </div>
+              </div>
+
+              <div className="landing-footer__col">
+                <h4 className="landing-footer__heading">Resources</h4>
+                <div className="landing-footer__links">
+                  <Link href="/login">Log in</Link>
+                  <Link href="/signup">Sign up</Link>
+                </div>
+              </div>
+
+              <div className="landing-footer__col">
+                <h4 className="landing-footer__heading">Company</h4>
+                <div className="landing-footer__links">
+                  <Link href="/">Home</Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="landing-footer__bottom">
+            <div className="landing-footer__copy">
+              <span className="landing-footer__copyBrand">Signal</span> © All rights reserved.
+            </div>
+
+            <div className="landing-footer__auth">
+              <Link href="/login" className="landing-footer__authLink">
+                Log in
+              </Link>
+              <Link href="/signup" className="landing-footer__authLink landing-footer__authLink--accent">
+                Register
+              </Link>
+            </div>
+
+            <div className="landing-footer__social" aria-label="Social links">
+              <a href="#" className="landing-footer__socialLink" aria-label="X">
+                X
+              </a>
+              <a href="#" className="landing-footer__socialLink" aria-label="YouTube">
+                ▶
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }
