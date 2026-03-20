@@ -62,6 +62,15 @@ function scoreTone(score: number | null | undefined) {
   return "critical";
 }
 
+/** Smooth HSL color from green (score 0) → yellow → red (score 50) */
+function scoreHslColor(score: number | null | undefined): string {
+  if (score == null) return "rgba(255, 230, 220, 0.55)";
+  const clamped = Math.max(0, Math.min(50, score));
+  // hue 150 = green, hue 40 = yellow-amber, hue 0 = red
+  const hue = 150 * (1 - clamped / 50);
+  return `hsl(${Math.round(hue)}, 65%, 58%)`;
+}
+
 export default function FindingsReportPage() {
   const params = useParams<{ projectId: string }>();
   const search = useSearchParams();
@@ -150,14 +159,12 @@ export default function FindingsReportPage() {
   const securityScoreRaw = payload?.summary?.securityScore ?? payload?.summary?.summary?.securityScore ?? null;
   const securityScore = securityScoreRaw == null ? null : Math.round(Number(securityScoreRaw));
   const scoreValue = Math.max(0, Math.min(50, Number(securityScore ?? 0)));
-  const scorePercent = Number.isFinite(scoreValue) ? ((50 - scoreValue) / 50) * 100 : 0;
+  const scorePercent = Number.isFinite(scoreValue) ? (scoreValue / 50) * 100 : 0;
   const scoreDelta = Math.round(securityScore ?? 0);
   const tone = scoreTone(securityScore);
+  const gaugeColor = scoreHslColor(securityScore);
 
-  if (isPending) {
-    return <main className={`report ${styles.root}`}>Checking session...</main>;
-  }
-  if (!session) {
+  if (!isPending && !session) {
     return (
       <main className={`report ${styles.root}`}>
         <div className="report-card">
@@ -224,7 +231,10 @@ export default function FindingsReportPage() {
                 <div className="report-card__label">Security Score</div>
                 <div
                   className={`report-gauge report-gauge--${tone}`}
-                  style={{ ["--gauge-fill" as any]: gaugeReady ? `${scorePercent}%` : "0%" }}
+                  style={{
+                    ["--gauge-fill" as any]: gaugeReady ? `${scorePercent}%` : "0%",
+                    ["--gauge-color" as any]: gaugeColor,
+                  }}
                   aria-label={`Security score ${securityScore ?? "not scored"} out of 50`}
                 >
                   <div className="report-gauge__inner">
@@ -234,7 +244,14 @@ export default function FindingsReportPage() {
                 </div>
                 <div className="report-scoreMeta">
                   <div className="report-card__meta">{scoreLabel(securityScore)}</div>
-                  <span className={scoreDelta > 0 ? "report-delta report-delta--down" : "report-delta report-delta--up"}>
+                  <span
+                    className={scoreDelta > 0 ? "report-delta report-delta--down" : "report-delta report-delta--up"}
+                    style={
+                      scoreDelta > 0
+                        ? { color: gaugeColor, borderColor: gaugeColor, background: `color-mix(in srgb, ${gaugeColor} 14%, transparent)` }
+                        : undefined
+                    }
+                  >
                     {scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta}
                   </span>
                 </div>

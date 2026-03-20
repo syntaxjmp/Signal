@@ -661,7 +661,7 @@ export default function DashboardPage() {
   }, [router]);
 
   const headerRight = useMemo(() => {
-    if (isPending) return <span className="dash-pill">Checking session…</span>;
+    if (isPending) return null;
     if (!isAuthed)
       return (
         <Link className="action action-primary" href="/login">
