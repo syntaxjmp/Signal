@@ -2,6 +2,9 @@
 const apiUpstream = process.env.API_UPSTREAM_URL || "http://127.0.0.1:4000";
 
 const nextConfig = {
+  async redirects() {
+    return [{ source: "/create", destination: "/signup", permanent: false }];
+  },
   async rewrites() {
     return [
       {

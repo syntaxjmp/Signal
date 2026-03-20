@@ -4,16 +4,27 @@ import React, { useId, useState } from "react";
 
 type Props = {
   disabled?: boolean;
+  /** Form field name (default `password`). */
+  inputName?: string;
+  autoComplete?: string;
+  placeholder?: string;
+  label?: string;
 };
 
-export default function PasswordField({ disabled = false }: Props) {
+export default function PasswordField({
+  disabled = false,
+  inputName = "password",
+  autoComplete = "current-password",
+  placeholder = "Password",
+  label = "Password",
+}: Props) {
   const [visible, setVisible] = useState(false);
   const id = useId();
 
   return (
     <div className="login-minimal__field">
       <label className="visually-hidden" htmlFor={id}>
-        Password
+        {label}
       </label>
       <div className="login-minimal__input-wrap">
         <span className="login-minimal__input-icon" aria-hidden="true">
@@ -24,11 +35,11 @@ export default function PasswordField({ disabled = false }: Props) {
         </span>
         <input
           id={id}
-          name="password"
+          name={inputName}
           type={visible ? "text" : "password"}
-          autoComplete="current-password"
+          autoComplete={autoComplete}
           className="login-minimal__input login-minimal__input--password"
-          placeholder="Password"
+          placeholder={placeholder}
           required
           disabled={disabled}
         />
