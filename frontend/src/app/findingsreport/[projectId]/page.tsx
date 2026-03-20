@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
@@ -83,7 +83,7 @@ export default function FindingsReportPage() {
   const [payload, setPayload] = useState<FindingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [gaugeReady, setGaugeReady] = useState(false);
+  const gaugeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Fetch session once to avoid continuous polling pressure on MySQL.
@@ -136,16 +136,6 @@ export default function FindingsReportPage() {
     void load();
   }, [projectId, scanId, page, refreshTick]);
 
-  // Trigger gauge fill animation after data loads
-  useEffect(() => {
-    if (!loading && payload) {
-      // Small delay so the element is mounted before we animate
-      const id = requestAnimationFrame(() => setGaugeReady(true));
-      return () => cancelAnimationFrame(id);
-    }
-    setGaugeReady(false);
-  }, [loading, payload]);
-
   const severityCounts = useMemo(() => {
     const s = payload?.summary?.summary?.severityCounts || {};
     return {
@@ -159,10 +149,49 @@ export default function FindingsReportPage() {
   const securityScoreRaw = payload?.summary?.securityScore ?? payload?.summary?.summary?.securityScore ?? null;
   const securityScore = securityScoreRaw == null ? null : Math.round(Number(securityScoreRaw));
   const scoreValue = Math.max(0, Math.min(50, Number(securityScore ?? 0)));
-  const scorePercent = Number.isFinite(scoreValue) ? (scoreValue / 50) * 100 : 0;
+  // Score 0 = full green ring (perfect health). Score > 0 = fill proportional to risk.
+  const scorePercent = scoreValue === 0 ? 100 : Math.max(8, (scoreValue / 50) * 100);
   const scoreDelta = Math.round(securityScore ?? 0);
   const tone = scoreTone(securityScore);
   const gaugeColor = scoreHslColor(securityScore);
+  const [displayedScore, setDisplayedScore] = useState<number>(0);
+
+  // Animate gauge fill with JS so it works in every browser
+  useEffect(() => {
+    const el = gaugeRef.current;
+    if (!el || loading || !payload) return;
+    const target = scorePercent;
+    const duration = 1000;
+    const start = performance.now();
+    let raf: number;
+    function tick(now: number) {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      el!.style.setProperty("--gauge-fill", `${eased * target}%`);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    }
+    el.style.setProperty("--gauge-fill", "0%");
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [loading, payload, scorePercent]);
+
+  // Animate score number count-up
+  useEffect(() => {
+    if (loading || !payload) return;
+    const target = securityScore ?? 0;
+    const duration = 1000;
+    const start = performance.now();
+    let raf: number;
+    function tick(now: number) {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplayedScore(Math.round(eased * target));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    }
+    setDisplayedScore(0);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [loading, payload, securityScore]);
 
   if (!isPending && !session) {
     return (
@@ -230,15 +259,16 @@ export default function FindingsReportPage() {
               <div className="report-card">
                 <div className="report-card__label">Security Score</div>
                 <div
+                  ref={gaugeRef}
                   className={`report-gauge report-gauge--${tone}`}
                   style={{
-                    ["--gauge-fill" as any]: gaugeReady ? `${scorePercent}%` : "0%",
+                    ["--gauge-fill" as any]: "0%",
                     ["--gauge-color" as any]: gaugeColor,
                   }}
                   aria-label={`Security score ${securityScore ?? "not scored"} out of 50`}
                 >
                   <div className="report-gauge__inner">
-                    <div className="report-gauge__value">{securityScore ?? "--"}</div>
+                    <div className="report-gauge__value">{securityScore == null ? "--" : displayedScore}</div>
                     <div className="report-gauge__denom">/ 50</div>
                   </div>
                 </div>

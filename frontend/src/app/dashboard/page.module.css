@@ -1320,3 +1320,183 @@
   }
 }
 
+/* —— Delete confirmation modal —— */
+:global(.dash-modal--delete) {
+  width: min(440px, 100%);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+:global(.dash-delete__icon-wrap) {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+:global(.dash-delete__icon-bg) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 60, 40, 0.15);
+  border: 1px solid rgba(255, 90, 52, 0.3);
+  color: #ff6b4a;
+}
+
+:global(.dash-delete__body) {
+  margin-bottom: 1.1rem;
+}
+
+:global(.dash-delete__title) {
+  font-weight: 1000;
+  font-size: 1.12rem;
+  color: #fff0ea;
+  margin-bottom: 0.5rem;
+}
+
+:global(.dash-delete__desc) {
+  color: rgba(255, 215, 205, 0.82);
+  font-size: 0.93rem;
+  line-height: 1.5;
+}
+
+:global(.dash-delete__desc strong) {
+  color: #fff0ea;
+  font-weight: 800;
+}
+
+:global(.dash-delete__progress) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  background: rgba(255, 90, 52, 0.08);
+  border: 1px solid rgba(255, 90, 52, 0.2);
+  color: rgba(255, 200, 180, 0.9);
+  font-size: 0.9rem;
+  font-weight: 600;
+  animation: dash-delete-progress-in 200ms ease-out both;
+}
+
+@keyframes dash-delete-progress-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+:global(.dash-delete__spinner) {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 150, 120, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: dash-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+:global(.dash-delete__spinner--inline) {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 0.35rem;
+}
+
+@keyframes dash-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Create-project progress bar ── */
+:global(.dash-create__progress) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 90, 52, 0.08);
+  border: 1px solid rgba(255, 90, 52, 0.2);
+  color: rgba(255, 200, 180, 0.9);
+  font-size: 0.9rem;
+  font-weight: 600;
+  animation: dash-delete-progress-in 200ms ease-out both;
+}
+
+:global(.dash-create__progress-bar) {
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 90, 52, 0.15);
+  overflow: hidden;
+  position: relative;
+}
+
+:global(.dash-create__progress-bar)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: dash-progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes dash-progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+:global(.dash-delete__actions) {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: center;
+}
+
+:global(.dash-delete__actions .dash-btn) {
+  flex: 1;
+  max-width: 180px;
+}
+
+:global(.dash-btn--danger) {
+  background: rgba(220, 40, 20, 0.55);
+  border-color: rgba(255, 80, 50, 0.6);
+  color: #fff;
+  box-shadow: 0 6px 22px rgba(200, 30, 10, 0.35);
+}
+
+:global(.dash-btn--danger:hover:not(:disabled)) {
+  background: rgba(230, 45, 22, 0.7);
+  box-shadow: 0 8px 28px rgba(200, 30, 10, 0.5);
+}
+
+:global(.dash-btn--delete-trigger) {
+  background: transparent;
+  border: 1px solid rgba(255, 80, 50, 0.25);
+  border-radius: 999px;
+  padding: 0.72rem 1.1rem;
+  font-weight: 950;
+  font-size: 0.95rem;
+  color: rgba(255, 140, 120, 0.9);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: transform 160ms ease, color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+:global(.dash-btn--delete-trigger:hover:not(:disabled)) {
+  color: #ff6b4a;
+  border-color: rgba(255, 80, 50, 0.5);
+  background: rgba(255, 60, 40, 0.08);
+  transform: translateY(-1px);
+}
+
+:global(.dash-btn--delete-trigger:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+

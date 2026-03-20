@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import React, { type ReactNode } from "react";
 import { Geist_Mono, Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import "./landing.css";
+import "./auth.css";
 
 const manrope = Manrope({
   variable: "--font-manrope",

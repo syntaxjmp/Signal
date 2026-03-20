@@ -149,7 +149,6 @@
   );
   display: grid;
   place-items: center;
-  transition: --gauge-fill 1s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :global(.report-gauge::after) {
@@ -376,15 +375,6 @@
     transform: translateY(0);
   }
 }
-
-/* --- Animated gauge fill --- */
-
-@property --gauge-fill {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-
 
 :global(.report-empty) {
   color: rgba(255, 220, 210, 0.85);
