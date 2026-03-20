@@ -15,8 +15,8 @@ export default function Home() {
           <Image
             src="/signal_evenbigger.png"
             alt=""
-            width={320}
-            height={320}
+            width={160}
+            height={160}
             className="brand-logo"
             priority
             aria-hidden
