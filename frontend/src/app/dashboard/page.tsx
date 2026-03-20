@@ -470,8 +470,8 @@ function CodebaseDropzone({
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
-
+  const [session, setSession] = useState<any | null>(null);
+  const [isPending, setIsPending] = useState<boolean>(true);
   const isAuthed = !!session;
   const [projects, setProjects] = useState<Project[]>([]);
   const [scanBusy, setScanBusy] = useState<Record<string, boolean>>({});
@@ -493,6 +493,28 @@ export default function DashboardPage() {
   const [teamError, setTeamError] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const BOOT_ANIM_MS = 3200; // 2s logo pulse + loading bar
+
+  useEffect(() => {
+    // Fetch session once to avoid continuous polling pressure on MySQL.
+    let cancelled = false;
+    async function run() {
+      setIsPending(true);
+      try {
+        const r = await (authClient as any).getSession?.();
+        // better-auth commonly returns { data, error }.
+        const nextSession = r?.data ?? r?.session ?? null;
+        if (!cancelled) setSession(nextSession);
+      } catch {
+        if (!cancelled) setSession(null);
+      } finally {
+        if (!cancelled) setIsPending(false);
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     startTransition(() => {
