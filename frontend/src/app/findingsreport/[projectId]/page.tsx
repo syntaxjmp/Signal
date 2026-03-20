@@ -65,7 +65,8 @@ function scoreTone(score: number | null | undefined) {
 export default function FindingsReportPage() {
   const params = useParams<{ projectId: string }>();
   const search = useSearchParams();
-  const { data: session, isPending } = authClient.useSession();
+  const [session, setSession] = useState<any | null>(null);
+  const [isPending, setIsPending] = useState<boolean>(true);
   const projectId = params.projectId;
   const scanId = search.get("scanId") || "";
   const [page, setPage] = useState(1);
@@ -73,6 +74,27 @@ export default function FindingsReportPage() {
   const [payload, setPayload] = useState<FindingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch session once to avoid continuous polling pressure on MySQL.
+    let cancelled = false;
+    async function run() {
+      setIsPending(true);
+      try {
+        const r = await (authClient as any).getSession?.();
+        const nextSession = r?.data ?? r?.session ?? null;
+        if (!cancelled) setSession(nextSession);
+      } catch {
+        if (!cancelled) setSession(null);
+      } finally {
+        if (!cancelled) setIsPending(false);
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!projectId) return;
@@ -93,7 +115,7 @@ export default function FindingsReportPage() {
         if (!r.ok) throw new Error(json?.error || "Failed to load findings report");
         setPayload(json);
         if (json?.summary?.status === "running") {
-          window.setTimeout(() => setRefreshTick((t) => t + 1), 2000);
+          window.setTimeout(() => setRefreshTick((t) => t + 1), 4500);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load findings");
