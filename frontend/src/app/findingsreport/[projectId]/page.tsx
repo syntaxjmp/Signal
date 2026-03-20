@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import styles from "./page.module.css";
 
@@ -64,20 +64,8 @@ function scoreTone(score: number | null | undefined) {
 
 export default function FindingsReportPage() {
   const params = useParams<{ projectId: string }>();
-  const router = useRouter();
   const search = useSearchParams();
   const { data: session, isPending } = authClient.useSession();
-  async function handleLogout() {
-    try {
-      await authClient.signOut();
-    } catch {
-      // no-op
-    } finally {
-      router.push("/login");
-      router.refresh();
-    }
-  }
-
   const projectId = params.projectId;
   const scanId = search.get("scanId") || "";
   const [page, setPage] = useState(1);
@@ -172,9 +160,6 @@ export default function FindingsReportPage() {
         <Link href="/dashboard" className="report-btn report-btn--ghost">
           Back to dashboard
         </Link>
-        <button type="button" className="report-btn report-btn--ghost" onClick={handleLogout}>
-          Log out
-        </button>
       </div>
 
       <div className="report-shell">
