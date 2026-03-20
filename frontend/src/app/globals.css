@@ -74,25 +74,11 @@ a {
   line-height: 1;
 }
 
-.brand-mark {
-  display: inline-grid;
-  gap: 0.18rem;
-}
-
-.brand-mark span {
+.brand-logo {
   display: block;
-  width: 1.15rem;
-  height: 0.2rem;
-  background: var(--accent);
-  border-radius: 999px;
-}
-
-.brand-mark span:nth-child(1) {
-  transform: translateX(0.22rem);
-}
-
-.brand-mark span:nth-child(2) {
-  transform: translateX(0.1rem);
+  height: clamp(2rem, 4.2vw, 2.65rem);
+  width: auto;
+  object-fit: contain;
 }
 
 .nav-links {
@@ -260,6 +246,10 @@ h1 {
 
   .brand {
     font-size: 1.65rem;
+  }
+
+  .brand-logo {
+    height: clamp(1.65rem, 6vw, 2.1rem);
   }
 
   .nav-links {
