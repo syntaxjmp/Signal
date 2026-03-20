@@ -334,16 +334,21 @@ export async function scanGitHubProject({
       totalWeight += f.weightedScore;
     }
     const rawTotalWeightedScore = totalWeight;
-    const totalWeightedScoreCapped = Math.min(30, rawTotalWeightedScore);
 
+    // Severity pressure — critical and high findings are weighted much more heavily
     const severityPressure =
-      severityCounts.critical * 1.2 +
-      severityCounts.high * 0.7 +
-      severityCounts.medium * 0.35 +
+      severityCounts.critical * 4.0 +
+      severityCounts.high * 2.0 +
+      severityCounts.medium * 0.5 +
       severityCounts.low * 0.1;
-    const riskIndex = rawTotalWeightedScore + severityPressure * 6;
-    const securityScore = Math.max(0, Math.min(30, Math.round(30 * Math.exp(-riskIndex / 180))));
-    const scorePenalty = 30 - securityScore;
+
+    // Risk index combines raw weighted scores with severity pressure
+    const riskIndex = rawTotalWeightedScore + severityPressure * 8;
+
+    // Security score 0-50: 0 = perfectly secure, 50 = very insecure
+    // Uses saturating logarithmic growth — even a single critical finding pushes the score up fast
+    const securityScore = Math.max(0, Math.min(50, Math.round(50 * (1 - Math.exp(-riskIndex / 80)))));
+    const scorePenalty = securityScore;
 
     const elapsed = ((Date.now() - scanStart) / 1000).toFixed(1);
     console.info(`[scan] completed in ${elapsed}s — ${uniqueFindings.length} findings from ${files.length} files`);
@@ -354,7 +359,7 @@ export async function scanGitHubProject({
       summary: {
         severityCounts,
         totalFindings: uniqueFindings.length,
-        totalWeightedScore: totalWeightedScoreCapped,
+        totalWeightedScore: rawTotalWeightedScore,
         rawTotalWeightedScore,
         riskIndex,
         scorePenalty,

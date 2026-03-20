@@ -36,7 +36,7 @@
 :global(.report-brand__logo) {
   display: block;
   width: 2.2rem;
-  height: auto;
+  height: 2.2rem;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.35));
 }
 
@@ -137,17 +137,16 @@
 }
 
 :global(.report-gauge) {
-  --p: 0%;
+  --gauge-fill: 0%;
   width: 126px;
   height: 126px;
   margin-top: 0.65rem;
   border-radius: 999px;
   position: relative;
-  background:
-    conic-gradient(
-      var(--gauge-color, #41d38a) var(--p),
-      rgba(255, 255, 255, 0.09) var(--p)
-    );
+  background: conic-gradient(
+    var(--gauge-color, #41d38a) var(--gauge-fill),
+    rgba(255, 255, 255, 0.09) var(--gauge-fill)
+  );
   display: grid;
   place-items: center;
 }
@@ -313,9 +312,78 @@
   border: 1px solid rgba(255, 100, 80, 0.35);
 }
 
-:global(.report-loading),
+/* --- Skeleton loading --- */
+
+:global(.report-loading) {
+  display: contents;
+}
+
+:global(.report-loading__topgrid) {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr 1fr;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+:global(.report-loading__skel) {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 90, 52, 0.12);
+  background:
+    linear-gradient(90deg,
+      rgba(255, 90, 52, 0.05) 25%,
+      rgba(255, 90, 52, 0.11) 50%,
+      rgba(255, 90, 52, 0.05) 75%
+    );
+  background-size: 200% 100%;
+  animation: reportShimmer 1.6s ease-in-out infinite;
+}
+
+:global(.report-loading__skel--score) {
+  height: 220px;
+}
+
+:global(.report-loading__skel--breakdown) {
+  height: 220px;
+}
+
+:global(.report-loading__skel--summary) {
+  height: 220px;
+}
+
+:global(.report-loading__skel--table) {
+  height: 320px;
+}
+
+@keyframes reportShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* --- Fade-in for real content --- */
+
+:global(.report-fadein) {
+  animation: reportFadeIn 0.45s ease-out both;
+}
+
+@keyframes reportFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 :global(.report-empty) {
   color: rgba(255, 220, 210, 0.85);
+}
+
+@media (max-width: 980px) {
+  :global(.report-loading__topgrid) {
+    grid-template-columns: 1fr;
+  }
 }
 
 :global(.report-pagination) {

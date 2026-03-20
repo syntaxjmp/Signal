@@ -10,6 +10,36 @@ import styles from "./page.module.css";
 type TeamMember = { email: string };
 type TeamRow = { email: string; createdAt: string; updatedAt: string };
 
+type AuditFindingChange = {
+  fingerprint: string;
+  severity: "critical" | "high" | "medium" | "low";
+  category: string;
+  description: string;
+  lineNumber: number | null;
+  weightedScore: number;
+  filePath: string;
+};
+
+type AuditDiff = {
+  addedCount: number;
+  removedCount: number;
+  changedCount: number;
+  topAdded: AuditFindingChange[];
+  topRemoved: AuditFindingChange[];
+  topChanged: AuditFindingChange[];
+};
+
+type AuditEntry = {
+  scanId: string;
+  status: string;
+  createdAt: string;
+  finishedAt: string | null;
+  ranByUserId: string | null;
+  securityScore: number | null;
+  scoreDelta: number | null;
+  diff: AuditDiff | null;
+};
+
 type Project = {
   id: string;
   githubUrl: string;
@@ -105,6 +135,19 @@ function timeAgo(ts: string) {
   return `${days}d ago`;
 }
 
+function formatDateTime(ts: string | null | undefined) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (!Number.isFinite(d.getTime())) return "";
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function ProjectCreateModal({
   open,
   onClose,
@@ -119,6 +162,7 @@ function ProjectCreateModal({
   const [description, setDescription] = useState("");
   const [teamMembersRaw, setTeamMembersRaw] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -144,7 +188,7 @@ function ProjectCreateModal({
       aria-modal="true"
       aria-label="Add codebase"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (!creating && e.target === e.currentTarget) onClose();
       }}
     >
       <div className="dash-modal">
@@ -155,7 +199,7 @@ function ProjectCreateModal({
               Connect Signal to a GitHub repo to start scanning.
             </div>
           </div>
-          <button className="dash-modal__close" onClick={onClose} type="button">
+          <button className="dash-modal__close" onClick={onClose} type="button" disabled={creating}>
             <span aria-hidden="true">×</span>
             <span className="visually-hidden">Close</span>
           </button>
@@ -178,6 +222,7 @@ function ProjectCreateModal({
               return;
             }
 
+            setCreating(true);
             try {
               await onCreate({
                 githubUrl: githubUrlTrimmed,
@@ -188,54 +233,65 @@ function ProjectCreateModal({
               onClose();
             } catch (err) {
               setError(err instanceof Error ? err.message : "Could not create project");
+            } finally {
+              setCreating(false);
             }
           }}
         >
-          <div className="dash-form__grid">
+          <fieldset disabled={creating} style={{ border: "none", padding: 0, margin: 0 }}>
+            <div className="dash-form__grid">
+              <label className="dash-label">
+                <span className="dash-label__text">GitHub URL</span>
+                <input
+                  className="dash-input"
+                  value={githubUrl}
+                  onChange={(e) => setGithubUrl(e.target.value)}
+                  placeholder="https://github.com/owner/repo"
+                  type="url"
+                  required
+                />
+              </label>
+
+              <label className="dash-label">
+                <span className="dash-label__text">Project name</span>
+                <input
+                  className="dash-input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="My Service"
+                  required
+                />
+              </label>
+            </div>
+
             <label className="dash-label">
-              <span className="dash-label__text">GitHub URL</span>
-              <input
-                className="dash-input"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                placeholder="https://github.com/owner/repo"
-                type="url"
-                required
+              <span className="dash-label__text">Description (optional)</span>
+              <textarea
+                className="dash-textarea"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What does this codebase do?"
+                rows={3}
               />
             </label>
 
             <label className="dash-label">
-              <span className="dash-label__text">Project name</span>
+              <span className="dash-label__text">Team members (optional)</span>
               <input
                 className="dash-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="My Service"
-                required
+                value={teamMembersRaw}
+                onChange={(e) => setTeamMembersRaw(e.target.value)}
+                placeholder="alice@company.com, bob@company.com"
               />
             </label>
-          </div>
+          </fieldset>
 
-          <label className="dash-label">
-            <span className="dash-label__text">Description (optional)</span>
-            <textarea
-              className="dash-textarea"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this codebase do?"
-              rows={3}
-            />
-          </label>
-
-          <label className="dash-label">
-            <span className="dash-label__text">Team members (optional)</span>
-            <input
-              className="dash-input"
-              value={teamMembersRaw}
-              onChange={(e) => setTeamMembersRaw(e.target.value)}
-              placeholder="alice@company.com, bob@company.com"
-            />
-          </label>
+          {creating && (
+            <div className="dash-create__progress">
+              <div className="dash-create__progress-bar" />
+              <span>Setting up your project&hellip;</span>
+            </div>
+          )}
 
           {error ? (
             <div className="dash-inline-error" role="alert">
@@ -248,11 +304,19 @@ function ProjectCreateModal({
               className="dash-btn dash-btn--secondary"
               type="button"
               onClick={onClose}
+              disabled={creating}
             >
               Cancel
             </button>
-            <button className="dash-btn dash-btn--primary" type="submit">
-              Add project
+            <button className="dash-btn dash-btn--primary" type="submit" disabled={creating}>
+              {creating ? (
+                <>
+                  <span className="dash-delete__spinner dash-delete__spinner--inline" aria-hidden="true" />
+                  Adding&hellip;
+                </>
+              ) : (
+                "Add project"
+              )}
             </button>
           </div>
         </form>
@@ -449,13 +513,13 @@ function CodebaseDropzone({
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
-
+  const [session, setSession] = useState<any | null>(null);
+  const [isPending, setIsPending] = useState<boolean>(true);
   const isAuthed = !!session;
   const [projects, setProjects] = useState<Project[]>([]);
   const [scanBusy, setScanBusy] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState<Record<string, boolean>>({});
-  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [allowSignal, setAllowSignal] = useState<boolean>(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
@@ -465,13 +529,40 @@ export default function DashboardPage() {
   const [bootAnimDone, setBootAnimDone] = useState(false);
   const [initialProjectsLoaded, setInitialProjectsLoaded] = useState(false);
   const initialProjectsLoadedRef = useRef(false);
-  const [activeSection, setActiveSection] = useState<"home" | "teams">("home");
+  const [activeSection, setActiveSection] = useState<"home" | "teams" | "audit">("home");
   const [teamView, setTeamView] = useState<"members" | "settings">("members");
   const [teamMembers, setTeamMembers] = useState<TeamRow[]>([]);
   const [teamInvite, setTeamInvite] = useState("");
   const [teamError, setTeamError] = useState<string | null>(null);
+
+  const [auditProjectId, setAuditProjectId] = useState<string | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const BOOT_ANIM_MS = 3200; // 2s logo pulse + loading bar
+
+  useEffect(() => {
+    // Fetch session once to avoid continuous polling pressure on MySQL.
+    let cancelled = false;
+    async function run() {
+      setIsPending(true);
+      try {
+        const r = await (authClient as any).getSession?.();
+        // better-auth commonly returns { data, error }.
+        const nextSession = r?.data ?? r?.session ?? null;
+        if (!cancelled) setSession(nextSession);
+      } catch {
+        if (!cancelled) setSession(null);
+      } finally {
+        if (!cancelled) setIsPending(false);
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     startTransition(() => {
@@ -503,9 +594,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!booting) return;
     if (!bootAnimDone) return;
-    if (!initialProjectsLoaded) return;
     setBooting(false);
-  }, [booting, bootAnimDone, initialProjectsLoaded]);
+  }, [booting, bootAnimDone]);
 
   useEffect(() => {
     if (isAuthed) return;
@@ -551,6 +641,44 @@ export default function DashboardPage() {
     localStorage.setItem(TEAM_KEY, JSON.stringify(teamMembers));
   }, [isAuthed, teamMembers]);
 
+  useEffect(() => {
+    // Keep audit project selection valid as projects change.
+    if (!isAuthed) return;
+    if (activeSection !== "audit") return;
+    if (auditProjectId && projects.some((p) => p.id === auditProjectId)) return;
+    setAuditProjectId(projects[0]?.id ?? null);
+  }, [activeSection, auditProjectId, isAuthed, projects]);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    if (activeSection !== "audit") return;
+    if (!auditProjectId) return;
+
+    let cancelled = false;
+    async function loadAudit() {
+      setAuditLoading(true);
+      setAuditError(null);
+      try {
+        const r = await fetch(`/api/projects/${auditProjectId}/audit?limit=8`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await readApiResponse(r);
+        if (!r.ok) throw new Error(json?.error || "Failed to load audit");
+        if (!cancelled) setAuditEntries(Array.isArray(json?.data) ? (json.data as AuditEntry[]) : []);
+      } catch (e) {
+        if (!cancelled) setAuditError(e instanceof Error ? e.message : "Failed to load audit");
+      } finally {
+        if (!cancelled) setAuditLoading(false);
+      }
+    }
+
+    void loadAudit();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection, auditProjectId, isAuthed]);
+
   const loadProjects = useCallback(async () => {
     if (!isAuthed) {
       setProjects([]);
@@ -588,6 +716,8 @@ export default function DashboardPage() {
 
   const projectsCount = projects.length;
   const ownerEmail = normalizeEmail(String((session as any)?.user?.email ?? ""));
+  const currentUserId = String((session as any)?.user?.id ?? "");
+  const auditProject = auditProjectId ? projects.find((p) => p.id === auditProjectId) ?? null : null;
   const teamCount = teamMembers.length;
 
   const displayName =
@@ -619,7 +749,7 @@ export default function DashboardPage() {
   }, [router]);
 
   const headerRight = useMemo(() => {
-    if (isPending) return <span className="dash-pill">Checking session…</span>;
+    if (isPending) return null;
     if (!isAuthed)
       return (
         <Link className="action action-primary" href="/login">
@@ -632,6 +762,7 @@ export default function DashboardPage() {
           type="button"
           className="dash-user"
           aria-label="Signed in user"
+          aria-expanded={showLogout}
           onClick={() => setShowLogout((v) => !v)}
         >
           <span className="dash-user__icon" aria-hidden="true">
@@ -643,13 +774,34 @@ export default function DashboardPage() {
           <span className="dash-user__name">{String(displayName)}</span>
         </button>
         {showLogout ? (
-          <button type="button" className="dash-user__logout" onClick={handleLogout}>
-            Log out
-          </button>
+          <div className="dash-user__dropdown" role="menu">
+            <div className="dash-user__dropdown-header">
+              <span className="dash-user__dropdown-avatar" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              <div className="dash-user__dropdown-info">
+                <span className="dash-user__dropdown-name">{String(displayName)}</span>
+                {(session as any)?.user?.email ? (
+                  <span className="dash-user__dropdown-email">{String((session as any).user.email)}</span>
+                ) : null}
+              </div>
+            </div>
+            <button type="button" className="dash-user__logout" role="menuitem" onClick={handleLogout}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Log out
+            </button>
+          </div>
         ) : null}
       </div>
     );
-  }, [displayName, handleLogout, isAuthed, isPending, showLogout]);
+  }, [displayName, handleLogout, isAuthed, isPending, session, showLogout]);
 
   if (booting && bootChecked) {
     return (
@@ -684,7 +836,7 @@ export default function DashboardPage() {
   return (
     <div className={`dashboard ${styles.root}`}>
       <div className="dash-topnav">
-        <Link href="/dashboard" className="brand" aria-label="Signal Dashboard">
+        <Link href="/" className="brand" aria-label="Signal Dashboard">
           <Image
             src="/signal_evenbigger.png"
             alt=""
@@ -789,15 +941,32 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {projects.length === 0 ? (
-                <div className="dash-empty">
+              {loadingProjects ? (
+                <div className="dash-project-skeleton">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="dash-project-skeleton__card" style={{ animationDelay: `${i * 120}ms` }}>
+                      <div className="dash-project-skeleton__row">
+                        <div className="dash-skel dash-skel--title" />
+                        <div className="dash-skel dash-skel--link" />
+                      </div>
+                      <div className="dash-skel dash-skel--desc" />
+                      <div className="dash-project-skeleton__row">
+                        <div className="dash-skel dash-skel--pill" />
+                        <div className="dash-skel dash-skel--pill" />
+                        <div className="dash-skel dash-skel--btn" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="dash-empty dash-projects-enter">
                   <div className="dash-empty__title">Start by adding a GitHub repo</div>
                   <div className="dash-empty__subtitle">
-                    Click “Add codebase” and enter the GitHub URL, project name, and optional team members.
+                    Click &quot;Add codebase&quot; and enter the GitHub URL, project name, and optional team members.
                   </div>
                 </div>
               ) : (
-                <div className="dash-project-list">
+                <div className="dash-project-list dash-projects-enter">
                   {projects.map((p) => (
                       <div key={p.id} className="dash-project-card">
                         <div className="dash-project-card__top">
@@ -892,7 +1061,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeSection === "teams" ? (
           <section className="dash-teamPanel" id="teams">
             <div className="dash-section">
               <div className="dash-section__header">
@@ -1016,6 +1185,175 @@ export default function DashboardPage() {
               )}
             </div>
           </section>
+        ) : (
+          <section className="dash-teamPanel" id="audit">
+            <div className="dash-section">
+              <div className="dash-section__header">
+                <div>
+                  <div className="dash-section__title">Audit</div>
+                  <div className="dash-section__subtitle">Discord-style scan history and diffs</div>
+                </div>
+
+                {projects.length > 0 ? (
+                  <div className="dash-auditSelectWrap">
+                    <span className="dash-auditSelectLabel">Project</span>
+                    <select
+                      className="dash-input dash-auditSelect"
+                      value={auditProject?.id ?? ""}
+                      onChange={(e) => setAuditProjectId(e.target.value)}
+                      disabled={projects.length === 0}
+                    >
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.projectName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+
+              {auditLoading ? (
+                <div className="dash-auditLoading">Loading audit…</div>
+              ) : auditError ? (
+                <div className="dash-inline-error" role="alert">
+                  {auditError}
+                </div>
+              ) : auditEntries.length === 0 ? (
+                <div className="dash-empty">
+                  <div className="dash-empty__title">No scans yet</div>
+                  <div className="dash-empty__subtitle">Run a scan from the Projects list to generate audit diffs.</div>
+                </div>
+              ) : (
+                <div className="dash-auditList">
+                  {auditEntries.map((entry) => {
+                    const when = entry.finishedAt ?? entry.createdAt;
+                    const isYou = entry.ranByUserId && currentUserId && entry.ranByUserId === currentUserId;
+                    const added = entry.diff?.addedCount ?? 0;
+                    const removed = entry.diff?.removedCount ?? 0;
+                    const changed = entry.diff?.changedCount ?? 0;
+
+                    return (
+                      <details key={entry.scanId} className="dash-auditEntry">
+                        <summary className="dash-auditSummary">
+                          <div className="dash-auditSummary__main">
+                            <div className="dash-auditWhen">{formatDateTime(when) || when}</div>
+                            <div className="dash-auditMeta">
+                              <span className="dash-auditBy">
+                                Ran by:{" "}
+                                <span className={isYou ? "dash-auditYou" : undefined}>
+                                  {isYou ? "You" : entry.ranByUserId ?? "Unknown"}
+                                </span>
+                              </span>
+                              <span className="dash-auditSep">·</span>
+                              <span className="dash-auditId">ID: {entry.scanId.slice(0, 8)}</span>
+                            </div>
+                          </div>
+
+                          <div className="dash-auditSummary__side">
+                            <div className="dash-auditScoreRow">
+                              <span className="dash-auditScore">Score: {entry.securityScore ?? "N/A"}</span>
+                              {entry.scoreDelta != null ? (
+                                <span
+                                  className={
+                                    entry.scoreDelta >= 0
+                                      ? "dash-auditDelta dash-auditDelta--up"
+                                      : "dash-auditDelta dash-auditDelta--down"
+                                  }
+                                >
+                                  {entry.scoreDelta >= 0 ? `+${entry.scoreDelta}` : entry.scoreDelta}
+                                </span>
+                              ) : (
+                                <span className="dash-auditDelta dash-auditDelta--neutral">-</span>
+                              )}
+                            </div>
+
+                            {entry.diff ? (
+                              <div className="dash-auditBadges">
+                                <span className="dash-auditBadge dash-auditBadge--added">+{added} added</span>
+                                <span className="dash-auditBadge dash-auditBadge--removed">-{removed} removed</span>
+                                <span className="dash-auditBadge dash-auditBadge--changed">{changed} changed</span>
+                              </div>
+                            ) : (
+                              <div className="dash-auditBadges dash-auditBadges--empty">No previous scan for diff.</div>
+                            )}
+                          </div>
+                        </summary>
+
+                        {entry.diff ? (
+                          <div className="dash-auditBody">
+                            <div className="dash-auditBody__row">
+                              <span className="dash-auditBody__label">Scan ID</span>
+                              <span className="dash-auditMono">{entry.scanId}</span>
+                            </div>
+
+                            <div className="dash-auditDiffGrid">
+                              <div className="dash-auditDiffCol dash-auditDiffCol--added">
+                                <div className="dash-auditDiffCol__title">New</div>
+                                {entry.diff.topAdded.length ? (
+                                  <ul className="dash-auditFindingList">
+                                    {entry.diff.topAdded.map((f) => (
+                                      <li key={f.fingerprint}>
+                                        <span className="dash-auditSeverity">{f.severity}</span> {f.category}
+                                        <div className="dash-auditMono dash-auditFile">
+                                          {f.filePath}
+                                          {f.lineNumber != null ? `:${f.lineNumber}` : ""}
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="dash-auditNone">None</div>
+                                )}
+                              </div>
+
+                              <div className="dash-auditDiffCol dash-auditDiffCol--removed">
+                                <div className="dash-auditDiffCol__title">Resolved</div>
+                                {entry.diff.topRemoved.length ? (
+                                  <ul className="dash-auditFindingList">
+                                    {entry.diff.topRemoved.map((f) => (
+                                      <li key={f.fingerprint}>
+                                        <span className="dash-auditSeverity">{f.severity}</span> {f.category}
+                                        <div className="dash-auditMono dash-auditFile">
+                                          {f.filePath}
+                                          {f.lineNumber != null ? `:${f.lineNumber}` : ""}
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="dash-auditNone">None</div>
+                                )}
+                              </div>
+
+                              <div className="dash-auditDiffCol dash-auditDiffCol--changed">
+                                <div className="dash-auditDiffCol__title">Changed</div>
+                                {entry.diff.topChanged.length ? (
+                                  <ul className="dash-auditFindingList">
+                                    {entry.diff.topChanged.map((f) => (
+                                      <li key={f.fingerprint}>
+                                        <span className="dash-auditSeverity">{f.severity}</span> {f.category}
+                                        <div className="dash-auditMono dash-auditFile">
+                                          {f.filePath}
+                                          {f.lineNumber != null ? `:${f.lineNumber}` : ""}
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="dash-auditNone">None</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
         )}
       </div>
 
@@ -1101,6 +1439,20 @@ export default function DashboardPage() {
             </svg>
           </span>
           <span className="dash-bottomnav__label">Teams</span>
+        </Link>
+
+        <Link
+          href="/dashboard#audit"
+          className={activeSection === "audit" ? "dash-bottomnav__item dash-bottomnav__item--active" : "dash-bottomnav__item"}
+          onClick={() => setActiveSection("audit")}
+        >
+          <span className="dash-bottomnav__icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 3" />
+            </svg>
+          </span>
+          <span className="dash-bottomnav__label">Audit</span>
         </Link>
 
         <button

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
@@ -50,22 +50,32 @@ async function readApiResponse(response: Response) {
 
 function scoreLabel(score: number | null | undefined) {
   if (score == null) return "Not scored";
-  if (score >= 24) return "Strong";
-  if (score >= 15) return "Moderate";
+  if (score <= 10) return "Strong";
+  if (score <= 25) return "Moderate";
   return "At risk";
 }
 
 function scoreTone(score: number | null | undefined) {
   if (score == null) return "unknown";
-  if (score >= 24) return "strong";
-  if (score >= 15) return "warn";
+  if (score <= 10) return "strong";
+  if (score <= 25) return "warn";
   return "critical";
+}
+
+/** Smooth HSL color from green (score 0) → yellow → red (score 50) */
+function scoreHslColor(score: number | null | undefined): string {
+  if (score == null) return "rgba(255, 230, 220, 0.55)";
+  const clamped = Math.max(0, Math.min(50, score));
+  // hue 150 = green, hue 40 = yellow-amber, hue 0 = red
+  const hue = 150 * (1 - clamped / 50);
+  return `hsl(${Math.round(hue)}, 65%, 58%)`;
 }
 
 export default function FindingsReportPage() {
   const params = useParams<{ projectId: string }>();
   const search = useSearchParams();
-  const { data: session, isPending } = authClient.useSession();
+  const [session, setSession] = useState<any | null>(null);
+  const [isPending, setIsPending] = useState<boolean>(true);
   const projectId = params.projectId;
   const scanId = search.get("scanId") || "";
   const [page, setPage] = useState(1);
@@ -73,6 +83,28 @@ export default function FindingsReportPage() {
   const [payload, setPayload] = useState<FindingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const gaugeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Fetch session once to avoid continuous polling pressure on MySQL.
+    let cancelled = false;
+    async function run() {
+      setIsPending(true);
+      try {
+        const r = await (authClient as any).getSession?.();
+        const nextSession = r?.data ?? r?.session ?? null;
+        if (!cancelled) setSession(nextSession);
+      } catch {
+        if (!cancelled) setSession(null);
+      } finally {
+        if (!cancelled) setIsPending(false);
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!projectId) return;
@@ -93,7 +125,7 @@ export default function FindingsReportPage() {
         if (!r.ok) throw new Error(json?.error || "Failed to load findings report");
         setPayload(json);
         if (json?.summary?.status === "running") {
-          window.setTimeout(() => setRefreshTick((t) => t + 1), 2000);
+          window.setTimeout(() => setRefreshTick((t) => t + 1), 4500);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load findings");
@@ -116,15 +148,52 @@ export default function FindingsReportPage() {
 
   const securityScoreRaw = payload?.summary?.securityScore ?? payload?.summary?.summary?.securityScore ?? null;
   const securityScore = securityScoreRaw == null ? null : Math.round(Number(securityScoreRaw));
-  const scoreValue = Math.max(0, Math.min(30, Number(securityScore ?? 0)));
-  const scorePercent = Number.isFinite(scoreValue) ? (scoreValue / 30) * 100 : 0;
-  const scoreDelta = Math.round((securityScore ?? 0) - 30);
+  const scoreValue = Math.max(0, Math.min(50, Number(securityScore ?? 0)));
+  // Score 0 = full green ring (perfect health). Score > 0 = fill proportional to risk.
+  const scorePercent = scoreValue === 0 ? 100 : Math.max(8, (scoreValue / 50) * 100);
+  const scoreDelta = Math.round(securityScore ?? 0);
   const tone = scoreTone(securityScore);
+  const gaugeColor = scoreHslColor(securityScore);
+  const [displayedScore, setDisplayedScore] = useState<number>(0);
 
-  if (isPending) {
-    return <main className={`report ${styles.root}`}>Checking session...</main>;
-  }
-  if (!session) {
+  // Animate gauge fill with JS so it works in every browser
+  useEffect(() => {
+    const el = gaugeRef.current;
+    if (!el || loading || !payload) return;
+    const target = scorePercent;
+    const duration = 1000;
+    const start = performance.now();
+    let raf: number;
+    function tick(now: number) {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      el!.style.setProperty("--gauge-fill", `${eased * target}%`);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    }
+    el.style.setProperty("--gauge-fill", "0%");
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [loading, payload, scorePercent]);
+
+  // Animate score number count-up
+  useEffect(() => {
+    if (loading || !payload) return;
+    const target = securityScore ?? 0;
+    const duration = 1000;
+    const start = performance.now();
+    let raf: number;
+    function tick(now: number) {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplayedScore(Math.round(eased * target));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    }
+    setDisplayedScore(0);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [loading, payload, securityScore]);
+
+  if (!isPending && !session) {
     return (
       <main className={`report ${styles.root}`}>
         <div className="report-card">
@@ -141,7 +210,7 @@ export default function FindingsReportPage() {
   return (
     <main className={`report ${styles.root}`}>
       <div className="report-topnav">
-        <Link href="/dashboard" className="report-brand" aria-label="Signal Findings">
+        <Link href="/" className="report-brand" aria-label="Signal home">
           <Image
             src="/signal_evenbigger.png"
             alt=""
@@ -157,8 +226,8 @@ export default function FindingsReportPage() {
             <span className="report-brand__item">Findings</span>
           </div>
         </Link>
-        <Link href="/dashboard" className="report-btn report-btn--ghost">
-          Back to dashboard
+        <Link href="/" className="report-btn report-btn--ghost">
+          Back to landing
         </Link>
       </div>
 
@@ -173,26 +242,46 @@ export default function FindingsReportPage() {
         </header>
 
         {error ? <div className="report-error">{error}</div> : null}
-        {loading ? <div className="report-loading">Loading findings...</div> : null}
+        {loading ? (
+          <div className="report-loading">
+            <div className="report-loading__topgrid">
+              <div className="report-loading__skel report-loading__skel--score" />
+              <div className="report-loading__skel report-loading__skel--breakdown" />
+              <div className="report-loading__skel report-loading__skel--summary" />
+            </div>
+            <div className="report-loading__skel report-loading__skel--table" />
+          </div>
+        ) : null}
 
         {!loading && payload ? (
           <>
-            <section className="report-topgrid">
+            <section className="report-topgrid report-fadein">
               <div className="report-card">
                 <div className="report-card__label">Security Score</div>
                 <div
+                  ref={gaugeRef}
                   className={`report-gauge report-gauge--${tone}`}
-                  style={{ ["--p" as any]: `${scorePercent}%` }}
-                  aria-label={`Security score ${securityScore ?? "not scored"} out of 30`}
+                  style={{
+                    ["--gauge-fill" as any]: "0%",
+                    ["--gauge-color" as any]: gaugeColor,
+                  }}
+                  aria-label={`Security score ${securityScore ?? "not scored"} out of 50`}
                 >
                   <div className="report-gauge__inner">
-                    <div className="report-gauge__value">{securityScore ?? "--"}</div>
-                    <div className="report-gauge__denom">/ 30</div>
+                    <div className="report-gauge__value">{securityScore == null ? "--" : displayedScore}</div>
+                    <div className="report-gauge__denom">/ 50</div>
                   </div>
                 </div>
                 <div className="report-scoreMeta">
                   <div className="report-card__meta">{scoreLabel(securityScore)}</div>
-                  <span className={scoreDelta < 0 ? "report-delta report-delta--down" : "report-delta report-delta--up"}>
+                  <span
+                    className={scoreDelta > 0 ? "report-delta report-delta--down" : "report-delta report-delta--up"}
+                    style={
+                      scoreDelta > 0
+                        ? { color: gaugeColor, borderColor: gaugeColor, background: `color-mix(in srgb, ${gaugeColor} 14%, transparent)` }
+                        : undefined
+                    }
+                  >
                     {scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta}
                   </span>
                 </div>
@@ -217,10 +306,10 @@ export default function FindingsReportPage() {
               </div>
             </section>
 
-            <section className="report-card">
+            <section className="report-card report-fadein" style={{ animationDelay: "0.12s" }}>
               <div className="report-tableTitle">Vulnerabilities</div>
               {payload.data.length === 0 ? (
-                <div className="report-empty">No findings for this scan.</div>
+                <div className="report-empty">No vulernabilites found, your codebase looks good!</div>
               ) : (
                 <div className="report-tableWrap">
                   <table className="report-table">
