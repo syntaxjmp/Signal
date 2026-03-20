@@ -14,6 +14,8 @@
     "auth:migrate": "npx @better-auth/cli migrate --config ./src/auth.js --yes"
   },
   "dependencies": {
+    "adm-zip": "^0.5.16",
+    "axios": "^1.13.6",
     "better-auth": "^1.5.5",
     "compression": "^1.8.0",
     "cors": "^2.8.5",
@@ -21,6 +23,8 @@
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "morgan": "^1.10.0",
-    "mysql2": "^3.12.0"
+    "mysql2": "^3.12.0",
+    "openai": "^6.32.0",
+    "uuid": "^13.0.0"
   }
 }

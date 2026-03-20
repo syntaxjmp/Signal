@@ -1,6 +1,6 @@
 "use client";
 
-import React, { startTransition, useEffect, useMemo, useState } from "react";
+import React, { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,24 +12,46 @@ type TeamMember = { email: string };
 type Project = {
   id: string;
   githubUrl: string;
-  name: string;
+  projectName: string;
   description: string;
-  teamMembers: TeamMember[];
-  createdAt: number;
+  securityScore?: number | null;
+  latestScanId?: string | null;
+  latestScanStatus?: string | null;
+  latestFindingsCount?: number | null;
+  createdAt?: string;
 };
 
-const STORAGE_KEY = "signal_dashboard_projects_v1";
 const ALLOW_KEY = "signal_dashboard_allow_v1";
 
-function safeParseProjects(raw: string | null): Project[] {
-  if (!raw) return [];
+async function readApiResponse(response: Response) {
+  const text = await response.text();
   try {
-    const parsed = JSON.parse(raw) as Project[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((p) => p && typeof p.id === "string");
+    return text ? JSON.parse(text) : {};
   } catch {
-    return [];
+    return { error: text || "Unexpected server response" };
   }
+}
+
+async function waitForScanCompletion(projectId: string, scanId: string) {
+  const maxAttempts = 90; // ~3 minutes
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const r = await fetch(
+      `/api/projects/${projectId}/findings?page=1&pageSize=1&scanId=${encodeURIComponent(scanId)}`,
+      {
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+    const json = await readApiResponse(r);
+    if (!r.ok) throw new Error(json?.error || "Failed to fetch scan status");
+    const status = json?.summary?.status;
+    if (status === "completed") return;
+    if (status === "failed") {
+      throw new Error(json?.summary?.errorMessage || "Scan failed");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  throw new Error("Scan timed out while waiting for completion");
 }
 
 function parseTeamMembers(raw: string): TeamMember[] {
@@ -68,7 +90,7 @@ function ProjectCreateModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onCreate: (p: Omit<Project, "id" | "createdAt">) => void;
+  onCreate: (p: { githubUrl: string; projectName: string; description: string; teamMembers: TeamMember[] }) => Promise<void>;
 }) {
   const [githubUrl, setGithubUrl] = useState("");
   const [name, setName] = useState("");
@@ -119,7 +141,7 @@ function ProjectCreateModal({
 
         <form
           className="dash-form"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             setError(null);
 
@@ -134,13 +156,17 @@ function ProjectCreateModal({
               return;
             }
 
-            onCreate({
-              githubUrl: githubUrlTrimmed,
-              name: nameTrimmed,
-              description: description.trim(),
-              teamMembers: parseTeamMembers(teamMembersRaw),
-            });
-            onClose();
+            try {
+              await onCreate({
+                githubUrl: githubUrlTrimmed,
+                projectName: nameTrimmed,
+                description: description.trim(),
+                teamMembers: parseTeamMembers(teamMembersRaw),
+              });
+              onClose();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Could not create project");
+            }
           }}
         >
           <div className="dash-form__grid">
@@ -324,15 +350,44 @@ export default function DashboardPage() {
 
   const isAuthed = !!session;
   const [projects, setProjects] = useState<Project[]>([]);
+  const [scanBusy, setScanBusy] = useState<Record<string, boolean>>({});
+  const [deleteBusy, setDeleteBusy] = useState<Record<string, boolean>>({});
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [allowSignal, setAllowSignal] = useState<boolean>(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     startTransition(() => {
-      setProjects(safeParseProjects(localStorage.getItem(STORAGE_KEY)));
       setAllowSignal(localStorage.getItem(ALLOW_KEY) === "1");
     });
   }, []);
+
+  const loadProjects = useCallback(async () => {
+    if (!isAuthed) {
+      setProjects([]);
+      return;
+    }
+    setLoadingProjects(true);
+    try {
+      const r = await fetch("/api/projects", { credentials: "include", cache: "no-store" });
+      const json = await readApiResponse(r);
+      if (!r.ok) throw new Error(json?.error || "Failed to load projects");
+      setProjects(Array.isArray(json?.data) ? json.data : []);
+    } catch (e) {
+      console.error("Failed to load projects", e);
+      setProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [isAuthed]);
+
+  useEffect(() => {
+    if (!isAuthed) {
+      setProjects([]);
+      return;
+    }
+    void loadProjects();
+  }, [isAuthed, loadProjects]);
 
   const projectsCount = projects.length;
 
@@ -445,7 +500,11 @@ export default function DashboardPage() {
                 <div>
                   <div className="dash-section__title">Projects</div>
                   <div className="dash-section__subtitle">
-                    {projectsCount === 0 ? "No codebases yet." : `${projectsCount} codebase${projectsCount === 1 ? "" : "s"}.`}
+                    {loadingProjects
+                      ? "Loading projects..."
+                      : projectsCount === 0
+                        ? "No codebases yet."
+                        : `${projectsCount} codebase${projectsCount === 1 ? "" : "s"}.`}
                   </div>
                 </div>
                 <button
@@ -474,13 +533,10 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="dash-project-list">
-                  {projects
-                    .slice()
-                    .sort((a, b) => b.createdAt - a.createdAt)
-                    .map((p) => (
+                  {projects.map((p) => (
                       <div key={p.id} className="dash-project-card">
                         <div className="dash-project-card__top">
-                          <div className="dash-project-card__name">{p.name}</div>
+                          <div className="dash-project-card__name">{p.projectName}</div>
                           <a
                             className="dash-project-card__link"
                             href={p.githubUrl}
@@ -497,19 +553,81 @@ export default function DashboardPage() {
                             No description yet.
                           </div>
                         )}
-                        {p.teamMembers.length ? (
-                          <div className="dash-team">
-                            {p.teamMembers.slice(0, 6).map((m) => (
-                              <span key={m.email} className="dash-team__pill">
-                                {m.email}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="dash-team dash-team--muted">
-                            No team members added.
-                          </div>
-                        )}
+                        <div className="dash-team">
+                          <span className="dash-team__pill">
+                            Security Score: {p.securityScore ?? "N/A"}
+                          </span>
+                          <span className="dash-team__pill">
+                            Scan: {p.latestScanStatus ?? "not started"}
+                          </span>
+                          <button
+                            type="button"
+                            className="dash-btn dash-btn--secondary"
+                            disabled={!!scanBusy[p.id]}
+                            onClick={async () => {
+                              setScanBusy((s) => ({ ...s, [p.id]: true }));
+                              try {
+                                const key = window.prompt("OpenAI API key (leave blank to use backend OPENAI_API_KEY):", "") ?? "";
+                                const r = await fetch(`/api/projects/${p.id}/scan`, {
+                                  method: "POST",
+                                  headers: { "content-type": "application/json" },
+                                  credentials: "include",
+                                  cache: "no-store",
+                                  body: JSON.stringify({ openAiApiKey: key || undefined }),
+                                });
+                                const json = await readApiResponse(r);
+                                if (!r.ok) throw new Error(json?.error || "Scan failed");
+                                if (json?.scanId) {
+                                  await waitForScanCompletion(p.id, String(json.scanId));
+                                  await loadProjects();
+                                  router.push(`/findingsreport/${p.id}?scanId=${encodeURIComponent(String(json.scanId))}`);
+                                }
+                              } catch (err) {
+                                alert(err instanceof Error ? err.message : "Scan failed");
+                              } finally {
+                                setScanBusy((s) => ({ ...s, [p.id]: false }));
+                              }
+                            }}
+                          >
+                            {scanBusy[p.id] ? "Scanning..." : "Run scan"}
+                          </button>
+                          <button
+                            type="button"
+                            className="dash-btn dash-btn--secondary"
+                            onClick={() => {
+                              router.push(`/findingsreport/${p.id}`);
+                            }}
+                          >
+                            View findings
+                          </button>
+                          <button
+                            type="button"
+                            className="dash-btn dash-btn--secondary"
+                            disabled={!!deleteBusy[p.id]}
+                            onClick={async () => {
+                              if (!window.confirm(`Delete project "${p.projectName}"? This also removes scans and findings.`)) {
+                                return;
+                              }
+                              setDeleteBusy((s) => ({ ...s, [p.id]: true }));
+                              try {
+                                const r = await fetch(`/api/projects/${p.id}`, {
+                                  method: "DELETE",
+                                  credentials: "include",
+                                  cache: "no-store",
+                                });
+                                const json = await readApiResponse(r);
+                                if (!r.ok) throw new Error(json?.error || "Delete failed");
+                                await loadProjects();
+                              } catch (err) {
+                                alert(err instanceof Error ? err.message : "Delete failed");
+                              } finally {
+                                setDeleteBusy((s) => ({ ...s, [p.id]: false }));
+                              }
+                            }}
+                          >
+                            {deleteBusy[p.id] ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -522,15 +640,23 @@ export default function DashboardPage() {
       <ProjectCreateModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={(p) => {
-          const newProject: Project = {
-            id: crypto.randomUUID(),
-            createdAt: Date.now(),
-            ...p,
-          };
-          const next = [newProject, ...projects];
-          setProjects(next);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        onCreate={async (p) => {
+          const r = await fetch("/api/projects", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            credentials: "include",
+            cache: "no-store",
+            body: JSON.stringify({
+              githubUrl: p.githubUrl,
+              projectName: p.projectName,
+              description: p.description,
+            }),
+          });
+          const json = await readApiResponse(r);
+          if (!r.ok) {
+            throw new Error(json?.error || "Could not create project");
+          }
+          await loadProjects();
         }}
       />
 
