@@ -631,11 +631,10 @@ h1 {
 
 /* Landing footer */
 .landing-footer {
-  margin-top: 6rem;
   padding: 2rem 0 1.8rem;
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 90, 52, 0.1), rgba(0, 0, 0, 0.95) 62%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.98));
+    /* Keep footer fully opaque so it never visually "collides" with the arch layer. */
+    linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.99));
   border-top: 1px solid rgba(255, 90, 52, 0.16);
   position: relative;
   z-index: 10;
