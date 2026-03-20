@@ -127,9 +127,9 @@ export default function Home() {
         <section className="hero">
           <div className="hero__content">
             <h1>
-              Futureproof Your
+              Ship faster,
               <br />
-              Frontend
+              Without Stress.
             </h1>
             <p>
               Signal enables developers to ship quickly and securely by detecting critical
