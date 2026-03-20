@@ -128,10 +128,44 @@ async function maybeEnsureResolutionTables() {
   }
 }
 
+async function maybeEnsureUserWebhookTable() {
+  if (env.isProd) return;
+
+  const conn = await mysql.createConnection({
+    host: env.mysql.host,
+    port: env.mysql.port,
+    user: env.mysql.user,
+    password: env.mysql.password,
+    database: env.mysql.database,
+    multipleStatements: true,
+  });
+
+  try {
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS user_webhooks (
+        id CHAR(36) NOT NULL,
+        user_id VARCHAR(191) NOT NULL,
+        webhook_url VARCHAR(2048) NOT NULL,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_user_webhooks_user (user_id),
+        KEY idx_user_webhooks_active (is_active)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+  } catch (e) {
+    console.warn('[db:migrate] user_webhooks migration skipped', e instanceof Error ? e.message : String(e));
+  } finally {
+    await conn.end();
+  }
+}
+
 async function main() {
   await maybeAutoMigrate();
   await maybeEnsureProjectScansUserId();
   await maybeEnsureResolutionTables();
+  await maybeEnsureUserWebhookTable();
 
   const app = createApp();
   const server = app.listen(env.port, () => {

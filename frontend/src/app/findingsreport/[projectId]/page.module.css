@@ -503,8 +503,12 @@
   background: rgba(62, 203, 122, 0.1);
 }
 
-:global(.report-row--resolved) {
+:global(.report-row--resolved td:not(.report-resolveCell)) {
   opacity: 0.55;
+}
+
+:global(.report-row--resolved .report-resolveCell) {
+  opacity: 1;
 }
 
 /* --- Resolution banners --- */

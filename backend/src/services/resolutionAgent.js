@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../config/database.js';
 import { env } from '../config/env.js';
 import { resolveAgentPrompt } from '../ai/resolveAgentPrompt.js';
+import { sendWebhookForUser } from './webhookHandler.js';
 
 /**
  * Build common GitHub API headers.
@@ -219,8 +220,12 @@ ${fileContent}`,
 export async function runResolutionJob({ jobId, projectId, findingIds, githubUrl, githubToken, openAiApiKey }) {
   const pool = getPool();
   const openAiModel = env.openAi.model;
+  let jobUserId = null;
 
   try {
+    const [[jobRow]] = await pool.query(`SELECT user_id AS userId FROM resolution_jobs WHERE id = ? LIMIT 1`, [jobId]);
+    jobUserId = jobRow?.userId ?? null;
+
     await pool.execute(
       `UPDATE resolution_jobs SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [jobId],
@@ -407,6 +412,20 @@ export async function runResolutionJob({ jobId, projectId, findingIds, githubUrl
       `UPDATE resolution_jobs SET status = 'completed', pr_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [prUrl, jobId],
     );
+
+    if (jobUserId) {
+      void sendWebhookForUser(jobUserId, {
+        title: 'Resolve Job Completed',
+        description: 'Signal Bot created a pull request for your resolved findings.',
+        fields: [
+          { name: 'Project ID', value: projectId, inline: true },
+          { name: 'Job ID', value: jobId, inline: true },
+          { name: 'Resolved Findings', value: String(resolvedIds.length), inline: true },
+          { name: 'Pull Request', value: prUrl, inline: false },
+        ],
+        url: prUrl,
+      });
+    }
 
     console.info(`[resolve] completed job=${jobId} pr=${prUrl}`);
   } catch (e) {

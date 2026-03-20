@@ -6,8 +6,24 @@ import { getPool } from '../config/database.js';
 import { env } from '../config/env.js';
 import { scanGitHubProject, validateGitHubUrl } from '../services/projectScanner.js';
 import { runResolutionJob } from '../services/resolutionAgent.js';
+import {
+  clearUserWebhook,
+  getUserWebhook,
+  isValidDiscordWebhookUrl,
+  sendWebhookForUser,
+  setUserWebhook,
+} from '../services/webhookHandler.js';
 
 export const projectsRouter = Router();
+
+function repoPathFromUrl(githubUrl) {
+  try {
+    const u = new URL(githubUrl);
+    return u.pathname.replace(/^\/+/, '').replace(/\.git$/i, '');
+  } catch {
+    return githubUrl;
+  }
+}
 
 async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiApiKey }) {
   try {
@@ -130,6 +146,56 @@ projectsRouter.post('/projects', requireUser, async (req, res, next) => {
       githubUrl: String(githubUrl).trim(),
       description: String(description),
     });
+
+    void sendWebhookForUser(req.userId, {
+      title: 'New Codebase Added',
+      description: `A new project was added to Signal.`,
+      fields: [
+        { name: 'Project', value: String(projectName).trim(), inline: true },
+        { name: 'Repository', value: repoPathFromUrl(String(githubUrl).trim()), inline: true },
+      ],
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.get('/projects/webhook', requireUser, async (req, res, next) => {
+  try {
+    const hook = await getUserWebhook(req.userId);
+    res.json({
+      enabled: !!hook?.isActive,
+      webhookUrl: hook?.isActive ? hook.webhookUrl : '',
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.put('/projects/webhook', requireUser, async (req, res, next) => {
+  try {
+    const webhookUrl = String(req.body?.webhookUrl || '').trim();
+    if (!isValidDiscordWebhookUrl(webhookUrl)) {
+      res.status(400).json({ error: 'Please provide a valid Discord webhook URL.' });
+      return;
+    }
+    await setUserWebhook({ userId: req.userId, webhookUrl });
+    res.json({ ok: true, enabled: true, webhookUrl });
+
+    void sendWebhookForUser(req.userId, {
+      title: 'Webhook Connected',
+      description: 'Signal notifications are now enabled for this Discord channel.',
+      fields: [{ name: 'Status', value: 'Connected', inline: true }],
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.delete('/projects/webhook', requireUser, async (req, res, next) => {
+  try {
+    await clearUserWebhook(req.userId);
+    res.json({ ok: true, enabled: false });
   } catch (e) {
     next(e);
   }
@@ -226,6 +292,16 @@ projectsRouter.post('/projects/:id/scan', requireUser, async (req, res, next) =>
       status: 'running',
     });
 
+    void sendWebhookForUser(req.userId, {
+      title: 'New Scan Started',
+      description: 'Signal started scanning your repository.',
+      fields: [
+        { name: 'Project ID', value: projectId, inline: true },
+        { name: 'Scan ID', value: scanId, inline: true },
+        { name: 'Repository', value: repoPathFromUrl(project.githubUrl), inline: false },
+      ],
+    });
+
     // Continue scanning after response returns to avoid frontend/proxy timeouts.
     setImmediate(() => {
       runScanInBackground({
@@ -315,6 +391,51 @@ projectsRouter.get('/projects/:id/findings', requireUser, async (req, res, next)
     ]);
     const total = Number(countRow?.total || 0);
 
+    let prUrl = null;
+    let prJobId = null;
+    let prBranchName = null;
+    if (scan) {
+      const [[nextScan]] = await pool.query(
+        `SELECT created_at AS createdAt
+         FROM project_scans
+         WHERE project_id = ?
+           AND created_at > ?
+         ORDER BY created_at ASC
+         LIMIT 1`,
+        [projectId, scan.createdAt],
+      );
+
+      const [prRows] = nextScan?.createdAt
+        ? await pool.query(
+            `SELECT id, pr_url AS prUrl, branch_name AS branchName
+             FROM resolution_jobs
+             WHERE project_id = ?
+               AND status = 'completed'
+               AND pr_url IS NOT NULL
+               AND created_at >= ?
+               AND created_at < ?
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [projectId, scan.createdAt, nextScan.createdAt],
+          )
+        : await pool.query(
+            `SELECT id, pr_url AS prUrl, branch_name AS branchName
+             FROM resolution_jobs
+             WHERE project_id = ?
+               AND status = 'completed'
+               AND pr_url IS NOT NULL
+               AND created_at >= ?
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [projectId, scan.createdAt],
+          );
+
+      const latestPr = prRows?.[0];
+      prUrl = latestPr?.prUrl ?? null;
+      prJobId = latestPr?.id ?? null;
+      prBranchName = latestPr?.branchName ?? null;
+    }
+
     res.json({
       data: rows,
       pagination: {
@@ -326,6 +447,9 @@ projectsRouter.get('/projects/:id/findings', requireUser, async (req, res, next)
       summary: scan
         ? {
             ...scan,
+            prUrl,
+            prJobId,
+            prBranchName,
             summary: typeof scan.summary === 'string' ? JSON.parse(scan.summary) : scan.summary,
           }
         : null,
@@ -373,13 +497,14 @@ projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) =>
     );
 
     const entries = scans.slice(0, limit).map((scan, idx) => {
-      const prev = scans[idx + 1] || null;
-      return { scan, prev };
+      const prev = scans[idx + 1] || null; // older scan
+      const next = idx > 0 ? scans[idx - 1] : null; // newer scan
+      return { scan, prev, next };
     });
 
     // Process all scan pairs in parallel, and run all 6 diff queries per pair in parallel
     const data = await Promise.all(
-      entries.map(async ({ scan, prev }) => {
+      entries.map(async ({ scan, prev, next }) => {
         const ranByUserId = scan?.ranByUserId ?? project.userId ?? null;
         const securityScoreRaw = scan?.securityScore;
         const securityScore = securityScoreRaw == null ? null : Number(securityScoreRaw);
@@ -391,6 +516,35 @@ projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) =>
           securityScore == null || prevSecurityScore == null ? null : Math.round(securityScore - prevSecurityScore);
 
         let diff = null;
+        // Attach PRs created after this scan started, until the next newer scan starts.
+        const scanWindowStart = scan.createdAt;
+        const scanWindowEnd = next?.createdAt ?? null;
+        const [prRows] = scanWindowEnd
+          ? await pool.query(
+              `SELECT id, pr_url AS prUrl, branch_name AS branchName, created_at AS createdAt
+               FROM resolution_jobs
+               WHERE project_id = ?
+                 AND status = 'completed'
+                 AND pr_url IS NOT NULL
+                 AND created_at >= ?
+                 AND created_at < ?
+               ORDER BY created_at DESC
+               LIMIT 1`,
+              [projectId, scanWindowStart, scanWindowEnd],
+            )
+          : await pool.query(
+              `SELECT id, pr_url AS prUrl, branch_name AS branchName, created_at AS createdAt
+               FROM resolution_jobs
+               WHERE project_id = ?
+                 AND status = 'completed'
+                 AND pr_url IS NOT NULL
+                 AND created_at >= ?
+               ORDER BY created_at DESC
+               LIMIT 1`,
+              [projectId, scanWindowStart],
+            );
+        const latestPrJob = prRows?.[0] ?? null;
+
         if (prev && scan.status === 'completed' && prev.status === 'completed') {
           const scanId = scan.id;
           const prevScanId = prev.id;
@@ -505,6 +659,9 @@ projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) =>
           ranByUserId,
           securityScore,
           scoreDelta,
+          prUrl: latestPrJob?.prUrl ?? null,
+          prJobId: latestPrJob?.id ?? null,
+          prBranchName: latestPrJob?.branchName ?? null,
           diff,
         };
       }),
@@ -589,6 +746,16 @@ projectsRouter.post('/projects/:id/findings/:findingId/resolve', requireUser, as
 
     res.status(202).json({ jobId, status: 'pending' });
 
+    void sendWebhookForUser(req.userId, {
+      title: 'Resolve Job Started',
+      description: 'Signal Bot started resolving a finding.',
+      fields: [
+        { name: 'Project ID', value: projectId, inline: true },
+        { name: 'Finding ID', value: findingId, inline: true },
+        { name: 'Job ID', value: jobId, inline: true },
+      ],
+    });
+
     setImmediate(() => {
       runResolutionJob({
         jobId,
@@ -656,6 +823,16 @@ projectsRouter.post('/projects/:id/resolve-all', requireUser, async (req, res, n
     );
 
     res.status(202).json({ jobId, status: 'pending', findingsCount: findingIds.length });
+
+    void sendWebhookForUser(req.userId, {
+      title: 'Resolve-All Started',
+      description: 'Signal Bot started resolving open findings.',
+      fields: [
+        { name: 'Project ID', value: projectId, inline: true },
+        { name: 'Job ID', value: jobId, inline: true },
+        { name: 'Findings', value: String(findingIds.length), inline: true },
+      ],
+    });
 
     setImmediate(() => {
       runResolutionJob({

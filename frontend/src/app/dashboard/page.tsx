@@ -37,6 +37,9 @@ type AuditEntry = {
   ranByUserId: string | null;
   securityScore: number | null;
   scoreDelta: number | null;
+  prUrl?: string | null;
+  prJobId?: string | null;
+  prBranchName?: string | null;
   diff: AuditDiff | null;
 };
 
@@ -605,7 +608,12 @@ export default function DashboardPage() {
   const [bootAnimDone, setBootAnimDone] = useState(false);
   const [initialProjectsLoaded, setInitialProjectsLoaded] = useState(false);
   const initialProjectsLoadedRef = useRef(false);
-  const [activeSection, setActiveSection] = useState<"home" | "teams" | "audit">("home");
+  const [activeSection, setActiveSection] = useState<"home" | "teams" | "audit" | "webhooks">("home");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookEnabled, setWebhookEnabled] = useState(false);
+  const [webhookBusy, setWebhookBusy] = useState(false);
+  const [webhookError, setWebhookError] = useState<string | null>(null);
+  const [webhookNotice, setWebhookNotice] = useState<string | null>(null);
   const [teamView, setTeamView] = useState<"members" | "settings">("members");
   const [teamMembers, setTeamMembers] = useState<TeamRow[]>([]);
   const [teamInvite, setTeamInvite] = useState("");
@@ -724,6 +732,38 @@ export default function DashboardPage() {
     if (auditProjectId && projects.some((p) => p.id === auditProjectId)) return;
     setAuditProjectId(projects[0]?.id ?? null);
   }, [activeSection, auditProjectId, isAuthed, projects]);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    if (activeSection !== "webhooks") return;
+
+    let cancelled = false;
+    async function loadWebhook() {
+      setWebhookBusy(true);
+      setWebhookError(null);
+      setWebhookNotice(null);
+      try {
+        const r = await fetch("/api/projects/webhook", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await readApiResponse(r);
+        if (!r.ok) throw new Error(json?.error || "Could not load webhook settings");
+        if (cancelled) return;
+        setWebhookUrl(typeof json?.webhookUrl === "string" ? json.webhookUrl : "");
+        setWebhookEnabled(!!json?.enabled);
+      } catch (e) {
+        if (!cancelled) setWebhookError(e instanceof Error ? e.message : "Could not load webhook settings");
+      } finally {
+        if (!cancelled) setWebhookBusy(false);
+      }
+    }
+    void loadWebhook();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection, isAuthed]);
 
   useEffect(() => {
     if (!isAuthed) return;
@@ -1331,7 +1371,7 @@ export default function DashboardPage() {
               )}
             </div>
           </section>
-        ) : (
+        ) : activeSection === "audit" ? (
           <section className="dash-teamPanel" id="audit">
             <div className="dash-section">
               <div className="dash-section__header">
@@ -1413,6 +1453,34 @@ export default function DashboardPage() {
                             ) : (
                               <div className="dash-auditBadges dash-auditBadges--empty">No previous scan for diff.</div>
                             )}
+
+                            {entry.prUrl ? (
+                              <button
+                                type="button"
+                                className="dash-btn dash-btn--secondary"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+
+                                  const prTitle = "Signal Bot Pull Request";
+                                  const body = [
+                                    `Signal Bot created a pull request for this scan.`,
+                                    "",
+                                    `PR URL: ${entry.prUrl}`,
+                                    "",
+                                    "What to do next:",
+                                    "1) Open the PR and review the changed files + security fixes.",
+                                    "2) Run CI/tests and verify it passes.",
+                                    "3) Approve and merge when validation is complete.",
+                                    "4) Re-run a scan after merge to confirm risk reduction.",
+                                  ].join("\n");
+
+                                  window.alert(`${prTitle}\n\n${body}`);
+                                }}
+                              >
+                                View
+                              </button>
+                            ) : null}
                           </div>
                         </summary>
 
@@ -1488,6 +1556,101 @@ export default function DashboardPage() {
                   })}
                 </div>
               )}
+            </div>
+          </section>
+        ) : (
+          <section className="dash-teamPanel" id="webhooks">
+            <div className="dash-section">
+              <div className="dash-section__header">
+                <div>
+                  <div className="dash-section__title">Webhooks</div>
+                  <div className="dash-section__subtitle">Connect Discord alerts for scans, resolves, and new projects</div>
+                </div>
+              </div>
+
+              {!isAuthed ? (
+                <div className="dash-inline-error" role="alert">
+                  Log in first to manage webhook settings.
+                </div>
+              ) : (
+                <form
+                  className="dash-teamForm"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setWebhookError(null);
+                    setWebhookNotice(null);
+                    const value = webhookUrl.trim();
+                    if (!value) {
+                      setWebhookError("Please paste a Discord webhook URL.");
+                      return;
+                    }
+
+                    setWebhookBusy(true);
+                    try {
+                      const r = await fetch("/api/projects/webhook", {
+                        method: "PUT",
+                        headers: { "content-type": "application/json" },
+                        credentials: "include",
+                        cache: "no-store",
+                        body: JSON.stringify({ webhookUrl: value }),
+                      });
+                      const json = await readApiResponse(r);
+                      if (!r.ok) throw new Error(json?.error || "Could not save webhook");
+                      setWebhookEnabled(true);
+                      setWebhookNotice("Discord webhook connected.");
+                    } catch (err) {
+                      setWebhookError(err instanceof Error ? err.message : "Could not save webhook");
+                    } finally {
+                      setWebhookBusy(false);
+                    }
+                  }}
+                >
+                  <input
+                    className="dash-input"
+                    placeholder="https://discord.com/api/webhooks/..."
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
+                    disabled={webhookBusy}
+                  />
+                  <button type="submit" className="dash-btn dash-btn--secondary" disabled={webhookBusy}>
+                    {webhookBusy ? "Saving..." : "Save webhook"}
+                  </button>
+                  <button
+                    type="button"
+                    className="dash-btn"
+                    disabled={webhookBusy || !webhookEnabled}
+                    onClick={async () => {
+                      setWebhookError(null);
+                      setWebhookNotice(null);
+                      setWebhookBusy(true);
+                      try {
+                        const r = await fetch("/api/projects/webhook", {
+                          method: "DELETE",
+                          credentials: "include",
+                          cache: "no-store",
+                        });
+                        const json = await readApiResponse(r);
+                        if (!r.ok) throw new Error(json?.error || "Could not disable webhook");
+                        setWebhookEnabled(false);
+                        setWebhookNotice("Webhook disabled.");
+                      } catch (err) {
+                        setWebhookError(err instanceof Error ? err.message : "Could not disable webhook");
+                      } finally {
+                        setWebhookBusy(false);
+                      }
+                    }}
+                  >
+                    Disable
+                  </button>
+                </form>
+              )}
+
+              {webhookError ? (
+                <div className="dash-inline-error" role="alert">
+                  {webhookError}
+                </div>
+              ) : null}
+              {webhookNotice ? <div className="dash-auditLoading">{webhookNotice}</div> : null}
             </div>
           </section>
         )}
@@ -1591,25 +1754,20 @@ export default function DashboardPage() {
           <span className="dash-bottomnav__label">Audit</span>
         </Link>
 
-        <button
-          type="button"
-          className="dash-bottomnav__item"
-          onClick={() => {
-            // UI placeholder: wire to an API-key flow when backend is ready.
-            setCreateOpen(false);
-            router.push("/dashboard");
-          }}
+        <Link
+          href="/dashboard#webhooks"
+          className={activeSection === "webhooks" ? "dash-bottomnav__item dash-bottomnav__item--active" : "dash-bottomnav__item"}
+          onClick={() => setActiveSection("webhooks")}
         >
           <span className="dash-bottomnav__icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 2l-2 2" />
-              <path d="M7.5 2.5a2.1 2.1 0 0 1 3 0l.5.5a2.1 2.1 0 0 1 0 3L6 11l-4 1 1-4 4.5-5.5Z" />
-              <path d="M15 8l1 1" />
-              <path d="M4 20l4-4" />
+              <path d="M18 16a4 4 0 0 1-4 4H8l-4 3 1.3-3.8A4 4 0 0 1 4 16V8a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v8Z" />
+              <path d="M9 12h6" />
+              <path d="M9 9h3" />
             </svg>
           </span>
-          <span className="dash-bottomnav__label">API Key</span>
-        </button>
+          <span className="dash-bottomnav__label">Webhooks</span>
+        </Link>
 
         <button
           type="button"
