@@ -424,3 +424,193 @@
   }
 }
 
+/* --- Table header with Resolve All --- */
+
+:global(.report-tableHeader) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+}
+
+:global(.report-tableHeader .report-tableTitle) {
+  margin-bottom: 0;
+}
+
+/* --- Resolve button variants --- */
+
+:global(.report-btn--resolve) {
+  background: linear-gradient(180deg, rgba(100, 220, 160, 0.22), rgba(60, 180, 120, 0.08));
+  border-color: rgba(62, 203, 122, 0.4);
+  color: #79ddaa;
+}
+
+:global(.report-btn--resolve:hover:not(:disabled)) {
+  background: linear-gradient(180deg, rgba(100, 220, 160, 0.32), rgba(60, 180, 120, 0.14));
+}
+
+:global(.report-btn--resolve:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:global(.report-btn--sm) {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+:global(.report-resolveCell) {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* --- Status badge --- */
+
+:global(.report-statusBadge) {
+  display: inline-block;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  background: none;
+  color: inherit;
+}
+
+:global(.report-statusBadge:disabled) {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+:global(.report-statusBadge--open) {
+  color: rgba(255, 220, 210, 0.85);
+  border-color: rgba(255, 220, 210, 0.25);
+  background: rgba(255, 220, 210, 0.08);
+}
+
+:global(.report-statusBadge--in_progress) {
+  color: #ffd089;
+  border-color: rgba(244, 184, 79, 0.35);
+  background: rgba(244, 184, 79, 0.1);
+}
+
+:global(.report-statusBadge--resolved) {
+  color: #79ddaa;
+  border-color: rgba(62, 203, 122, 0.35);
+  background: rgba(62, 203, 122, 0.1);
+}
+
+:global(.report-row--resolved) {
+  opacity: 0.55;
+}
+
+/* --- Resolution banners --- */
+
+:global(.report-resolve-banner) {
+  margin-bottom: 0.8rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+:global(.report-resolve-banner--running) {
+  background: rgba(244, 184, 79, 0.12);
+  border: 1px solid rgba(244, 184, 79, 0.3);
+  color: #ffd089;
+}
+
+:global(.report-resolve-banner--success) {
+  background: rgba(62, 203, 122, 0.12);
+  border: 1px solid rgba(62, 203, 122, 0.3);
+  color: #79ddaa;
+}
+
+:global(.report-resolve-banner--error) {
+  background: rgba(195, 42, 22, 0.2);
+  border: 1px solid rgba(255, 100, 80, 0.3);
+  color: #ff9e9e;
+}
+
+:global(.report-resolve-link) {
+  color: #79ddaa;
+  text-decoration: underline;
+  font-weight: 900;
+}
+
+:global(.report-resolve-spinner) {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(244, 184, 79, 0.3);
+  border-top-color: #ffd089;
+  border-radius: 50%;
+  animation: reportSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes reportSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Token modal --- */
+
+:global(.report-modal-overlay) {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+}
+
+:global(.report-modal) {
+  width: min(440px, calc(100% - 2rem));
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: #1a0e0b;
+  border: 1px solid rgba(255, 90, 52, 0.25);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+:global(.report-modal__title) {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 950;
+}
+
+:global(.report-modal__desc) {
+  margin: 0 0 1rem;
+  color: rgba(255, 220, 210, 0.8);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+:global(.report-modal__input) {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 90, 52, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+  color: #f8f0ed;
+  font-size: 0.9rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  outline: none;
+}
+
+:global(.report-modal__input:focus) {
+  border-color: rgba(255, 90, 52, 0.55);
+}
+
+:global(.report-modal__actions) {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
