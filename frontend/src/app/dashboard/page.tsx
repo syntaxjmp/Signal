@@ -119,6 +119,7 @@ function ProjectCreateModal({
   const [description, setDescription] = useState("");
   const [teamMembersRaw, setTeamMembersRaw] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -144,7 +145,7 @@ function ProjectCreateModal({
       aria-modal="true"
       aria-label="Add codebase"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (!creating && e.target === e.currentTarget) onClose();
       }}
     >
       <div className="dash-modal">
@@ -155,7 +156,7 @@ function ProjectCreateModal({
               Connect Signal to a GitHub repo to start scanning.
             </div>
           </div>
-          <button className="dash-modal__close" onClick={onClose} type="button">
+          <button className="dash-modal__close" onClick={onClose} type="button" disabled={creating}>
             <span aria-hidden="true">×</span>
             <span className="visually-hidden">Close</span>
           </button>
@@ -178,6 +179,7 @@ function ProjectCreateModal({
               return;
             }
 
+            setCreating(true);
             try {
               await onCreate({
                 githubUrl: githubUrlTrimmed,
@@ -188,54 +190,65 @@ function ProjectCreateModal({
               onClose();
             } catch (err) {
               setError(err instanceof Error ? err.message : "Could not create project");
+            } finally {
+              setCreating(false);
             }
           }}
         >
-          <div className="dash-form__grid">
+          <fieldset disabled={creating} style={{ border: "none", padding: 0, margin: 0 }}>
+            <div className="dash-form__grid">
+              <label className="dash-label">
+                <span className="dash-label__text">GitHub URL</span>
+                <input
+                  className="dash-input"
+                  value={githubUrl}
+                  onChange={(e) => setGithubUrl(e.target.value)}
+                  placeholder="https://github.com/owner/repo"
+                  type="url"
+                  required
+                />
+              </label>
+
+              <label className="dash-label">
+                <span className="dash-label__text">Project name</span>
+                <input
+                  className="dash-input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="My Service"
+                  required
+                />
+              </label>
+            </div>
+
             <label className="dash-label">
-              <span className="dash-label__text">GitHub URL</span>
-              <input
-                className="dash-input"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                placeholder="https://github.com/owner/repo"
-                type="url"
-                required
+              <span className="dash-label__text">Description (optional)</span>
+              <textarea
+                className="dash-textarea"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What does this codebase do?"
+                rows={3}
               />
             </label>
 
             <label className="dash-label">
-              <span className="dash-label__text">Project name</span>
+              <span className="dash-label__text">Team members (optional)</span>
               <input
                 className="dash-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="My Service"
-                required
+                value={teamMembersRaw}
+                onChange={(e) => setTeamMembersRaw(e.target.value)}
+                placeholder="alice@company.com, bob@company.com"
               />
             </label>
-          </div>
+          </fieldset>
 
-          <label className="dash-label">
-            <span className="dash-label__text">Description (optional)</span>
-            <textarea
-              className="dash-textarea"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this codebase do?"
-              rows={3}
-            />
-          </label>
-
-          <label className="dash-label">
-            <span className="dash-label__text">Team members (optional)</span>
-            <input
-              className="dash-input"
-              value={teamMembersRaw}
-              onChange={(e) => setTeamMembersRaw(e.target.value)}
-              placeholder="alice@company.com, bob@company.com"
-            />
-          </label>
+          {creating && (
+            <div className="dash-create__progress">
+              <div className="dash-create__progress-bar" />
+              <span>Setting up your project&hellip;</span>
+            </div>
+          )}
 
           {error ? (
             <div className="dash-inline-error" role="alert">
@@ -248,11 +261,19 @@ function ProjectCreateModal({
               className="dash-btn dash-btn--secondary"
               type="button"
               onClick={onClose}
+              disabled={creating}
             >
               Cancel
             </button>
-            <button className="dash-btn dash-btn--primary" type="submit">
-              Add project
+            <button className="dash-btn dash-btn--primary" type="submit" disabled={creating}>
+              {creating ? (
+                <>
+                  <span className="dash-delete__spinner dash-delete__spinner--inline" aria-hidden="true" />
+                  Adding&hellip;
+                </>
+              ) : (
+                "Add project"
+              )}
             </button>
           </div>
         </form>
@@ -455,7 +476,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [scanBusy, setScanBusy] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState<Record<string, boolean>>({});
-  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [allowSignal, setAllowSignal] = useState<boolean>(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
@@ -503,9 +524,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!booting) return;
     if (!bootAnimDone) return;
-    if (!initialProjectsLoaded) return;
     setBooting(false);
-  }, [booting, bootAnimDone, initialProjectsLoaded]);
+  }, [booting, bootAnimDone]);
 
   useEffect(() => {
     if (isAuthed) return;
@@ -789,15 +809,32 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {projects.length === 0 ? (
-                <div className="dash-empty">
+              {loadingProjects ? (
+                <div className="dash-project-skeleton">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="dash-project-skeleton__card" style={{ animationDelay: `${i * 120}ms` }}>
+                      <div className="dash-project-skeleton__row">
+                        <div className="dash-skel dash-skel--title" />
+                        <div className="dash-skel dash-skel--link" />
+                      </div>
+                      <div className="dash-skel dash-skel--desc" />
+                      <div className="dash-project-skeleton__row">
+                        <div className="dash-skel dash-skel--pill" />
+                        <div className="dash-skel dash-skel--pill" />
+                        <div className="dash-skel dash-skel--btn" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="dash-empty dash-projects-enter">
                   <div className="dash-empty__title">Start by adding a GitHub repo</div>
                   <div className="dash-empty__subtitle">
-                    Click “Add codebase” and enter the GitHub URL, project name, and optional team members.
+                    Click "Add codebase" and enter the GitHub URL, project name, and optional team members.
                   </div>
                 </div>
               ) : (
-                <div className="dash-project-list">
+                <div className="dash-project-list dash-projects-enter">
                   {projects.map((p) => (
                       <div key={p.id} className="dash-project-card">
                         <div className="dash-project-card__top">

@@ -295,6 +295,96 @@
   color: rgba(255, 215, 205, 0.6);
 }
 
+/* ── Projects enter animation ── */
+:global(.dash-projects-enter) {
+  animation: dash-projects-fade-in 400ms ease-out both;
+}
+
+@keyframes dash-projects-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Skeleton loading ── */
+:global(.dash-project-skeleton) {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+:global(.dash-project-skeleton__card) {
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 90, 52, 0.1);
+  background: rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  animation: dash-skel-card-in 350ms ease-out both;
+}
+
+@keyframes dash-skel-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+:global(.dash-project-skeleton__row) {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+:global(.dash-skel) {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 90, 52, 0.06) 25%,
+    rgba(255, 90, 52, 0.12) 50%,
+    rgba(255, 90, 52, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: dash-skel-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes dash-skel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+:global(.dash-skel--title) {
+  width: 140px;
+  height: 18px;
+}
+
+:global(.dash-skel--link) {
+  width: 180px;
+  height: 14px;
+  margin-left: auto;
+}
+
+:global(.dash-skel--desc) {
+  width: 70%;
+  height: 14px;
+}
+
+:global(.dash-skel--pill) {
+  width: 110px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+:global(.dash-skel--btn) {
+  width: 90px;
+  height: 34px;
+  border-radius: 12px;
+}
+
 :global(.dash-left) {
   min-width: 0;
 }

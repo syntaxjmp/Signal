@@ -50,15 +50,15 @@ async function readApiResponse(response: Response) {
 
 function scoreLabel(score: number | null | undefined) {
   if (score == null) return "Not scored";
-  if (score >= 24) return "Strong";
-  if (score >= 15) return "Moderate";
+  if (score <= 10) return "Strong";
+  if (score <= 25) return "Moderate";
   return "At risk";
 }
 
 function scoreTone(score: number | null | undefined) {
   if (score == null) return "unknown";
-  if (score >= 24) return "strong";
-  if (score >= 15) return "warn";
+  if (score <= 10) return "strong";
+  if (score <= 25) return "warn";
   return "critical";
 }
 
@@ -116,9 +116,9 @@ export default function FindingsReportPage() {
 
   const securityScoreRaw = payload?.summary?.securityScore ?? payload?.summary?.summary?.securityScore ?? null;
   const securityScore = securityScoreRaw == null ? null : Math.round(Number(securityScoreRaw));
-  const scoreValue = Math.max(0, Math.min(30, Number(securityScore ?? 0)));
-  const scorePercent = Number.isFinite(scoreValue) ? (scoreValue / 30) * 100 : 0;
-  const scoreDelta = Math.round((securityScore ?? 0) - 30);
+  const scoreValue = Math.max(0, Math.min(50, Number(securityScore ?? 0)));
+  const scorePercent = Number.isFinite(scoreValue) ? (scoreValue / 50) * 100 : 0;
+  const scoreDelta = Math.round(securityScore ?? 0);
   const tone = scoreTone(securityScore);
 
   if (isPending) {
@@ -183,16 +183,16 @@ export default function FindingsReportPage() {
                 <div
                   className={`report-gauge report-gauge--${tone}`}
                   style={{ ["--p" as any]: `${scorePercent}%` }}
-                  aria-label={`Security score ${securityScore ?? "not scored"} out of 30`}
+                  aria-label={`Security score ${securityScore ?? "not scored"} out of 50`}
                 >
                   <div className="report-gauge__inner">
                     <div className="report-gauge__value">{securityScore ?? "--"}</div>
-                    <div className="report-gauge__denom">/ 30</div>
+                    <div className="report-gauge__denom">/ 50</div>
                   </div>
                 </div>
                 <div className="report-scoreMeta">
                   <div className="report-card__meta">{scoreLabel(securityScore)}</div>
-                  <span className={scoreDelta < 0 ? "report-delta report-delta--down" : "report-delta report-delta--up"}>
+                  <span className={scoreDelta > 0 ? "report-delta report-delta--down" : "report-delta report-delta--up"}>
                     {scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta}
                   </span>
                 </div>

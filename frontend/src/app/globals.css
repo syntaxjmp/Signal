@@ -1167,6 +1167,45 @@ h1 {
   to { transform: rotate(360deg); }
 }
 
+/* ── Create-project progress bar ── */
+.dash-create__progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 90, 52, 0.08);
+  border: 1px solid rgba(255, 90, 52, 0.2);
+  color: rgba(255, 200, 180, 0.9);
+  font-size: 0.9rem;
+  font-weight: 600;
+  animation: dash-delete-progress-in 200ms ease-out both;
+}
+
+.dash-create__progress-bar {
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 90, 52, 0.15);
+  overflow: hidden;
+  position: relative;
+}
+
+.dash-create__progress-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: dash-progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes dash-progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 .dash-delete__actions {
   display: flex;
   gap: 0.7rem;
