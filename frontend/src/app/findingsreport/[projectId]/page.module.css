@@ -275,6 +275,31 @@
   font-size: 0.82rem;
 }
 
+:global(.report-fileCell) {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+:global(.report-fileIcon) {
+  border-radius: 8px;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.35));
+  flex-shrink: 0;
+}
+
+:global(.report-fileName) {
+  color: rgba(255, 240, 234, 0.96);
+  font-weight: 950;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:global(.report-fileLine) {
+  color: rgba(255, 220, 210, 0.82);
+  font-weight: 850;
+}
+
 :global(.sev) {
   display: inline-block;
   padding: 0.16rem 0.45rem;

@@ -62,6 +62,20 @@ function scoreTone(score: number | null | undefined) {
   return "critical";
 }
 
+function getFileBaseName(filePath: string) {
+  const normalized = String(filePath).replace(/\\/g, "/");
+  return normalized.split("/").filter(Boolean).pop() || normalized;
+}
+
+function getFileIconSrc(filePath: string) {
+  const base = getFileBaseName(filePath).toLowerCase();
+  if (base.endsWith(".py")) return "/python.png";
+  if (base.endsWith(".rs") || base === "cargo.toml") return "/rust.png";
+  if (base.endsWith(".js") || base.endsWith(".ts") || base.endsWith(".tsx") || base.endsWith(".jsx")) return "/js.png";
+  if (base === "dockerfile" || base.endsWith("/dockerfile")) return "/docker.png";
+  return null;
+}
+
 /** Smooth HSL color from green (score 0) → yellow → red (score 50) */
 function scoreHslColor(score: number | null | undefined): string {
   if (score == null) return "rgba(255, 230, 220, 0.55)";
@@ -324,18 +338,36 @@ export default function FindingsReportPage() {
                     </thead>
                     <tbody>
                       {payload.data.map((f) => (
-                        <tr key={f.id}>
-                          <td>
-                            <span className={`sev sev--${f.severity}`}>{f.severity}</span>
-                          </td>
-                          <td>{f.category}</td>
-                          <td>{f.description}</td>
-                          <td className="report-mono">
-                            {f.filePath}
-                            {f.lineNumber ? `:${f.lineNumber}` : ""}
-                          </td>
-                          <td>{f.weightedScore}</td>
-                        </tr>
+                        (() => {
+                          const fileBaseName = getFileBaseName(f.filePath);
+                          const iconSrc = getFileIconSrc(f.filePath);
+                          return (
+                            <tr key={f.id}>
+                              <td>
+                                <span className={`sev sev--${f.severity}`}>{f.severity}</span>
+                              </td>
+                              <td>{f.category}</td>
+                              <td>{f.description}</td>
+                              <td className="report-mono">
+                                <div className="report-fileCell" title={f.filePath}>
+                                  {iconSrc ? (
+                                    <Image
+                                      src={iconSrc}
+                                      alt=""
+                                      width={18}
+                                      height={18}
+                                      className="report-fileIcon"
+                                      aria-hidden
+                                    />
+                                  ) : null}
+                                  <span className="report-fileName">{fileBaseName}</span>
+                                  {f.lineNumber != null ? <span className="report-fileLine">{`:${f.lineNumber}`}</span> : null}
+                                </div>
+                              </td>
+                              <td>{f.weightedScore}</td>
+                            </tr>
+                          );
+                        })()
                       ))}
                     </tbody>
                   </table>
