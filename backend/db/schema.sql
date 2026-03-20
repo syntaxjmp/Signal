@@ -203,3 +203,15 @@ CREATE TABLE IF NOT EXISTS `resolution_jobs` (
   KEY `idx_resolution_jobs_status` (`status`),
   CONSTRAINT `fk_resolution_jobs_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_webhooks` (
+  `id` CHAR(36) NOT NULL,
+  `user_id` VARCHAR(191) NOT NULL,
+  `webhook_url` VARCHAR(2048) NOT NULL,
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user_webhooks_user` (`user_id`),
+  KEY `idx_user_webhooks_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
