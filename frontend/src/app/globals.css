@@ -1,26 +1,305 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #200100;
+  --foreground: #f8f2f1;
+  --accent: #ff5a34;
+  --accent-soft: #ff8f70;
+  --line: #785150;
+  --heading-font: var(--font-space-grotesk);
+  --body-font: var(--font-manrope);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--body-font);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--body-font), "Segoe UI", sans-serif;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.landing {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 64%, rgba(255, 88, 53, 0.24), transparent 38%),
+    linear-gradient(180deg, #2a0604 0%, #200100 58%, #170000 100%);
+}
+
+.vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 35%, transparent 0%, rgba(0, 0, 0, 0.15) 55%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(180deg, rgba(255, 102, 73, 0.06), transparent 24%);
+}
+
+.top-nav {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(1380px, calc(100% - 3.2rem));
+  margin: 0 auto;
+  padding-top: 1.1rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--accent);
+  font-size: clamp(2rem, 3vw, 2.55rem);
+  font-family: var(--heading-font), "Trebuchet MS", sans-serif;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.brand-mark {
+  display: inline-grid;
+  gap: 0.18rem;
+}
+
+.brand-mark span {
+  display: block;
+  width: 1.15rem;
+  height: 0.2rem;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.brand-mark span:nth-child(1) {
+  transform: translateX(0.22rem);
+}
+
+.brand-mark span:nth-child(2) {
+  transform: translateX(0.1rem);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.nav-links > a {
+  color: #ffe9e4;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.45rem 0.66rem;
+  border: 1px solid transparent;
+  transition: color 200ms ease, border-color 200ms ease, background-color 200ms ease;
+}
+
+.nav-links > a:hover {
+  color: #ffd0c4;
+}
+
+.social-box {
+  border-color: rgba(255, 95, 67, 0.3) !important;
+  min-width: 2.2rem;
+  text-align: center;
+  color: var(--accent) !important;
+}
+
+.hero {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  width: min(940px, calc(100% - 2rem));
+  margin: 7.8rem auto 0;
+  animation: hero-in 900ms ease both;
+}
+
+h1 {
+  font-family: var(--heading-font), "Trebuchet MS", sans-serif;
+  font-size: clamp(2.5rem, 7.5vw, 5.15rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+
+.hero p {
+  margin: 1.55rem auto 0;
+  max-width: 35ch;
+  font-size: clamp(1rem, 2vw, 1.18rem);
+  color: #ffb59f;
+  line-height: 1.48;
+}
+
+.hero-actions {
+  margin-top: 2.2rem;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+
+.action {
+  min-height: 2.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  padding: 0.62rem 1.15rem;
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: #ffd3c7;
+  transition: transform 180ms ease, color 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.action:hover {
+  transform: translateY(-2px);
+  border-color: #d77862;
+  color: #fff2ee;
+}
+
+.action-primary {
+  background: linear-gradient(180deg, rgba(255, 99, 70, 0.15), rgba(255, 99, 70, 0.05));
+  box-shadow: 0 0 0 1px rgba(255, 87, 55, 0.35) inset;
+}
+
+.action-secondary {
+  color: #f2e3de;
+}
+
+.bars {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(43vh, 22rem);
+  display: grid;
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+  gap: 1px;
+  align-items: end;
+  pointer-events: none;
+}
+
+.bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: calc(var(--height) * 100%);
+  background:
+    linear-gradient(180deg, rgba(255, 82, 50, 0.24) 0%, rgba(255, 86, 52, 0.8) 44%, rgba(255, 238, 230, 0.95) 62%, rgba(255, 86, 52, 0.8) 79%, rgba(255, 82, 50, 0.34) 100%);
+  filter: blur(0.2px);
+  opacity: 0.95;
+  transform-origin: bottom;
+  animation: pulse-bars 3.6s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.bar::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -14px;
+  height: 16px;
+  background: radial-gradient(circle at center, rgba(255, 114, 90, 0.65), transparent 70%);
+  transform: scaleX(1.3);
+}
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-bars {
+  0%,
+  100% {
+    transform: scaleY(0.92);
+    opacity: 0.78;
+  }
+  40% {
+    transform: scaleY(1.08);
+    opacity: 1;
+  }
+  70% {
+    transform: scaleY(0.98);
+    opacity: 0.92;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .bar {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .top-nav {
+    width: calc(100% - 1.4rem);
+    padding-top: 0.75rem;
+  }
+
+  .brand {
+    font-size: 1.65rem;
+  }
+
+  .nav-links {
+    gap: 0.28rem;
+  }
+
+  .nav-links > a {
+    font-size: 0.86rem;
+    padding: 0.35rem 0.42rem;
+  }
+
+  .hero {
+    margin-top: 6.1rem;
+  }
+
+  .bars {
+    height: min(38vh, 17.5rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .nav-links > a:nth-child(1),
+  .nav-links > a:nth-child(2) {
+    display: none;
+  }
+
+  .hero {
+    margin-top: 5rem;
+    width: calc(100% - 1.2rem);
+  }
+
+  .hero p {
+    max-width: 29ch;
+  }
+
+  .action {
+    width: 100%;
+  }
+
+  .bars {
+    height: min(34vh, 15rem);
+  }
 }
