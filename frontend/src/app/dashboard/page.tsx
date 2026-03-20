@@ -68,7 +68,7 @@ async function waitForScanCompletion(projectId: string, scanId: string) {
   const maxAttempts = 90; // ~3 minutes
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const r = await fetch(
-      `/api/projects/${projectId}/findings?page=1&pageSize=1&scanId=${encodeURIComponent(scanId)}`,
+      `/api/projects/${projectId}/scans/${encodeURIComponent(scanId)}/status`,
       {
         credentials: "include",
         cache: "no-store",
@@ -76,10 +76,9 @@ async function waitForScanCompletion(projectId: string, scanId: string) {
     );
     const json = await readApiResponse(r);
     if (!r.ok) throw new Error(json?.error || "Failed to fetch scan status");
-    const status = json?.summary?.status;
-    if (status === "completed") return;
-    if (status === "failed") {
-      throw new Error(json?.summary?.errorMessage || "Scan failed");
+    if (json?.status === "completed") return;
+    if (json?.status === "failed") {
+      throw new Error(json?.errorMessage || "Scan failed");
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
@@ -1077,7 +1076,6 @@ export default function DashboardPage() {
                                 if (!r.ok) throw new Error(json?.error || "Scan failed");
                                 if (json?.scanId) {
                                   await waitForScanCompletion(p.id, String(json.scanId));
-                                  await loadProjects();
                                   router.push(`/findingsreport/${p.id}?scanId=${encodeURIComponent(String(json.scanId))}`);
                                 }
                               } catch (err) {
