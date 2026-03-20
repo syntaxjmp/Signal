@@ -27,8 +27,55 @@ async function maybeAutoMigrate() {
   }
 }
 
+async function maybeEnsureProjectScansUserId() {
+  // In this project, scans are written to `project_scans` and we want the Audit log UI
+  // to show who ran each scan. Older DBs may not have `project_scans.user_id`.
+  if (env.isProd) return;
+
+  const conn = await mysql.createConnection({
+    host: env.mysql.host,
+    port: env.mysql.port,
+    user: env.mysql.user,
+    password: env.mysql.password,
+    database: env.mysql.database,
+    multipleStatements: true,
+  });
+
+  try {
+    const [rows] = await conn.query(
+      `
+      SELECT COUNT(*) AS cnt
+      FROM information_schema.columns
+      WHERE table_schema = ?
+        AND table_name = 'project_scans'
+        AND column_name = 'user_id'
+      `,
+      [env.mysql.database],
+    );
+
+    const hasColumn = Number(rows?.[0]?.cnt || 0) > 0;
+    if (!hasColumn) {
+      await conn.query(`ALTER TABLE project_scans ADD COLUMN user_id VARCHAR(191) NULL`);
+    }
+
+    // Backfill for older scans so audit rows still have a "runner".
+    await conn.query(`
+      UPDATE project_scans ps
+      JOIN projects p ON p.id = ps.project_id
+      SET ps.user_id = p.user_id
+      WHERE ps.user_id IS NULL
+    `);
+  } catch (e) {
+    // Never prevent dev server boot due to an audit column mismatch.
+    console.warn('[db:migrate] audit migration skipped', e instanceof Error ? e.message : String(e));
+  } finally {
+    await conn.end();
+  }
+}
+
 async function main() {
   await maybeAutoMigrate();
+  await maybeEnsureProjectScansUserId();
 
   const app = createApp();
   const server = app.listen(env.port, () => {

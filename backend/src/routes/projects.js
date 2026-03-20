@@ -174,9 +174,9 @@ projectsRouter.post('/projects/:id/scan', requireUser, async (req, res, next) =>
     }
 
     await pool.execute(
-      `INSERT INTO project_scans (id, project_id, status, created_at)
-       VALUES (?, ?, 'running', CURRENT_TIMESTAMP)`,
-      [scanId, projectId],
+      `INSERT INTO project_scans (id, project_id, user_id, status, created_at)
+       VALUES (?, ?, ?, 'running', CURRENT_TIMESTAMP)`,
+      [scanId, projectId, req.userId],
     );
     console.info(`[scan] started project=${projectId} scan=${scanId}`);
 
@@ -299,6 +299,181 @@ projectsRouter.get('/projects/:id/findings', requireUser, async (req, res, next)
           }
         : null,
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const limit = Math.min(12, Math.max(1, Number(req.query.limit) || 8));
+    const pool = getPool();
+
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId
+       FROM projects
+       WHERE id = ?
+       LIMIT 1`,
+      [projectId],
+    );
+
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    if (project.userId !== req.userId) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const [scans] = await pool.query(
+      `SELECT id,
+              status,
+              security_score AS securityScore,
+              created_at AS createdAt,
+              finished_at AS finishedAt,
+              user_id AS ranByUserId
+       FROM project_scans
+       WHERE project_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?`,
+      [projectId, limit + 1],
+    );
+
+    const entries = scans.slice(0, limit).map((scan, idx) => {
+      const prev = scans[idx + 1] || null;
+      return { scan, prev };
+    });
+
+    const data = [];
+    for (const { scan, prev } of entries) {
+      const ranByUserId = scan?.ranByUserId ?? project.userId ?? null;
+      const securityScoreRaw = scan?.securityScore;
+      const securityScore = securityScoreRaw == null ? null : Number(securityScoreRaw);
+
+      const prevSecurityScoreRaw = prev?.securityScore;
+      const prevSecurityScore = prevSecurityScoreRaw == null ? null : Number(prevSecurityScoreRaw);
+
+      const scoreDelta =
+        securityScore == null || prevSecurityScore == null ? null : Math.round(securityScore - prevSecurityScore);
+
+      let diff = null;
+      if (prev && scan.status === 'completed' && prev.status === 'completed') {
+        const scanId = scan.id;
+        const prevScanId = prev.id;
+
+        const [[addedRow]] = await pool.query(
+          `SELECT COUNT(DISTINCT cur.fingerprint) AS addedCount
+           FROM project_findings cur
+           LEFT JOIN project_findings prev
+             ON prev.scan_id = ? AND prev.fingerprint = cur.fingerprint
+           WHERE cur.scan_id = ? AND prev.fingerprint IS NULL`,
+          [prevScanId, scanId],
+        );
+
+        const [[removedRow]] = await pool.query(
+          `SELECT COUNT(DISTINCT prev.fingerprint) AS removedCount
+           FROM project_findings prev
+           LEFT JOIN project_findings cur
+             ON cur.scan_id = ? AND cur.fingerprint = prev.fingerprint
+           WHERE prev.scan_id = ? AND cur.fingerprint IS NULL`,
+          [scanId, prevScanId],
+        );
+
+        const [[changedRow]] = await pool.query(
+          `SELECT COUNT(DISTINCT cur.fingerprint) AS changedCount
+           FROM project_findings cur
+           JOIN project_findings prev
+             ON prev.scan_id = ? AND prev.fingerprint = cur.fingerprint
+           WHERE cur.scan_id = ?
+             AND (
+               cur.severity <> prev.severity
+               OR cur.category <> prev.category
+               OR cur.weighted_score <> prev.weighted_score
+             )`,
+          [prevScanId, scanId],
+        );
+
+        const [topAdded] = await pool.query(
+          `SELECT cur.fingerprint,
+                  cur.severity,
+                  cur.category,
+                  cur.description,
+                  cur.line_number AS lineNumber,
+                  cur.weighted_score AS weightedScore,
+                  cur.file_path AS filePath
+           FROM project_findings cur
+           LEFT JOIN project_findings prev
+             ON prev.scan_id = ? AND prev.fingerprint = cur.fingerprint
+           WHERE cur.scan_id = ? AND prev.fingerprint IS NULL
+           ORDER BY cur.weighted_score DESC, cur.created_at DESC
+           LIMIT 3`,
+          [prevScanId, scanId],
+        );
+
+        const [topRemoved] = await pool.query(
+          `SELECT prev.fingerprint,
+                  prev.severity,
+                  prev.category,
+                  prev.description,
+                  prev.line_number AS lineNumber,
+                  prev.weighted_score AS weightedScore,
+                  prev.file_path AS filePath
+           FROM project_findings prev
+           LEFT JOIN project_findings cur
+             ON cur.scan_id = ? AND cur.fingerprint = prev.fingerprint
+           WHERE prev.scan_id = ? AND cur.fingerprint IS NULL
+           ORDER BY prev.weighted_score DESC, prev.created_at DESC
+           LIMIT 3`,
+          [scanId, prevScanId],
+        );
+
+        const [topChanged] = await pool.query(
+          `SELECT cur.fingerprint,
+                  cur.severity,
+                  cur.category,
+                  cur.description,
+                  cur.line_number AS lineNumber,
+                  cur.weighted_score AS weightedScore,
+                  cur.file_path AS filePath
+           FROM project_findings cur
+           JOIN project_findings prev
+             ON prev.scan_id = ? AND prev.fingerprint = cur.fingerprint
+           WHERE cur.scan_id = ?
+             AND (
+               cur.severity <> prev.severity
+               OR cur.category <> prev.category
+               OR cur.weighted_score <> prev.weighted_score
+             )
+           ORDER BY cur.weighted_score DESC, cur.created_at DESC
+           LIMIT 3`,
+          [prevScanId, scanId],
+        );
+
+        diff = {
+          addedCount: Number(addedRow?.addedCount || 0),
+          removedCount: Number(removedRow?.removedCount || 0),
+          changedCount: Number(changedRow?.changedCount || 0),
+          topAdded,
+          topRemoved,
+          topChanged,
+        };
+      }
+
+      data.push({
+        scanId: scan.id,
+        status: scan.status,
+        createdAt: scan.createdAt,
+        finishedAt: scan.finishedAt,
+        ranByUserId,
+        securityScore,
+        scoreDelta,
+        diff,
+      });
+    }
+
+    res.json({ data });
   } catch (e) {
     next(e);
   }
