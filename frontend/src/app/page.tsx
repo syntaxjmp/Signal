@@ -1,4 +1,7 @@
+import type { CSSProperties } from "react";
+import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   const bars = [
@@ -11,7 +14,7 @@ export default function Home() {
       <div className="vignette" aria-hidden="true" />
 
       <header className="top-nav">
-        <a href="#" className="brand" aria-label="Signal home">
+        <Link href="/" className="brand" aria-label="Signal home">
           <Image
             src="/signal_evenbigger.png"
             alt=""
@@ -22,12 +25,13 @@ export default function Home() {
             aria-hidden
           />
           Signal
-        </a>
+        </Link>
 
         <nav className="nav-links" aria-label="Primary">
           <a href="#">About Us</a>
           <a href="#">Blog</a>
-          <a href="#">Resources</a> 
+          <a href="#">Resources</a>
+          <Link href="/login">Log in</Link>
           <a className="social-box" href="#" aria-label="X">
             X
           </a>
@@ -44,7 +48,8 @@ export default function Home() {
           Frontend
         </h1>
         <p>
-        Signal enables developers to ship quickly and securely by detecting critical vulnerabilities instantly, all in a single click.
+          Signal enables developers to ship quickly and securely by detecting critical vulnerabilities
+          instantly, all in a single click.
         </p>
         <div className="hero-actions">
           <a className="action action-primary" href="#">
@@ -61,10 +66,12 @@ export default function Home() {
           <span
             key={`${height}-${index}`}
             className="bar"
-            style={{
-              "--height": `${height}`,
-              "--delay": `${index * 90}ms`,
-            }}
+            style={
+              {
+                "--height": String(height),
+                "--delay": `${index * 90}ms`,
+              } as CSSProperties
+            }
           />
         ))}
       </section>

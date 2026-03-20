@@ -16,11 +16,34 @@ const corsOrigins = corsOriginsRaw
   ? corsOriginsRaw.split(',').map((s) => s.trim()).filter(Boolean)
   : [];
 
+const trustedRaw =
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS || process.env.CORS_ORIGINS || '';
+let trustedOrigins = trustedRaw
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+if (trustedOrigins.length === 0 && nodeEnv !== 'production') {
+  trustedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+}
+
+const betterAuthSecret = required('BETTER_AUTH_SECRET', process.env.BETTER_AUTH_SECRET);
+if (betterAuthSecret.length < 32) {
+  throw new Error('BETTER_AUTH_SECRET must be at least 32 characters (use: openssl rand -base64 32)');
+}
+
+const betterAuthURL = required('BETTER_AUTH_URL', process.env.BETTER_AUTH_URL).replace(/\/$/, '');
+
 export const env = {
   nodeEnv,
   isProd: nodeEnv === 'production',
-  port: Number(process.env.PORT) || 3000,
+  /** Default 4000 so Next.js can own :3000 in local dev (use PORT in .env to override). */
+  port: Number(process.env.PORT) || 4000,
   corsOrigins,
+  auth: {
+    secret: betterAuthSecret,
+    baseURL: betterAuthURL,
+    trustedOrigins,
+  },
   mysql: {
     host: required('MYSQL_HOST', process.env.MYSQL_HOST),
     port: Number(process.env.MYSQL_PORT) || 3306,

@@ -3,7 +3,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
+import { toNodeHandler } from 'better-auth/node';
 import { env } from './config/env.js';
+import { auth } from './auth.js';
 import { apiRouter } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -20,8 +22,11 @@ export function createApp() {
         : { origin: true, credentials: true };
   app.use(cors(corsOptions));
   app.use(compression());
-  app.use(express.json({ limit: '1mb' }));
   app.use(morgan(env.isProd ? 'combined' : 'dev'));
+
+  app.all('/api/auth/*', toNodeHandler(auth));
+
+  app.use(express.json({ limit: '1mb' }));
 
   app.use('/api', apiRouter);
 

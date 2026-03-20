@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import React, { type ReactNode } from "react";
 import { Geist_Mono, Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -16,13 +18,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Signal | High-Performance Product Frontend",
   description:
     "Signal builds fast, reliable, high-conversion frontend experiences for modern product teams.",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>) {
   return (
     <html
       lang="en"
