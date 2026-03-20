@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   title: "Signal | High-Performance Product Frontend",
   description:
     "Signal builds fast, reliable, high-conversion frontend experiences for modern product teams.",
+  icons: {
+    icon: "/signal_transparent.png",
+    apple: "/signal_transparent.png",
+  },
 };
 
 export default function RootLayout({
