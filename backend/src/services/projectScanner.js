@@ -371,6 +371,164 @@ export async function scanGitHubProject({
   }
 }
 
+function dedupeVulnerabilityFindings(findings) {
+  const dedupe = new Map();
+  for (const f of findings) {
+    const fingerprint = crypto
+      .createHash('sha256')
+      .update(
+        [f.filePath, f.category.toLowerCase(), f.description.toLowerCase(), String(f.lineNumber || 0)].join('|'),
+      )
+      .digest('hex');
+    if (!dedupe.has(fingerprint)) {
+      dedupe.set(fingerprint, { ...f, fingerprint });
+    }
+  }
+  return [...dedupe.values()];
+}
+
+function toExtensionFinding(f) {
+  return {
+    id: crypto.randomUUID(),
+    severity: f.severity,
+    category: f.category,
+    description: f.description,
+    lineNumber: f.lineNumber ?? undefined,
+    filePath: f.filePath,
+    snippet: f.snippet ? String(f.snippet).slice(0, 800) : undefined,
+  };
+}
+
+/** VS Code extension — scan a user-selected snippet. */
+export async function extensionScanSnippet({
+  code,
+  filePath = 'selection',
+  languageId = 'text',
+  openAiApiKey,
+  openAiModel = 'gpt-4o-mini',
+}) {
+  if (!openAiApiKey?.trim()) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+  const client = new OpenAI({ apiKey: openAiApiKey });
+  const snippets = makeSnippets(code);
+  if (snippets.length === 0) {
+    return { findings: [] };
+  }
+  const fileImports = extractImports(code);
+  const findings = [];
+  for (const snippet of snippets) {
+    const promptParts = [
+      'Source: VS Code extension (selection scan)',
+      `File: ${filePath}`,
+      `Language: ${languageId}`,
+    ];
+    if (fileImports) {
+      promptParts.push(`File imports:\n${fileImports}`);
+    }
+    promptParts.push(
+      `Snippet (lines ${snippet.startLine}–${snippet.startLine + SNIPPET_WINDOW - 1}):`,
+      snippet.text,
+    );
+    const rawFindings = await analyzeSnippetWithRetry(client, openAiModel, promptParts.join('\n\n'));
+    for (const item of rawFindings) {
+      const severity = normalizeSeverity(item.severity);
+      const weightedScore = severityToWeight(severity);
+      const lineNumber =
+        Number.isFinite(Number(item.lineNumber)) && Number(item.lineNumber) > 0
+          ? Number(item.lineNumber)
+          : null;
+      findings.push({
+        severity,
+        category: String(item.category || 'General'),
+        description: String(item.description || 'Potential security issue detected'),
+        lineNumber,
+        weightedScore,
+        filePath,
+        snippet: snippet.text,
+      });
+    }
+  }
+  const unique = dedupeVulnerabilityFindings(findings);
+  return { findings: unique.map(toExtensionFinding) };
+}
+
+/**
+ * VS Code extension — scan workspace files as `{ path, content }[]`.
+ * @param {{ path: string, content: string }[]} files
+ */
+export async function extensionScanWorkspaceFiles({
+  files,
+  openAiApiKey,
+  openAiModel = 'gpt-4o-mini',
+}) {
+  if (!openAiApiKey?.trim()) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+  if (!Array.isArray(files) || files.length === 0) {
+    return { findings: [] };
+  }
+  const client = new OpenAI({ apiKey: openAiApiKey });
+  const limit = pLimit(SCAN_CONCURRENCY);
+  const tasks = [];
+
+  for (const f of files) {
+    const rel = typeof f.path === 'string' ? f.path.replace(/\\/g, '/') : '';
+    const content = typeof f.content === 'string' ? f.content : '';
+    if (!rel || !content.trim()) continue;
+
+    const snippets = makeSnippets(content);
+    const fileImports = extractImports(content);
+    for (const snippet of snippets) {
+      const promptParts = [
+        'Source: VS Code extension (workspace scan)',
+        `File: ${rel}`,
+      ];
+      if (fileImports) {
+        promptParts.push(`File imports:\n${fileImports}`);
+      }
+      promptParts.push(
+        `Snippet (lines ${snippet.startLine}–${snippet.startLine + SNIPPET_WINDOW - 1}):`,
+        snippet.text,
+      );
+      tasks.push({ rel, snippet, userPrompt: promptParts.join('\n\n') });
+    }
+  }
+
+  const results = await Promise.all(
+    tasks.map((task) =>
+      limit(async () => {
+        const rawFindings = await analyzeSnippetWithRetry(client, openAiModel, task.userPrompt);
+        return { task, rawFindings };
+      }),
+    ),
+  );
+
+  const findings = [];
+  for (const { task, rawFindings } of results) {
+    for (const item of rawFindings) {
+      const severity = normalizeSeverity(item.severity);
+      const weightedScore = severityToWeight(severity);
+      const lineNumber =
+        Number.isFinite(Number(item.lineNumber)) && Number(item.lineNumber) > 0
+          ? Number(item.lineNumber)
+          : null;
+      findings.push({
+        severity,
+        category: String(item.category || 'General'),
+        description: String(item.description || 'Potential security issue detected'),
+        lineNumber,
+        weightedScore,
+        filePath: task.rel,
+        snippet: task.snippet.text,
+      });
+    }
+  }
+
+  const unique = dedupeVulnerabilityFindings(findings);
+  return { findings: unique.map(toExtensionFinding) };
+}
+
 export function validateGitHubUrl(githubUrl) {
   return parseGitHubUrl(githubUrl) !== null;
 }

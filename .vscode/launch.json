@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Signal extension (monorepo)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/Signal Extension VSC"],
+      "outFiles": ["${workspaceFolder}/Signal Extension VSC/out/**/*.js"],
+      "preLaunchTask": "signal-ext: compile"
+    }
+  ]
+}

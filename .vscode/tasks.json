@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "signal-ext: compile",
+      "type": "npm",
+      "script": "compile",
+      "path": "Signal Extension VSC",
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    }
+  ]
+}
