@@ -377,18 +377,60 @@ export default function DashboardPage() {
   const [allowSignal, setAllowSignal] = useState<boolean>(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const [booting, setBooting] = useState<boolean>(false);
+  const [bootChecked, setBootChecked] = useState<boolean>(false);
+  const [bootAnimDone, setBootAnimDone] = useState(false);
+  const [initialProjectsLoaded, setInitialProjectsLoaded] = useState(false);
+  const initialProjectsLoadedRef = useRef(false);
   const [activeSection, setActiveSection] = useState<"home" | "teams">("home");
   const [teamView, setTeamView] = useState<"members" | "settings">("members");
   const [teamMembers, setTeamMembers] = useState<TeamRow[]>([]);
   const [teamInvite, setTeamInvite] = useState("");
   const [teamError, setTeamError] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const BOOT_ANIM_MS = 1850;
 
   useEffect(() => {
     startTransition(() => {
       setAllowSignal(localStorage.getItem(ALLOW_KEY) === "1");
     });
   }, []);
+
+  useEffect(() => {
+    // Prevent hydration mismatch: determine boot overlay only after mount.
+    try {
+      setBooting(sessionStorage.getItem("signal_dashboard_boot") === "1");
+    } catch {
+      setBooting(false);
+    }
+    setBootChecked(true);
+  }, []);
+
+  useEffect(() => {
+    if (!booting) return;
+    try {
+      sessionStorage.removeItem("signal_dashboard_boot");
+    } catch {
+      // no-op
+    }
+    const t = window.setTimeout(() => setBootAnimDone(true), BOOT_ANIM_MS);
+    return () => window.clearTimeout(t);
+  }, [booting]);
+
+  useEffect(() => {
+    if (!booting) return;
+    if (!bootAnimDone) return;
+    if (!initialProjectsLoaded) return;
+    setBooting(false);
+  }, [booting, bootAnimDone, initialProjectsLoaded]);
+
+  useEffect(() => {
+    if (isAuthed) return;
+    if (isPending) return; // wait for session resolution
+    if (initialProjectsLoadedRef.current) return;
+    initialProjectsLoadedRef.current = true;
+    setInitialProjectsLoaded(true);
+  }, [isAuthed, isPending]);
 
   useEffect(() => {
     if (!isAuthed) {
@@ -429,6 +471,10 @@ export default function DashboardPage() {
   const loadProjects = useCallback(async () => {
     if (!isAuthed) {
       setProjects([]);
+      if (!initialProjectsLoadedRef.current) {
+        initialProjectsLoadedRef.current = true;
+        setInitialProjectsLoaded(true);
+      }
       return;
     }
     setLoadingProjects(true);
@@ -442,6 +488,10 @@ export default function DashboardPage() {
       setProjects([]);
     } finally {
       setLoadingProjects(false);
+      if (!initialProjectsLoadedRef.current) {
+        initialProjectsLoadedRef.current = true;
+        setInitialProjectsLoaded(true);
+      }
     }
   }, [isAuthed]);
 
@@ -517,6 +567,32 @@ export default function DashboardPage() {
       </div>
     );
   }, [displayName, handleLogout, isAuthed, isPending, showLogout]);
+
+  if (booting && bootChecked) {
+    return (
+      <main
+        className="dash-boot"
+        aria-label="Loading dashboard"
+        style={{ ["--boot-ms" as any]: `${BOOT_ANIM_MS}ms` }}
+      >
+        <div className="dash-boot__bg" aria-hidden="true" />
+        <div className="dash-boot__inner">
+          <div className="dash-boot__logoWrap" aria-hidden="true">
+            <Image src="/signal_evenbigger.png" alt="" width={78} height={78} className="dash-boot__logo" priority />
+          </div>
+          <div className="dash-boot__title" aria-hidden="true">
+            <span className="dash-boot__signal">Signal</span>
+            <span className="dash-boot__sep">/</span>
+            <span className="dash-boot__item">Dashboard</span>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!bootChecked) {
+    return null;
+  }
 
   return (
     <div className={`dashboard ${styles.root}`}>
@@ -645,6 +721,11 @@ export default function DashboardPage() {
                             target="_blank"
                             rel="noreferrer"
                           >
+                            <span className="dash-project-card__linkIcon" aria-hidden="true">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.1.82-.26.82-.58v-2.17c-3.34.73-4.04-1.61-4.04-1.61-.55-1.37-1.34-1.74-1.34-1.74-1.1-.75.08-.73.08-.73 1.2.09 1.84 1.22 1.84 1.22 1.07 1.82 2.8 1.3 3.49.99.11-.77.42-1.3.76-1.6-2.67-.3-5.47-1.32-5.47-5.9 0-1.3.47-2.36 1.24-3.2-.13-.3-.54-1.52.12-3.16 0 0 1.01-.32 3.3 1.22a11.5 11.5 0 0 1 6 0c2.28-1.54 3.29-1.22 3.29-1.22.66 1.64.25 2.86.12 3.16.77.84 1.24 1.9 1.24 3.2 0 4.59-2.8 5.6-5.48 5.9.43.37.81 1.1.81 2.22v3.3c0 .32.21.69.83.57A12 12 0 0 0 12 .5Z" />
+                              </svg>
+                            </span>
                             {shortUrl(p.githubUrl)}
                           </a>
                         </div>
@@ -710,7 +791,7 @@ export default function DashboardPage() {
                               if (!window.confirm(`Delete project "${p.projectName}"? This also removes scans and findings.`)) {
                                 return;
                               }
-                              setDeleteBusy((s) => ({ ...s, [p.id]: true }));
+                              setDeleteBusy((s) => ({ ...s, [p.id]: true })); 
                               try {
                                 const r = await fetch(`/api/projects/${p.id}`, {
                                   method: "DELETE",

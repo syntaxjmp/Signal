@@ -15,6 +15,11 @@ export default function LoginForm() {
   useEffect(() => {
     if (sessionPending) return;
     if (session) {
+      try {
+        sessionStorage.setItem("signal_dashboard_boot", "1");
+      } catch {
+        // no-op
+      }
       router.replace("/dashboard");
       router.refresh();
     }
@@ -40,6 +45,11 @@ export default function LoginForm() {
       setErrorTick((t) => t + 1);
       setError(signError.message ?? "Could not sign in");
       return;
+    }
+    try {
+      sessionStorage.setItem("signal_dashboard_boot", "1");
+    } catch {
+      // no-op
     }
     router.push("/dashboard");
     router.refresh();
