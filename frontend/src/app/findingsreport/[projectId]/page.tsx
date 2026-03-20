@@ -37,6 +37,9 @@ type FindingsResponse = {
     } | null;
     createdAt: string;
     finishedAt: string | null;
+    prUrl?: string | null;
+    prJobId?: string | null;
+    prBranchName?: string | null;
   } | null;
 };
 
@@ -61,6 +64,23 @@ function scoreTone(score: number | null | undefined) {
   if (score <= 10) return "strong";
   if (score <= 25) return "warn";
   return "critical";
+}
+
+function showPrAlert(prUrl: string) {
+  const message = [
+    "Signal Bot Pull Request",
+    "",
+    "A pull request was created for this resolved finding.",
+    "",
+    `PR URL: ${prUrl}`,
+    "",
+    "What to do next:",
+    "1) Open the PR and review all code changes.",
+    "2) Run tests/CI to validate behavior and security fixes.",
+    "3) Approve and merge when checks pass.",
+    "4) Re-scan after merge to confirm risk reduction.",
+  ].join("\n");
+  window.alert(message);
 }
 
 function getFileBaseName(filePath: string) {
@@ -251,6 +271,7 @@ export default function FindingsReportPage() {
   }, [payload]);
 
   const securityScoreRaw = payload?.summary?.securityScore ?? payload?.summary?.summary?.securityScore ?? null;
+  const findingsPrUrl = payload?.summary?.prUrl ?? resolvePrUrl ?? null;
   const securityScore = securityScoreRaw == null ? null : Math.round(Number(securityScoreRaw));
   const scoreValue = Math.max(0, Math.min(50, Number(securityScore ?? 0)));
   // Score 0 = full green ring (perfect health). Score > 0 = fill proportional to risk.
@@ -510,6 +531,13 @@ export default function FindingsReportPage() {
                                     disabled={resolveStatus === "running" || resolveStatus === "starting"}
                                   >
                                     Resolve
+                                  </button>
+                                ) : fStatus === "resolved" && findingsPrUrl ? (
+                                  <button
+                                    className="report-btn report-btn--sm report-btn--ghost"
+                                    onClick={() => showPrAlert(findingsPrUrl)}
+                                  >
+                                    View
                                   </button>
                                 ) : null}
                               </td>

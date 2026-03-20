@@ -315,6 +315,51 @@ projectsRouter.get('/projects/:id/findings', requireUser, async (req, res, next)
     ]);
     const total = Number(countRow?.total || 0);
 
+    let prUrl = null;
+    let prJobId = null;
+    let prBranchName = null;
+    if (scan) {
+      const [[nextScan]] = await pool.query(
+        `SELECT created_at AS createdAt
+         FROM project_scans
+         WHERE project_id = ?
+           AND created_at > ?
+         ORDER BY created_at ASC
+         LIMIT 1`,
+        [projectId, scan.createdAt],
+      );
+
+      const [prRows] = nextScan?.createdAt
+        ? await pool.query(
+            `SELECT id, pr_url AS prUrl, branch_name AS branchName
+             FROM resolution_jobs
+             WHERE project_id = ?
+               AND status = 'completed'
+               AND pr_url IS NOT NULL
+               AND created_at >= ?
+               AND created_at < ?
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [projectId, scan.createdAt, nextScan.createdAt],
+          )
+        : await pool.query(
+            `SELECT id, pr_url AS prUrl, branch_name AS branchName
+             FROM resolution_jobs
+             WHERE project_id = ?
+               AND status = 'completed'
+               AND pr_url IS NOT NULL
+               AND created_at >= ?
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [projectId, scan.createdAt],
+          );
+
+      const latestPr = prRows?.[0];
+      prUrl = latestPr?.prUrl ?? null;
+      prJobId = latestPr?.id ?? null;
+      prBranchName = latestPr?.branchName ?? null;
+    }
+
     res.json({
       data: rows,
       pagination: {
@@ -326,6 +371,9 @@ projectsRouter.get('/projects/:id/findings', requireUser, async (req, res, next)
       summary: scan
         ? {
             ...scan,
+            prUrl,
+            prJobId,
+            prBranchName,
             summary: typeof scan.summary === 'string' ? JSON.parse(scan.summary) : scan.summary,
           }
         : null,
@@ -373,13 +421,14 @@ projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) =>
     );
 
     const entries = scans.slice(0, limit).map((scan, idx) => {
-      const prev = scans[idx + 1] || null;
-      return { scan, prev };
+      const prev = scans[idx + 1] || null; // older scan
+      const next = idx > 0 ? scans[idx - 1] : null; // newer scan
+      return { scan, prev, next };
     });
 
     // Process all scan pairs in parallel, and run all 6 diff queries per pair in parallel
     const data = await Promise.all(
-      entries.map(async ({ scan, prev }) => {
+      entries.map(async ({ scan, prev, next }) => {
         const ranByUserId = scan?.ranByUserId ?? project.userId ?? null;
         const securityScoreRaw = scan?.securityScore;
         const securityScore = securityScoreRaw == null ? null : Number(securityScoreRaw);
@@ -391,6 +440,35 @@ projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) =>
           securityScore == null || prevSecurityScore == null ? null : Math.round(securityScore - prevSecurityScore);
 
         let diff = null;
+        // Attach PRs created after this scan started, until the next newer scan starts.
+        const scanWindowStart = scan.createdAt;
+        const scanWindowEnd = next?.createdAt ?? null;
+        const [prRows] = scanWindowEnd
+          ? await pool.query(
+              `SELECT id, pr_url AS prUrl, branch_name AS branchName, created_at AS createdAt
+               FROM resolution_jobs
+               WHERE project_id = ?
+                 AND status = 'completed'
+                 AND pr_url IS NOT NULL
+                 AND created_at >= ?
+                 AND created_at < ?
+               ORDER BY created_at DESC
+               LIMIT 1`,
+              [projectId, scanWindowStart, scanWindowEnd],
+            )
+          : await pool.query(
+              `SELECT id, pr_url AS prUrl, branch_name AS branchName, created_at AS createdAt
+               FROM resolution_jobs
+               WHERE project_id = ?
+                 AND status = 'completed'
+                 AND pr_url IS NOT NULL
+                 AND created_at >= ?
+               ORDER BY created_at DESC
+               LIMIT 1`,
+              [projectId, scanWindowStart],
+            );
+        const latestPrJob = prRows?.[0] ?? null;
+
         if (prev && scan.status === 'completed' && prev.status === 'completed') {
           const scanId = scan.id;
           const prevScanId = prev.id;
@@ -505,6 +583,9 @@ projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) =>
           ranByUserId,
           securityScore,
           scoreDelta,
+          prUrl: latestPrJob?.prUrl ?? null,
+          prJobId: latestPrJob?.id ?? null,
+          prBranchName: latestPrJob?.branchName ?? null,
           diff,
         };
       }),

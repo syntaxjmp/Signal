@@ -37,6 +37,9 @@ type AuditEntry = {
   ranByUserId: string | null;
   securityScore: number | null;
   scoreDelta: number | null;
+  prUrl?: string | null;
+  prJobId?: string | null;
+  prBranchName?: string | null;
   diff: AuditDiff | null;
 };
 
@@ -1413,6 +1416,34 @@ export default function DashboardPage() {
                             ) : (
                               <div className="dash-auditBadges dash-auditBadges--empty">No previous scan for diff.</div>
                             )}
+
+                            {entry.prUrl ? (
+                              <button
+                                type="button"
+                                className="dash-btn dash-btn--secondary"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+
+                                  const prTitle = "Signal Bot Pull Request";
+                                  const body = [
+                                    `Signal Bot created a pull request for this scan.`,
+                                    "",
+                                    `PR URL: ${entry.prUrl}`,
+                                    "",
+                                    "What to do next:",
+                                    "1) Open the PR and review the changed files + security fixes.",
+                                    "2) Run CI/tests and verify it passes.",
+                                    "3) Approve and merge when validation is complete.",
+                                    "4) Re-run a scan after merge to confirm risk reduction.",
+                                  ].join("\n");
+
+                                  window.alert(`${prTitle}\n\n${body}`);
+                                }}
+                              >
+                                View
+                              </button>
+                            ) : null}
                           </div>
                         </summary>
 
