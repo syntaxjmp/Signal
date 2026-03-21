@@ -849,6 +849,13 @@ a {
   align-items: start;
 }
 
+/* When the main area has a single column (e.g. Projects only), match shell / banner width. */
+.dash-main > .dash-right:only-child {
+  grid-column: 1 / -1;
+  width: 100%;
+  justify-self: center;
+}
+
 .dash-section {
   padding: 1.1rem;
   border-radius: 18px;

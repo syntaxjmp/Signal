@@ -853,25 +853,27 @@
 .fwCardHead {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.65rem;
-  margin-bottom: 0.45rem;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .fwCardTitle {
   margin: 0;
   font-size: 1rem;
   font-weight: 850;
+  line-height: 1.28;
   flex: 1;
-  min-width: 200px;
+  min-width: min(100%, 200px);
 }
 
 .fwOverall {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.25rem;
-  padding: 0.25rem 0.65rem;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.28rem;
+  padding: 0.18rem 0.55rem 0.2rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
@@ -887,8 +889,9 @@
 }
 
 .fwOverallVal {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 950;
+  line-height: 1;
 }
 
 .fwOverallOf {
