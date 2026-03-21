@@ -1164,6 +1164,15 @@ export default function DashboardPage() {
                           )}
                           <button
                             type="button"
+                            className="dash-btn dash-btn--secondary"
+                            onClick={() => {
+                              router.push(`/compliance/${p.id}`);
+                            }}
+                          >
+                            Compliance
+                          </button>
+                          <button
+                            type="button"
                             className="dash-btn dash-btn--delete-trigger"
                             disabled={!!deleteBusy[p.id]}
                             onClick={() => setDeleteTarget(p)}
