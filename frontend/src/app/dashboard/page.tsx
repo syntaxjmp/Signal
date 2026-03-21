@@ -37,6 +37,8 @@ type AuditEntry = {
   createdAt: string;
   finishedAt: string | null;
   ranByUserId: string | null;
+  /** Display name from Better Auth user row (name, or email local-part) */
+  ranByDisplayName?: string | null;
   securityScore: number | null;
   scoreDelta: number | null;
   prUrl?: string | null;
@@ -638,6 +640,68 @@ function AuditProjectDropdown({
   );
 }
 
+/** Top bar: Memory / project name. Uses a native select when there are 2+ projects so the dropdown is obvious. */
+function MemoryProjectBreadcrumb({
+  projects,
+  value,
+  onChange,
+  onGoHome,
+}: {
+  projects: { id: string; projectName: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  /** Single-project row: return to main dashboard view */
+  onGoHome: () => void;
+}) {
+  const selected = projects.find((p) => p.id === value) ?? projects[0];
+  const multi = projects.length > 1;
+  const label =
+    selected?.projectName ?? (projects.length === 0 ? "No project" : projects[0]?.projectName ?? "Project");
+  const selectValue = selected?.id ?? "";
+
+  if (multi) {
+    return (
+      <label className="dash-memCrumbLabelRow" htmlFor="dash-memory-project-select">
+        <span className="dash-pageTitle__signal">Memory</span>
+        <span className="dash-pageTitle__sep">/</span>
+        <div className="dash-memCrumbWrap">
+          <select
+            id="dash-memory-project-select"
+            className="dash-memCrumbSelect"
+            value={selectValue}
+            onChange={(e) => onChange(e.target.value)}
+            aria-label="Choose project for memory map"
+          >
+            {projects.map((p) => (
+              <option
+                key={p.id}
+                value={p.id}
+                style={{ backgroundColor: "#1a0c08", color: "#fff0ea" }}
+              >
+                {p.projectName}
+              </option>
+            ))}
+          </select>
+        </div>
+      </label>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="dash-memCrumbSingleBtn"
+      title={label}
+      aria-label={`Memory map — ${label}. Go to dashboard home.`}
+      onClick={onGoHome}
+    >
+      <span className="dash-pageTitle__signal">Memory</span>
+      <span className="dash-pageTitle__sep">/</span>
+      <span className="dash-pageTitle__item dash-memCrumbSingle">{label}</span>
+    </button>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [session, setSession] = useState<any | null>(null);
@@ -668,6 +732,7 @@ export default function DashboardPage() {
   const [teamError, setTeamError] = useState<string | null>(null);
 
   const [auditProjectId, setAuditProjectId] = useState<string | null>(null);
+  const [memoryProjectId, setMemoryProjectId] = useState<string | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
@@ -791,6 +856,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAuthed) return;
+    if (activeSection !== "memory") return;
+    if (memoryProjectId && projects.some((p) => p.id === memoryProjectId)) return;
+    setMemoryProjectId(projects[0]?.id ?? null);
+  }, [activeSection, memoryProjectId, isAuthed, projects]);
+
+  useEffect(() => {
+    if (!isAuthed) return;
     if (activeSection !== "webhooks") return;
 
     let cancelled = false;
@@ -890,6 +962,7 @@ export default function DashboardPage() {
   const ownerEmail = normalizeEmail(String((session as any)?.user?.email ?? ""));
   const currentUserId = String((session as any)?.user?.id ?? "");
   const auditProject = auditProjectId ? projects.find((p) => p.id === auditProjectId) ?? null : null;
+  const memoryProject = memoryProjectId ? projects.find((p) => p.id === memoryProjectId) ?? null : null;
   const teamCount = teamMembers.length;
 
   const displayName =
@@ -977,6 +1050,16 @@ export default function DashboardPage() {
 
   const topNavCrumb = activeSection === "memory" ? "Memory" : "Dashboard";
 
+  /** Leave Memory tab for main dashboard content — local state + URL hash only (no Next router). */
+  const exitMemoryToHome = useCallback(() => {
+    setActiveSection("home");
+    try {
+      window.history.replaceState(null, "", "/dashboard");
+    } catch {
+      // no-op
+    }
+  }, []);
+
   if (booting && bootChecked) {
     return (
       <main
@@ -1010,23 +1093,35 @@ export default function DashboardPage() {
   return (
     <div className={`dashboard ${styles.root}`}>
       <div className="dash-topnav">
-        <Link
-          href="/"
-          className="brand"
-          aria-label={activeSection === "memory" ? "Memory" : `Signal ${topNavCrumb}`}
-        >
-          <Image
-            src="/signal_evenbigger.png"
-            alt=""
-            width={60}
-            height={60}
-            className="dash-brand-logo"
-            priority
-            aria-hidden
-          />
+        <div className="brand">
+          <Link
+            href={activeSection === "memory" ? "/dashboard" : "/"}
+            className="dash-brand-logoLink"
+            aria-label={activeSection === "memory" ? "Back to dashboard home" : "Signal home"}
+            onClick={(e) => {
+              if (activeSection !== "memory") return;
+              e.preventDefault();
+              exitMemoryToHome();
+            }}
+          >
+            <Image
+              src="/signal_evenbigger.png"
+              alt=""
+              width={60}
+              height={60}
+              className="dash-brand-logo"
+              priority
+              aria-hidden
+            />
+          </Link>
           <div className="dash-pageTitle" aria-hidden="true">
             {activeSection === "memory" ? (
-              <span className="dash-pageTitle__signal">Memory</span>
+              <MemoryProjectBreadcrumb
+                projects={projects}
+                value={memoryProject?.id ?? ""}
+                onChange={setMemoryProjectId}
+                onGoHome={exitMemoryToHome}
+              />
             ) : (
               <>
                 <span className="dash-pageTitle__signal">Signal</span>
@@ -1035,7 +1130,7 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-        </Link>
+        </div>
         <div className="dash-topnav__right">{headerRight}</div>
       </div>
 
@@ -1259,24 +1354,43 @@ export default function DashboardPage() {
                             {(() => {
                               const scoreClamped = clampScore50(p.securityScore);
                               const tone = scoreGaugeTone(scoreClamped);
+                              const isZero = scoreClamped === 0;
                               const percent = scoreClamped == null ? 0 : (scoreClamped / 50) * 100;
                               const scoreInt = scoreClamped == null ? null : Math.round(Number(scoreClamped));
+                              const green = "#52d6a2";
                               const toneColor =
-                                tone === "strong" ? "#52d6a2"
-                                : tone === "warn" ? "#f5b84f"
-                                : tone === "critical" ? "#ff5b5b"
-                                : "rgba(255, 230, 220, 0.55)";
+                                isZero
+                                  ? green
+                                  : tone === "strong"
+                                    ? green
+                                    : tone === "warn"
+                                      ? "#f5b84f"
+                                      : tone === "critical"
+                                        ? "#ff5b5b"
+                                        : "rgba(255, 230, 220, 0.55)";
                               const trackColor = "rgba(255, 255, 255, 0.09)";
                               const r = 42;
                               const stroke = 8;
                               const cx = 48;
                               const size = 96;
                               const circumference = 2 * Math.PI * r;
-                              const dashOffset = circumference * (1 - percent / 100);
+                              /* Score 0: full green ring (0% fill would hide the arc otherwise) */
+                              const dashOffset = isZero ? 0 : circumference * (1 - percent / 100);
                               return (
                                 <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
                                   <circle cx={cx} cy={cx} r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
-                                  <circle cx={cx} cy={cx} r={r} fill="none" stroke={toneColor} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={dashOffset} transform={`rotate(-90 ${cx} ${cx})`} />
+                                  <circle
+                                    cx={cx}
+                                    cy={cx}
+                                    r={r}
+                                    fill="none"
+                                    stroke={toneColor}
+                                    strokeWidth={stroke}
+                                    strokeLinecap="round"
+                                    strokeDasharray={`${circumference} ${circumference}`}
+                                    strokeDashoffset={dashOffset}
+                                    transform={`rotate(-90 ${cx} ${cx})`}
+                                  />
                                   <circle cx={cx} cy={cx} r={r - stroke / 2 - 2} fill="rgba(14, 8, 8, 0.95)" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" />
                                   <text x={cx} y="45" textAnchor="middle" dominantBaseline="middle" fill="#fef8f6" fontSize="30" fontWeight="900">{scoreInt == null ? "--" : scoreInt}</text>
                                   <text x={cx} y="62" textAnchor="middle" dominantBaseline="middle" fill="rgba(255, 220, 210, 0.78)" fontSize="12" fontWeight="850">/ 50</text>
@@ -1451,6 +1565,10 @@ export default function DashboardPage() {
                   {auditEntries.map((entry) => {
                     const when = entry.finishedAt ?? entry.createdAt;
                     const isYou = entry.ranByUserId && currentUserId && entry.ranByUserId === currentUserId;
+                    const ranByLabel =
+                      (typeof entry.ranByDisplayName === "string" && entry.ranByDisplayName.trim()) ||
+                      (isYou ? String(displayName) : "") ||
+                      (entry.ranByUserId ? entry.ranByUserId.slice(0, 8) : "Unknown");
                     const added = entry.diff?.addedCount ?? 0;
                     const removed = entry.diff?.removedCount ?? 0;
                     const changed = entry.diff?.changedCount ?? 0;
@@ -1463,8 +1581,23 @@ export default function DashboardPage() {
                             <div className="dash-auditMeta">
                               <span className="dash-auditBy">
                                 Ran by:{" "}
-                                <span className={isYou ? "dash-auditYou" : undefined}>
-                                  {isYou ? "You" : entry.ranByUserId ?? "Unknown"}
+                                <span className="dash-auditRanBy">
+                                  <span className="dash-auditRanByIcon" aria-hidden="true">
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="1.8"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                      <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                  </span>
+                                  <span className={isYou ? "dash-auditYou" : "dash-auditRanByName"}>{ranByLabel}</span>
                                 </span>
                               </span>
                               <span className="dash-auditSep">·</span>
@@ -1606,7 +1739,7 @@ export default function DashboardPage() {
           </section>
         ) : activeSection === "memory" ? (
           <section className="dash-teamPanel dash-memoryStage" id="memory">
-            <MemoryMapPanel />
+            <MemoryMapPanel key={memoryProject?.id ?? "none"} projectId={memoryProject?.id} projectName={memoryProject?.projectName} />
           </section>
         ) : (
           <section className="dash-teamPanel" id="webhooks">
