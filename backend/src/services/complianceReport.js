@@ -522,7 +522,6 @@ export function complianceReportToMarkdown(payload) {
     `| **Critical issues** | ${es?.criticalIssues ?? '—'} |`,
     `| **High issues** | ${es?.highIssues ?? '—'} |`,
     `| **Medium / Low** | ${es?.mediumIssues ?? '—'} / ${es?.lowIssues ?? '—'} |`,
-    `| **Security score** (0–50, lower is better) | ${es?.securityScore ?? '—'} |`,
     `| **Status** | ${escapeMdCell(es?.statusLine)} |`,
     '',
   ];
@@ -819,7 +818,6 @@ function writeCompliancePdf(doc, payload) {
       { width: contentW },
     );
     doc.text(`Unresolved — Critical: ${es.criticalUnresolved} · High: ${es.highUnresolved}`, { width: contentW });
-    doc.text(`Security score (0–50, lower is better): ${es.securityScore ?? '—'}`, { width: contentW });
     doc.text(`Status: ${pdfSafe(es.statusLine)}`, { width: contentW });
   }
   doc.moveDown(1);
