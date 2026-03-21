@@ -413,26 +413,32 @@ export default function ComplianceReportPage() {
                 <div id="fix-heading" className={styles.sectionLabel}>
                   3 · What Signal fixed (trust &amp; remediation)
                 </div>
-                <div className={styles.fixGrid}>
-                  <div className={styles.fixCard}>
-                    <div className={styles.fixPct}>{data.signalFixes.criticalResolvedPct}%</div>
-                    <div className={styles.fixLabel}>
-                      Critical resolved ({data.signalFixes.criticalResolved}/{data.signalFixes.criticalTotal})
+                <p className={styles.fixIntro}>
+                  Remediation coverage from finding status and completed PR workflows in Signal.
+                </p>
+                <div className={styles.fixPanel}>
+                  <div className={styles.fixGrid}>
+                    <div className={`${styles.fixStat} ${styles.fixStatCritical}`}>
+                      <span className={styles.fixPill}>Critical</span>
+                      <div className={styles.fixMetricValue}>{data.signalFixes.criticalResolvedPct}%</div>
+                      <div className={styles.fixLabel}>
+                        Resolved ({data.signalFixes.criticalResolved}/{data.signalFixes.criticalTotal})
+                      </div>
                     </div>
-                  </div>
-                  <div className={`${styles.fixCard} ${styles.fixCardHighlight}`}>
-                    <div className={styles.fixPct} style={{ color: "#ffc878" }}>
-                      {data.signalFixes.highResolvedPct}%
+                    <div className={`${styles.fixStat} ${styles.fixStatHigh}`}>
+                      <span className={styles.fixPill}>High</span>
+                      <div className={styles.fixMetricValue}>{data.signalFixes.highResolvedPct}%</div>
+                      <div className={styles.fixLabel}>
+                        Resolved ({data.signalFixes.highResolved}/{data.signalFixes.highTotal})
+                      </div>
                     </div>
-                    <div className={styles.fixLabel}>
-                      High resolved ({data.signalFixes.highResolved}/{data.signalFixes.highTotal})
+                    <div className={`${styles.fixStat} ${styles.fixStatDuration}`}>
+                      <span className={styles.fixPill}>PR jobs</span>
+                      <div className={styles.fixMetricValue}>
+                        {data.signalFixes.avgFixHours != null ? `${data.signalFixes.avgFixHours}h` : "—"}
+                      </div>
+                      <div className={styles.fixLabel}>Avg. resolution job duration</div>
                     </div>
-                  </div>
-                  <div className={styles.fixCard}>
-                    <div className={styles.fixPct} style={{ color: "#a8d4ff", fontSize: "1.45rem" }}>
-                      {data.signalFixes.avgFixHours != null ? `${data.signalFixes.avgFixHours}h` : "—"}
-                    </div>
-                    <div className={styles.fixLabel}>Avg. resolution job duration (PR workflows)</div>
                   </div>
                 </div>
               </section>
@@ -465,22 +471,19 @@ export default function ComplianceReportPage() {
               <div id="tl-heading" className={styles.sectionLabel}>
                 6 · Timeline &amp; evidence
               </div>
-              <p className={styles.sub} style={{ marginTop: 0, marginBottom: "0.65rem", fontSize: "0.95rem" }}>
+              <p className={`${styles.sub} ${styles.timelineSub}`}>
                 Scan milestones and completed remediation jobs (PRs). Use alongside your change-management records.
               </p>
               <div className={styles.timeline}>
                 {(data.timeline ?? []).map((t, i) => (
                   <div key={`${t.at}-${i}`} className={styles.tlRow}>
                     <div className={styles.tlDate}>{fmtWhen(t.at)}</div>
-                    <div>
-                      {t.label}
+                    <div className={styles.tlBody}>
+                      <span className={styles.tlText}>{t.label}</span>
                       {t.evidence?.prUrl ? (
-                        <>
-                          {" "}
-                          <a className={styles.prLink} href={t.evidence.prUrl} target="_blank" rel="noreferrer">
-                            View PR
-                          </a>
-                        </>
+                        <a className={styles.tlPrBtn} href={t.evidence.prUrl} target="_blank" rel="noreferrer">
+                          View PR
+                        </a>
                       ) : null}
                     </div>
                   </div>

@@ -215,3 +215,107 @@ CREATE TABLE IF NOT EXISTS `user_webhooks` (
   UNIQUE KEY `uq_user_webhooks_user` (`user_id`),
   KEY `idx_user_webhooks_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Stateful intelligence MVP (Phase 1 essentials)
+CREATE TABLE IF NOT EXISTS `finding_dismissals` (
+  `id` CHAR(36) NOT NULL,
+  `fingerprint` CHAR(64) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `user_id` VARCHAR(191) NOT NULL,
+  `reason_code` ENUM('false_positive', 'accepted_risk', 'mitigated_elsewhere', 'test_code', 'wont_fix') NOT NULL,
+  `justification` TEXT NULL,
+  `scope` ENUM('finding', 'project', 'org') NOT NULL DEFAULT 'finding',
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_dismissals_project` (`project_id`),
+  KEY `idx_dismissals_fp` (`fingerprint`),
+  KEY `idx_dismissals_project_active` (`project_id`, `is_active`),
+  UNIQUE KEY `uq_dismissals_project_fp_scope` (`project_id`, `fingerprint`, `scope`),
+  CONSTRAINT `fk_dismissals_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `finding_regressions` (
+  `id` CHAR(36) NOT NULL,
+  `fingerprint` CHAR(64) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `resolved_in_scan_id` CHAR(36) NOT NULL,
+  `reappeared_in_scan_id` CHAR(36) NOT NULL,
+  `original_finding_id` CHAR(36) NULL,
+  `new_finding_id` CHAR(36) NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_regressions_project` (`project_id`),
+  KEY `idx_regressions_fp` (`fingerprint`),
+  KEY `idx_regressions_reappeared` (`reappeared_in_scan_id`),
+  UNIQUE KEY `uq_regression_once_per_scan` (`project_id`, `fingerprint`, `reappeared_in_scan_id`),
+  CONSTRAINT `fk_regressions_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `scan_baselines` (
+  `id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `baseline_score` DECIMAL(5,2) NOT NULL,
+  `baseline_finding_count` INT UNSIGNED NOT NULL,
+  `score_stddev` DECIMAL(6,3) NOT NULL DEFAULT 0,
+  `window_size` INT UNSIGNED NOT NULL DEFAULT 10,
+  `last_recalculated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_scan_baseline_project` (`project_id`),
+  CONSTRAINT `fk_scan_baselines_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `security_policies` (
+  `id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `rule_type` ENUM('sla', 'require_review', 'escalate') NOT NULL DEFAULT 'sla',
+  `condition_json` JSON NOT NULL,
+  `action_json` JSON NULL,
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_by` VARCHAR(191) NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_security_policies_project` (`project_id`),
+  KEY `idx_security_policies_active` (`is_active`, `rule_type`),
+  CONSTRAINT `fk_security_policies_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sla_violations` (
+  `id` CHAR(36) NOT NULL,
+  `policy_id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `finding_id` CHAR(36) NOT NULL,
+  `severity` ENUM('critical', 'high', 'medium', 'low') NOT NULL,
+  `due_hours` INT UNSIGNED NOT NULL,
+  `status` ENUM('open', 'acknowledged', 'resolved') NOT NULL DEFAULT 'open',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_sla_policy_finding` (`policy_id`, `finding_id`),
+  KEY `idx_sla_violations_project` (`project_id`),
+  KEY `idx_sla_violations_status` (`status`),
+  CONSTRAINT `fk_sla_violations_policy` FOREIGN KEY (`policy_id`) REFERENCES `security_policies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_sla_violations_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_sla_violations_finding` FOREIGN KEY (`finding_id`) REFERENCES `project_findings` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `code_elements` (
+  `id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `scan_id` CHAR(36) NOT NULL,
+  `element_type` ENUM('route', 'middleware', 'handler', 'db_call', 'auth_check') NOT NULL,
+  `file_path` VARCHAR(1024) NOT NULL,
+  `line_start` INT UNSIGNED NULL,
+  `identifier` VARCHAR(512) NULL,
+  `parent_element_id` CHAR(36) NULL,
+  `metadata` JSON NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_code_elements_project_scan` (`project_id`, `scan_id`),
+  KEY `idx_code_elements_type` (`element_type`),
+  CONSTRAINT `fk_code_elements_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_code_elements_scan` FOREIGN KEY (`scan_id`) REFERENCES `project_scans` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

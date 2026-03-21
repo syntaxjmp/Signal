@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import OpenAI from 'openai';
 import pLimit from 'p-limit';
 import { vulnAgentPrompt } from '../ai/vulnAgentPrompt.js';
+import { extractCodeElementsFromFile } from './codeElementModeling.js';
 
 const MAX_FILE_BYTES = 1024 * 1024;
 const SNIPPET_WINDOW = 60;
@@ -250,12 +251,14 @@ export async function scanGitHubProject({
 
     const client = new OpenAI({ apiKey: openAiApiKey });
     const limit = pLimit(SCAN_CONCURRENCY);
+    const codeElements = [];
 
     // Build all tasks upfront
     const tasks = [];
     for (const f of files) {
       const content = await readFile(f.full, 'utf8').catch(() => '');
       if (!content.trim()) continue;
+      codeElements.push(...extractCodeElementsFromFile({ filePath: f.rel, content }));
       const snippets = makeSnippets(content);
       const fileImports = extractImports(content);
 
@@ -356,6 +359,7 @@ export async function scanGitHubProject({
     return {
       scannedFilesCount: files.length,
       findings: uniqueFindings,
+      codeElements: codeElements.slice(0, 3000),
       summary: {
         severityCounts,
         totalFindings: uniqueFindings.length,

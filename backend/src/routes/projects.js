@@ -18,6 +18,12 @@ import {
   complianceReportPdfFilename,
   pipeComplianceReportPdf,
 } from '../services/complianceReport.js';
+import {
+  buildScanMemoryContext,
+  detectAndStoreRegressions,
+  recomputeScanBaseline,
+} from '../services/statefulMemory.js';
+import { searchSimilarDismissedFindings, upsertFindingEmbeddings } from '../services/vectorStore.js';
 
 export const projectsRouter = Router();
 
@@ -65,6 +71,28 @@ async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiA
       );
     }
 
+    if (Array.isArray(result.codeElements) && result.codeElements.length > 0) {
+      for (let i = 0; i < result.codeElements.length; i += BATCH_SIZE) {
+        const batch = result.codeElements.slice(i, i + BATCH_SIZE);
+        const placeholders = batch.map(() => '(UUID(), ?, ?, ?, ?, ?, ?, NULL, ?)').join(', ');
+        const values = batch.flatMap((el) => [
+          projectId,
+          scanId,
+          el.elementType,
+          el.filePath,
+          el.lineStart ?? null,
+          el.identifier ?? null,
+          JSON.stringify(el.metadata || {}),
+        ]);
+        await pool.query(
+          `INSERT INTO code_elements
+            (id, project_id, scan_id, element_type, file_path, line_start, identifier, parent_element_id, metadata)
+           VALUES ${placeholders}`,
+          values,
+        );
+      }
+    }
+
     await pool.execute(
       `UPDATE project_scans
        SET status = 'completed',
@@ -89,6 +117,38 @@ async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiA
        WHERE id = ?`,
       [scanId, result.summary.securityScore, projectId],
     );
+
+    // Stateful memory MVP hooks: regression + baseline.
+    try {
+      await detectAndStoreRegressions(pool, projectId, scanId);
+      await recomputeScanBaseline(pool, projectId);
+    } catch (memoryErr) {
+      console.warn(
+        `[memory] non-fatal stateful update failed project=${projectId} scan=${scanId}`,
+        memoryErr instanceof Error ? memoryErr.message : String(memoryErr),
+      );
+    }
+
+    try {
+      const [findingRows] = await pool.query(
+        `SELECT id, fingerprint, severity, category, description, file_path AS filePath, snippet, status
+         FROM project_findings
+         WHERE project_id = ? AND scan_id = ?
+         ORDER BY weighted_score DESC
+         LIMIT 300`,
+        [projectId, scanId],
+      );
+      await upsertFindingEmbeddings({
+        findings: findingRows,
+        projectId,
+        scanId,
+      });
+    } catch (vectorErr) {
+      console.warn(
+        `[vector] non-fatal embedding upsert failed project=${projectId} scan=${scanId}`,
+        vectorErr instanceof Error ? vectorErr.message : String(vectorErr),
+      );
+    }
 
     console.info(
       `[scan] completed project=${projectId} scan=${scanId} findings=${result.summary.totalFindings} score=${result.summary.securityScore}`,
@@ -745,6 +805,232 @@ projectsRouter.patch('/projects/:id/findings/:findingId/status', requireUser, as
       return;
     }
     res.json({ ok: true, findingId, status });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Dismiss finding (stateful memory seed) ---
+projectsRouter.post('/projects/:id/findings/:findingId/dismiss', requireUser, async (req, res, next) => {
+  try {
+    const { id: projectId, findingId } = req.params;
+    const reasonCode = String(req.body?.reasonCode || '').trim();
+    const justification = String(req.body?.justification || '').trim();
+    const scope = String(req.body?.scope || 'finding').trim();
+    const validReasons = ['false_positive', 'accepted_risk', 'mitigated_elsewhere', 'test_code', 'wont_fix'];
+    const validScopes = ['finding', 'project', 'org'];
+
+    if (!validReasons.includes(reasonCode)) {
+      res.status(400).json({ error: `reasonCode must be one of: ${validReasons.join(', ')}` });
+      return;
+    }
+    if (!validScopes.includes(scope)) {
+      res.status(400).json({ error: `scope must be one of: ${validScopes.join(', ')}` });
+      return;
+    }
+
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [[finding]] = await pool.query(
+      `SELECT id, fingerprint, severity, category, description, file_path AS filePath, snippet, status
+       FROM project_findings
+       WHERE id = ? AND project_id = ?
+       LIMIT 1`,
+      [findingId, projectId],
+    );
+    if (!finding) { res.status(404).json({ error: 'Finding not found' }); return; }
+
+    await pool.execute(
+      `INSERT INTO finding_dismissals
+        (id, fingerprint, project_id, user_id, reason_code, justification, scope, is_active)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, 1)
+       ON DUPLICATE KEY UPDATE
+        user_id = VALUES(user_id),
+        reason_code = VALUES(reason_code),
+        justification = VALUES(justification),
+        is_active = 1,
+        updated_at = CURRENT_TIMESTAMP`,
+      [finding.fingerprint, projectId, req.userId, reasonCode, justification || null, scope],
+    );
+
+    try {
+      await upsertFindingEmbeddings({
+        findings: [finding],
+        projectId,
+        scanId: 'dismissal',
+        markDismissed: true,
+        dismissReason: reasonCode,
+      });
+    } catch (vectorErr) {
+      console.warn('[vector] dismissal embedding update failed', vectorErr instanceof Error ? vectorErr.message : String(vectorErr));
+    }
+
+    res.json({
+      ok: true,
+      findingId,
+      fingerprint: finding.fingerprint,
+      reasonCode,
+      scope,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Lightweight memory context for latest / selected scan ---
+projectsRouter.get('/projects/:id/memory-context', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId, latest_scan_id AS latestScanId
+       FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const scanId = req.query.scanId ? String(req.query.scanId) : project.latestScanId;
+    if (!scanId) {
+      res.json({
+        scanId: null,
+        memory: {
+          dismissalMatches: 0,
+          regressionsDetected: 0,
+          baseline: null,
+        },
+      });
+      return;
+    }
+
+    const memory = await buildScanMemoryContext(pool, projectId, scanId);
+    res.json({ scanId, memory });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.get('/projects/:id/findings/:findingId/similar-dismissed', requireUser, async (req, res, next) => {
+  try {
+    const { id: projectId, findingId } = req.params;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [[finding]] = await pool.query(
+      `SELECT id, severity, category, description, file_path AS filePath, snippet, fingerprint, status
+       FROM project_findings
+       WHERE id = ? AND project_id = ?
+       LIMIT 1`,
+      [findingId, projectId],
+    );
+    if (!finding) { res.status(404).json({ error: 'Finding not found' }); return; }
+
+    const similar = await searchSimilarDismissedFindings({
+      projectId,
+      finding,
+      limit: Math.min(10, Math.max(1, Number(req.query.limit) || 5)),
+      scoreThreshold: Math.max(0.7, Math.min(0.99, Number(req.query.threshold) || 0.92)),
+    });
+    res.json({ findingId, similar });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.post('/projects/:id/policies/sla', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const severity = String(req.body?.severity || '').toLowerCase();
+    const maxAgeHours = Number(req.body?.maxAgeHours || 0);
+    const name = String(req.body?.name || `SLA ${severity} ${maxAgeHours}h`).trim();
+    const validSeverities = ['critical', 'high', 'medium', 'low'];
+    if (!validSeverities.includes(severity)) {
+      res.status(400).json({ error: `severity must be one of: ${validSeverities.join(', ')}` });
+      return;
+    }
+    if (!Number.isFinite(maxAgeHours) || maxAgeHours <= 0) {
+      res.status(400).json({ error: 'maxAgeHours must be a positive number' });
+      return;
+    }
+
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const policyId = uuidv4();
+    await pool.execute(
+      `INSERT INTO security_policies
+        (id, project_id, name, rule_type, condition_json, action_json, is_active, created_by)
+       VALUES (?, ?, ?, 'sla', ?, ?, 1, ?)`,
+      [
+        policyId,
+        projectId,
+        name,
+        JSON.stringify({ severity, maxAgeHours }),
+        JSON.stringify({ notify: 'none' }),
+        req.userId,
+      ],
+    );
+
+    res.status(201).json({
+      id: policyId,
+      projectId,
+      name,
+      ruleType: 'sla',
+      condition: { severity, maxAgeHours },
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.get('/projects/:id/sla-violations', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [rows] = await pool.query(
+      `SELECT v.id,
+              v.status,
+              v.severity,
+              v.due_hours AS dueHours,
+              v.created_at AS createdAt,
+              p.name AS policyName,
+              f.id AS findingId,
+              f.category,
+              f.description,
+              f.file_path AS filePath,
+              f.line_number AS lineNumber
+       FROM sla_violations v
+       JOIN security_policies p ON p.id = v.policy_id
+       JOIN project_findings f ON f.id = v.finding_id
+       WHERE v.project_id = ?
+       ORDER BY v.created_at DESC
+       LIMIT ?`,
+      [projectId, Math.min(200, Math.max(1, Number(req.query.limit) || 50))],
+    );
+    res.json({ data: rows });
   } catch (e) {
     next(e);
   }
