@@ -368,6 +368,52 @@
   color: rgba(255, 215, 205, 0.6);
 }
 
+:global(.dash-project-card__layout) {
+  margin-top: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+:global(.dash-project-card__btnRow) {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+:global(.dash-project-card__gauge) {
+  flex-shrink: 0;
+  display: flex;
+  margin-top: -0.6rem;
+}
+
+:global(.dash-scanStatus) {
+  font-weight: 900;
+  text-transform: capitalize;
+  margin-left: 0.3rem;
+}
+
+:global(.dash-scanStatus--completed) {
+  color: #79ddaa;
+}
+
+:global(.dash-scanStatus--running) {
+  color: #ffd089;
+}
+
+:global(.dash-scanStatus--failed) {
+  color: #ff9e9e;
+}
+
+:global(.dash-scanStatus--pending),
+:global(.dash-scanStatus--queued),
+:global(.dash-scanStatus--not_started) {
+  color: rgba(255, 220, 210, 0.65);
+}
+
 /* ── Projects enter animation ── */
 :global(.dash-projects-enter) {
   animation: dash-projects-fade-in 400ms ease-out both;
@@ -1125,6 +1171,7 @@
   background: rgba(0, 0, 0, 0.1);
   border-color: rgba(255, 90, 52, 0.25);
   color: #f2e3de;
+  white-space: nowrap;
 }
 
 :global(.dash-btn:hover) {

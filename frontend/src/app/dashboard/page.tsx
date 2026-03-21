@@ -1166,134 +1166,105 @@ export default function DashboardPage() {
                             No description yet.
                           </div>
                         )}
-                        <div className="dash-team">
-                          <span className="dash-team__pill">
-                            Scan: {p.latestScanStatus ?? "not started"}
-                          </span>
-                          <button
-                            type="button"
-                            className="dash-btn dash-btn--secondary"
-                            disabled={!!scanBusy[p.id]}
-                            onClick={async () => {
-                              setScanBusy((s) => ({ ...s, [p.id]: true }));
-                              try {
-                                  const r = await fetch(`/api/projects/${p.id}/scan`, {
-                                  method: "POST",
-                                  headers: { "content-type": "application/json" },
-                                  credentials: "include",
-                                  cache: "no-store",
-                                });
-                                const json = await readApiResponse(r);
-                                if (!r.ok) throw new Error(json?.error || "Scan failed");
-                                if (json?.scanId) {
-                                  await waitForScanCompletion(p.id, String(json.scanId));
-                                  router.push(`/findingsreport/${p.id}?scanId=${encodeURIComponent(String(json.scanId))}`);
+                        <div className="dash-project-card__layout">
+                          <div className="dash-project-card__btnRow">
+                            <span className="dash-team__pill">
+                              Scan:{" "}<span className={`dash-scanStatus dash-scanStatus--${p.latestScanStatus ?? "not_started"}`}>{p.latestScanStatus ?? "not started"}</span>
+                            </span>
+                            <button
+                              type="button"
+                              className="dash-btn dash-btn--secondary"
+                              disabled={!!scanBusy[p.id]}
+                              onClick={async () => {
+                                setScanBusy((s) => ({ ...s, [p.id]: true }));
+                                try {
+                                    const r = await fetch(`/api/projects/${p.id}/scan`, {
+                                    method: "POST",
+                                    headers: { "content-type": "application/json" },
+                                    credentials: "include",
+                                    cache: "no-store",
+                                  });
+                                  const json = await readApiResponse(r);
+                                  if (!r.ok) throw new Error(json?.error || "Scan failed");
+                                  if (json?.scanId) {
+                                    await waitForScanCompletion(p.id, String(json.scanId));
+                                    router.push(`/findingsreport/${p.id}?scanId=${encodeURIComponent(String(json.scanId))}`);
+                                  }
+                                } catch (err) {
+                                  alert(err instanceof Error ? err.message : "Scan failed");
+                                } finally {
+                                  setScanBusy((s) => ({ ...s, [p.id]: false }));
                                 }
-                              } catch (err) {
-                                alert(err instanceof Error ? err.message : "Scan failed");
-                              } finally {
-                                setScanBusy((s) => ({ ...s, [p.id]: false }));
-                              }
-                            }}
+                              }}
+                            >
+                              {scanBusy[p.id] ? "Scanning..." : "Run scan"}
+                            </button>
+                            {p.latestScanStatus && p.latestScanStatus !== "not started" && (
+                            <button
+                              type="button"
+                              className="dash-btn dash-btn--secondary"
+                              onClick={() => {
+                                router.push(`/findingsreport/${p.id}`);
+                              }}
+                            >
+                              View findings
+                            </button>
+                            )}
+                            <button
+                              type="button"
+                              className="dash-btn dash-btn--secondary"
+                              onClick={() => {
+                                router.push(`/compliance/${p.id}`);
+                              }}
+                            >
+                              Compliance
+                            </button>
+                            <button
+                              type="button"
+                              className="dash-btn dash-btn--delete-trigger"
+                              disabled={!!deleteBusy[p.id]}
+                              onClick={() => setDeleteTarget(p)}
+                            >
+                              {deleteBusy[p.id] ? (
+                                <>
+                                  <span className="dash-delete__spinner dash-delete__spinner--inline" aria-hidden="true" />
+                                  Deleting…
+                                </>
+                              ) : "Delete"}
+                            </button>
+                          </div>
+                          <div
+                            className="dash-project-card__gauge"
+                            aria-label={`Latest scan score ${p.securityScore ?? "N/A"}`}
                           >
-                            {scanBusy[p.id] ? "Scanning..." : "Run scan"}
-                          </button>
-                          {p.latestScanStatus && p.latestScanStatus !== "not started" && (
-                          <button
-                            type="button"
-                            className="dash-btn dash-btn--secondary"
-                            onClick={() => {
-                              router.push(`/findingsreport/${p.id}`);
-                            }}
-                          >
-                            View findings
-                          </button>
-                          )}
-                          <button
-                            type="button"
-                            className="dash-btn dash-btn--secondary"
-                            onClick={() => {
-                              router.push(`/compliance/${p.id}`);
-                            }}
-                          >
-                            Compliance report
-                          </button>
-                          <button
-                            type="button"
-                            className="dash-btn dash-btn--delete-trigger"
-                            disabled={!!deleteBusy[p.id]}
-                            onClick={() => setDeleteTarget(p)}
-                          >
-                            {deleteBusy[p.id] ? (
-                              <>
-                                <span className="dash-delete__spinner dash-delete__spinner--inline" aria-hidden="true" />
-                                Deleting…
-                              </>
-                            ) : "Delete"}
-                          </button>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            marginTop: "0.95rem",
-                            marginRight: "0.9rem",
-                          }}
-                          aria-label={`Latest scan score ${p.securityScore ?? "N/A"}`}
-                        >
-                          {(() => {
-                            const scoreClamped = clampScore50(p.securityScore);
-                            const tone = scoreGaugeTone(scoreClamped);
-                            const percent = scoreClamped == null ? 0 : (scoreClamped / 50) * 100;
-                            const scoreInt = scoreClamped == null ? null : Math.round(Number(scoreClamped));
-
-                            const toneColor =
-                              tone === "strong"
-                                ? "#52d6a2"
-                                : tone === "warn"
-                                  ? "#f5b84f"
-                                  : tone === "critical"
-                                    ? "#ff5b5b"
-                                    : "rgba(255, 230, 220, 0.55)";
-                            const trackColor = "rgba(255, 255, 255, 0.09)";
-                            const r = 34;
-                            const stroke = 7;
-                            const circumference = 2 * Math.PI * r;
-                            const dashOffset = circumference * (1 - percent / 100);
-
-                            return (
-                              <svg width="78" height="78" viewBox="0 0 78 78" aria-hidden>
-                                <circle cx="39" cy="39" r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
-                                <circle
-                                  cx="39"
-                                  cy="39"
-                                  r={r}
-                                  fill="none"
-                                  stroke={toneColor}
-                                  strokeWidth={stroke}
-                                  strokeLinecap="round"
-                                  strokeDasharray={`${circumference} ${circumference}`}
-                                  strokeDashoffset={dashOffset}
-                                  transform="rotate(-90 39 39)"
-                                />
-                                <circle
-                                  cx="39"
-                                  cy="39"
-                                  r={r - stroke / 2 - 2}
-                                  fill="rgba(14, 8, 8, 0.95)"
-                                  stroke="rgba(255, 255, 255, 0.08)"
-                                  strokeWidth="1"
-                                />
-                                <text x="39" y="38" textAnchor="middle" dominantBaseline="middle" fill="#fef8f6" fontSize="28" fontWeight="900">
-                                  {scoreInt == null ? "--" : scoreInt}
-                                </text>
-                                <text x="39" y="54" textAnchor="middle" dominantBaseline="middle" fill="rgba(255, 220, 210, 0.78)" fontSize="12" fontWeight="850">
-                                  / 50
-                                </text>
-                              </svg>
-                            );
-                          })()}
+                            {(() => {
+                              const scoreClamped = clampScore50(p.securityScore);
+                              const tone = scoreGaugeTone(scoreClamped);
+                              const percent = scoreClamped == null ? 0 : (scoreClamped / 50) * 100;
+                              const scoreInt = scoreClamped == null ? null : Math.round(Number(scoreClamped));
+                              const toneColor =
+                                tone === "strong" ? "#52d6a2"
+                                : tone === "warn" ? "#f5b84f"
+                                : tone === "critical" ? "#ff5b5b"
+                                : "rgba(255, 230, 220, 0.55)";
+                              const trackColor = "rgba(255, 255, 255, 0.09)";
+                              const r = 42;
+                              const stroke = 8;
+                              const cx = 48;
+                              const size = 96;
+                              const circumference = 2 * Math.PI * r;
+                              const dashOffset = circumference * (1 - percent / 100);
+                              return (
+                                <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+                                  <circle cx={cx} cy={cx} r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
+                                  <circle cx={cx} cy={cx} r={r} fill="none" stroke={toneColor} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={dashOffset} transform={`rotate(-90 ${cx} ${cx})`} />
+                                  <circle cx={cx} cy={cx} r={r - stroke / 2 - 2} fill="rgba(14, 8, 8, 0.95)" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" />
+                                  <text x={cx} y="45" textAnchor="middle" dominantBaseline="middle" fill="#fef8f6" fontSize="30" fontWeight="900">{scoreInt == null ? "--" : scoreInt}</text>
+                                  <text x={cx} y="62" textAnchor="middle" dominantBaseline="middle" fill="rgba(255, 220, 210, 0.78)" fontSize="12" fontWeight="850">/ 50</text>
+                                </svg>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
                     ))}
