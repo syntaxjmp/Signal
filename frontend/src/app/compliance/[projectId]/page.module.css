@@ -61,6 +61,10 @@
 }
 
 .download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   padding: 0.45rem 0.95rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 240, 234, 0.28);
@@ -70,6 +74,11 @@
   font-size: 0.9rem;
   cursor: pointer;
   font-family: inherit;
+}
+
+.downloadIcon {
+  flex-shrink: 0;
+  opacity: 0.95;
 }
 
 .download:hover:not(:disabled) {
