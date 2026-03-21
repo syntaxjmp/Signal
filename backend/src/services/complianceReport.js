@@ -513,6 +513,7 @@ export function complianceReportToMarkdown(payload) {
       '| Field | Value |',
       '|-------|-------|',
       `| **Project** | ${escapeMdCell(project.projectName)} |`,
+      `| **Project ID** | \`${escapeMdCell(project.id)}\` |`,
       `| **Repository** | ${escapeMdCell(project.githubUrl)} |`,
       `| **Generated** | ${generated} |`,
       '',
@@ -531,6 +532,7 @@ export function complianceReportToMarkdown(payload) {
     '| Field | Value |',
     '|-------|-------|',
     `| **Report title** | Security & compliance narrative — ${escapeMdCell(project.projectName)} |`,
+    `| **Project ID** | \`${escapeMdCell(project.id)}\` |`,
     `| **Generated (UTC)** | ${generated} |`,
     `| **Repository** | ${escapeMdCell(project.githubUrl)} |`,
     `| **Evidence scan ID** | ${escapeMdCell(scan?.id)} |`,
@@ -816,6 +818,9 @@ function writeCompliancePdf(doc, payload) {
   doc.moveDown(0.45).fontSize(12).font('Helvetica').fillColor('#2a2a2a').text(pdfSafe(project.projectName), {
     width: contentW,
   });
+  doc.moveDown(0.25).fontSize(9.5).font('Helvetica').fillColor('#666666').text(`Project ID: ${pdfSafe(project.id)}`, {
+    width: contentW,
+  });
   if (project.githubUrl) {
     doc.moveDown(0.2).fontSize(9.5).fillColor('#0b57d0').text(pdfSafe(project.githubUrl), {
       width: contentW,
@@ -842,6 +847,7 @@ function writeCompliancePdf(doc, payload) {
 
   doc.fontSize(11).font('Helvetica-Bold').fillColor('#1a1a1a').text('Document control', { width: contentW });
   doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
+  doc.text(`Project ID: ${pdfSafe(project.id)}`, { width: contentW });
   doc.text(`Generated (UTC): ${pdfSafe(generated)}`, { width: contentW });
   doc.text(`Evidence scan ID: ${pdfSafe(scan?.id)}`, { width: contentW });
   doc.text(`Scan completed: ${pdfSafe(scan?.finishedAt || scan?.createdAt || '—')}`, { width: contentW });

@@ -93,6 +93,15 @@
   line-height: 1.5;
 }
 
+.reportProjectId {
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(255, 215, 200, 0.72);
+  word-break: break-all;
+}
+
 .section {
   margin-bottom: 1.75rem;
 }
