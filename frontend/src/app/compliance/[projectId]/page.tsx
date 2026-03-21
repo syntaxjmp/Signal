@@ -519,15 +519,12 @@ export default function ComplianceReportPage() {
                       <dt>Exploit path</dt>
                       <dd>{ev.exploitPath}</dd>
                       <dt>What was fixed / status</dt>
-                      <dd>
-                        {ev.whatWasFixed}
+                      <dd className={styles.evFixDd}>
+                        <span>{ev.whatWasFixed}</span>
                         {ev.prUrl ? (
-                          <>
-                            {" "}
-                            <a className={styles.prLink} href={ev.prUrl} target="_blank" rel="noreferrer">
-                              {ev.prUrl}
-                            </a>
-                          </>
+                          <a className={styles.tlPrBtn} href={ev.prUrl} target="_blank" rel="noreferrer">
+                            View PR
+                          </a>
                         ) : null}
                       </dd>
                       <div className={styles.fileRef}>

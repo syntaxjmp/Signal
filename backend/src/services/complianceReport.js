@@ -626,7 +626,7 @@ export function complianceReportToMarkdown(payload) {
       '',
       '**What was fixed / next step**',
       '',
-      truncateMd(ev.whatWasFixed + (ev.prUrl ? ` ${ev.prUrl}` : '')),
+      truncateMd(ev.whatWasFixed) + (ev.prUrl ? ` [View PR](${ev.prUrl})` : ''),
       '',
       '---',
       '',
