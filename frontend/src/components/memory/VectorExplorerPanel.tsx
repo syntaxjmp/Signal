@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { VectorCollection, VectorPoint2D, VectorStatsResponse, VectorReduceResponse } from "./vectorTypes";
+import FileNameWithIcon from "./FileNameWithIcon";
+import ScoreValueWithIcon from "./ScoreValueWithIcon";
+import { isScorePayloadKey } from "./scoreFieldIcon";
+import { formatDisplayIdsWithHash } from "./formatDisplayIds";
 import styles from "./VectorExplorerPanel.module.css";
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -45,11 +49,31 @@ function getPointColor(payload: Record<string, unknown>, collectionName: string)
 }
 
 function pointLabel(payload: Record<string, unknown>): string {
-  if (payload.category) return String(payload.category);
-  if (payload.fix_category) return String(payload.fix_category);
-  if (payload.file_path) return String(payload.file_path).split("/").pop() || "";
-  if (payload.vulnerability_category) return String(payload.vulnerability_category);
-  return String(payload.id || "point");
+  let raw: string;
+  if (payload.category) raw = String(payload.category);
+  else if (payload.fix_category) raw = String(payload.fix_category);
+  else if (payload.file_path) raw = String(payload.file_path).split("/").pop() || "";
+  else if (payload.vulnerability_category) raw = String(payload.vulnerability_category);
+  else raw = String(payload.id || "point");
+  return formatDisplayIdsWithHash(raw);
+}
+
+function getColorMap(collectionName: string): Record<string, string> {
+  if (collectionName.includes("finding")) return SEVERITY_COLORS;
+  if (collectionName.includes("fix")) return STATUS_COLORS;
+  if (collectionName.includes("code_pattern")) return LANGUAGE_COLORS;
+  return {};
+}
+
+const PAD = 40;
+const W = 600;
+const H = 400;
+
+function toSvg(px: number, py: number) {
+  return {
+    cx: PAD + ((px + 1) / 2) * (W - PAD * 2),
+    cy: PAD + ((1 - (py + 1) / 2)) * (H - PAD * 2),
+  };
 }
 
 type Props = {
@@ -64,13 +88,6 @@ export default function VectorExplorerPanel({ projectId }: Props) {
   const [selectedPoint, setSelectedPoint] = useState<VectorPoint2D | null>(null);
   const [neighborIds, setNeighborIds] = useState<Set<string>>(new Set());
   const [findingSimilar, setFindingSimilar] = useState(false);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  // Camera state for pan/zoom
-  const cameraRef = useRef({ offsetX: 0, offsetY: 0, scale: 1 });
-  const dragRef = useRef<{ startX: number; startY: number; camX: number; camY: number } | null>(null);
 
   // Load collection stats
   useEffect(() => {
@@ -97,7 +114,6 @@ export default function VectorExplorerPanel({ projectId }: Props) {
     setScatterLoading(true);
     setSelectedPoint(null);
     setNeighborIds(new Set());
-    cameraRef.current = { offsetX: 0, offsetY: 0, scale: 1 };
 
     fetch(`/api/projects/${projectId}/vector-reduce?collection=${encodeURIComponent(activeCollection)}`, {
       credentials: "include",
@@ -113,186 +129,6 @@ export default function VectorExplorerPanel({ projectId }: Props) {
       });
     return () => { cancelled = true; };
   }, [projectId, activeCollection]);
-
-  // Canvas rendering
-  const drawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
-
-    const rect = wrap.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const w = Math.floor(rect.width);
-    const h = Math.floor(rect.height);
-
-    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
-    }
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-
-    const points = reduceData?.points || [];
-    if (points.length === 0) return;
-
-    const cam = cameraRef.current;
-    const pad = 40;
-    const plotW = w - pad * 2;
-    const plotH = h - pad * 2;
-
-    function toScreen(px: number, py: number): [number, number] {
-      const sx = pad + ((px + 1) / 2) * plotW;
-      const sy = pad + ((1 - (py + 1) / 2)) * plotH;
-      return [
-        (sx - w / 2) * cam.scale + w / 2 + cam.offsetX,
-        (sy - h / 2) * cam.scale + h / 2 + cam.offsetY,
-      ];
-    }
-
-    const collection = activeCollection;
-
-    // Draw points
-    for (const pt of points) {
-      const [sx, sy] = toScreen(pt.x, pt.y);
-      const isSelected = selectedPoint?.id === pt.id;
-      const isNeighbor = neighborIds.has(String(pt.id));
-      const color = getPointColor(pt.payload, collection);
-      const radius = isSelected ? 7 : isNeighbor ? 5.5 : 4;
-
-      ctx.beginPath();
-      ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-      ctx.fillStyle = isSelected ? "#fff6f2" : color;
-      ctx.globalAlpha = isSelected || isNeighbor ? 1 : 0.7;
-      ctx.fill();
-
-      if (isSelected) {
-        ctx.strokeStyle = "#ff7a52";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      } else if (isNeighbor) {
-        ctx.strokeStyle = "#7ec8ff";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-    }
-
-    ctx.globalAlpha = 1;
-  }, [reduceData, activeCollection, selectedPoint, neighborIds]);
-
-  useEffect(() => {
-    drawCanvas();
-  }, [drawCanvas]);
-
-  // ResizeObserver for canvas
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const ro = new ResizeObserver(() => drawCanvas());
-    ro.observe(wrap);
-    return () => ro.disconnect();
-  }, [drawCanvas]);
-
-  // Hit-test helper
-  const hitTest = useCallback(
-    (clientX: number, clientY: number): VectorPoint2D | null => {
-      const canvas = canvasRef.current;
-      if (!canvas || !reduceData?.points?.length) return null;
-      const rect = canvas.getBoundingClientRect();
-      const mx = clientX - rect.left;
-      const my = clientY - rect.top;
-      const w = rect.width;
-      const h = rect.height;
-      const cam = cameraRef.current;
-      const pad = 40;
-      const plotW = w - pad * 2;
-      const plotH = h - pad * 2;
-
-      let closest: VectorPoint2D | null = null;
-      let closestDist = 12; // click radius
-
-      for (const pt of reduceData.points) {
-        const sx = pad + ((pt.x + 1) / 2) * plotW;
-        const sy = pad + ((1 - (pt.y + 1) / 2)) * plotH;
-        const screenX = (sx - w / 2) * cam.scale + w / 2 + cam.offsetX;
-        const screenY = (sy - h / 2) * cam.scale + h / 2 + cam.offsetY;
-        const dist = Math.sqrt((mx - screenX) ** 2 + (my - screenY) ** 2);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closest = pt;
-        }
-      }
-      return closest;
-    },
-    [reduceData],
-  );
-
-  // Mouse handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      camX: cameraRef.current.offsetX,
-      camY: cameraRef.current.offsetY,
-    };
-  }, []);
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (dragRef.current) {
-        const dx = e.clientX - dragRef.current.startX;
-        const dy = e.clientY - dragRef.current.startY;
-        cameraRef.current.offsetX = dragRef.current.camX + dx;
-        cameraRef.current.offsetY = dragRef.current.camY + dy;
-        drawCanvas();
-        setTooltip(null);
-        return;
-      }
-      // Hover tooltip
-      const pt = hitTest(e.clientX, e.clientY);
-      if (pt) {
-        const rect = canvasRef.current!.getBoundingClientRect();
-        setTooltip({
-          x: e.clientX - rect.left + 12,
-          y: e.clientY - rect.top - 8,
-          text: pointLabel(pt.payload),
-        });
-      } else {
-        setTooltip(null);
-      }
-    },
-    [drawCanvas, hitTest],
-  );
-
-  const handleMouseUp = useCallback(
-    (e: React.MouseEvent) => {
-      const wasDrag =
-        dragRef.current &&
-        (Math.abs(e.clientX - dragRef.current.startX) > 3 ||
-          Math.abs(e.clientY - dragRef.current.startY) > 3);
-      dragRef.current = null;
-      if (wasDrag) return;
-      // Click
-      const pt = hitTest(e.clientX, e.clientY);
-      setSelectedPoint(pt);
-      if (!pt) setNeighborIds(new Set());
-    },
-    [hitTest],
-  );
-
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      cameraRef.current.scale = Math.max(0.3, Math.min(10, cameraRef.current.scale * delta));
-      drawCanvas();
-    },
-    [drawCanvas],
-  );
 
   // Find Similar
   const handleFindSimilar = useCallback(async () => {
@@ -342,98 +178,191 @@ export default function VectorExplorerPanel({ projectId }: Props) {
     return <div className={styles.root}><div className={styles.empty}>Vector store is not enabled. Configure Qdrant to use this view.</div></div>;
   }
 
+  const points = reduceData?.points || [];
+  const colorMap = getColorMap(activeCollection);
   return (
     <div className={styles.root}>
-      {/* Collection stats bar */}
-      <div className={styles.statsBar}>
+      {/* Collection pills */}
+      <div className={styles.pillRow}>
         {stats.collections.map((col: VectorCollection) => (
-          <div
+          <button
             key={col.name}
-            className={`${styles.collectionCard} ${activeCollection === col.name ? styles.collectionCardActive : ""}`}
+            type="button"
+            className={`${styles.pill} ${activeCollection === col.name ? styles.pillActive : ""}`}
             onClick={() => setActiveCollection(col.name)}
           >
-            <span
-              className={`${styles.statusDot} ${
-                col.status === "green" ? styles.statusGreen : col.status === "not_found" ? styles.statusGray : styles.statusGreen
-              }`}
-            />
-            <span className={styles.collectionName}>{col.name.replace(/_/g, " ")}</span>
-            <span className={styles.collectionCount}>{col.pointsCount} pts</span>
-          </div>
+            {col.name.replace(/_/g, " ")}
+            <span className={styles.badge}>{col.pointsCount}</span>
+          </button>
         ))}
       </div>
 
-      {/* Main: scatter + sidebar */}
-      <div className={styles.mainLayout}>
-        <div className={styles.scatterWrap} ref={wrapRef}>
-          <canvas
-            ref={canvasRef}
-            className={styles.canvas}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => { dragRef.current = null; setTooltip(null); }}
-            onWheel={handleWheel}
-          />
-          {scatterLoading && <div className={styles.scatterLoading}>Loading embeddings...</div>}
-          {!scatterLoading && (!reduceData?.points?.length) && (
-            <div className={styles.scatterEmpty}>No embeddings in this collection for the current project</div>
-          )}
-          {tooltip && (
-            <div className={styles.tooltip} style={{ left: tooltip.x, top: tooltip.y }}>
-              {tooltip.text}
-            </div>
-          )}
-        </div>
+      {/* Scatter plot */}
+      <div className={styles.scatterWrap}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="xMidYMid meet"
+          className={styles.svg}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedPoint(null);
+              setNeighborIds(new Set());
+            }
+          }}
+        >
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
 
-        <aside className={`${styles.sidebar} ${!selectedPoint ? styles.sidebarHidden : ""}`}>
-          {selectedPoint && (
-            <>
-              <div className={styles.sidebarHeader}>
-                <span className={styles.sidebarTitle}>Point Detail</span>
-                <button
-                  type="button"
-                  className={styles.sidebarClose}
-                  onClick={() => { setSelectedPoint(null); setNeighborIds(new Set()); }}
-                >
-                  x
-                </button>
-              </div>
-              <div className={styles.payloadList}>
-                {Object.entries(selectedPoint.payload).map(([key, value]) => (
-                  <div key={key} className={styles.payloadRow}>
-                    <span className={styles.payloadKey}>{key}</span>
-                    <span className={styles.payloadValue}>{String(value ?? "—")}</span>
-                  </div>
-                ))}
-                <div className={styles.payloadRow}>
-                  <span className={styles.payloadKey}>x</span>
-                  <span className={styles.payloadValue}>{selectedPoint.x}</span>
-                </div>
-                <div className={styles.payloadRow}>
-                  <span className={styles.payloadKey}>y</span>
-                  <span className={styles.payloadValue}>{selectedPoint.y}</span>
-                </div>
-              </div>
+          {points.map((pt) => {
+            const { cx, cy } = toSvg(pt.x, pt.y);
+            const isSelected = selectedPoint?.id === pt.id;
+            const isNeighbor = neighborIds.has(String(pt.id));
+            if (isSelected || isNeighbor) return null;
+            const color = getPointColor(pt.payload, activeCollection);
+            return (
+              <circle
+                key={pt.id}
+                cx={cx}
+                cy={cy}
+                r={4}
+                fill={color}
+                opacity={0.7}
+                className={styles.point}
+                onClick={() => setSelectedPoint(pt)}
+              >
+                <title>{pointLabel(pt.payload)}</title>
+              </circle>
+            );
+          })}
+
+          {/* Neighbor points with glow */}
+          {points.filter((pt) => neighborIds.has(String(pt.id)) && selectedPoint?.id !== pt.id).map((pt) => {
+            const { cx, cy } = toSvg(pt.x, pt.y);
+            const color = getPointColor(pt.payload, activeCollection);
+            return (
+              <circle
+                key={pt.id}
+                cx={cx}
+                cy={cy}
+                r={5.5}
+                fill={color}
+                filter="url(#glow)"
+                className={styles.point}
+                onClick={() => setSelectedPoint(pt)}
+              >
+                <title>{pointLabel(pt.payload)}</title>
+              </circle>
+            );
+          })}
+
+          {/* Selected point on top */}
+          {selectedPoint && (() => {
+            const { cx, cy } = toSvg(selectedPoint.x, selectedPoint.y);
+            return (
+              <circle
+                cx={cx}
+                cy={cy}
+                r={7}
+                fill="#fff6f2"
+                stroke="#ff7a52"
+                strokeWidth={2}
+              >
+                <title>{pointLabel(selectedPoint.payload)}</title>
+              </circle>
+            );
+          })()}
+        </svg>
+
+        {scatterLoading && <div className={styles.scatterLoading}>Loading embeddings...</div>}
+        {!scatterLoading && points.length === 0 && (
+          <div className={styles.scatterEmpty}>No embeddings in this collection for the current project</div>
+        )}
+      </div>
+
+      {/* Color legend */}
+      {Object.keys(colorMap).length > 0 && (
+        <div className={styles.legend}>
+          {Object.entries(colorMap).map(([label, color]) => (
+            <span key={label} className={styles.legendItem}>
+              <span className={styles.dot} style={{ background: color }} />
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Point detail sidebar */}
+      <aside className={`${styles.sidebar} ${!selectedPoint ? styles.sidebarHidden : ""}`}>
+        {selectedPoint && (
+          <>
+            <div className={styles.sidebarHeader}>
+              <span className={styles.sidebarTitle}>Point Detail</span>
               <button
                 type="button"
-                className={styles.findSimilarBtn}
-                onClick={handleFindSimilar}
-                disabled={findingSimilar}
+                className={styles.sidebarClose}
+                onClick={() => { setSelectedPoint(null); setNeighborIds(new Set()); }}
               >
-                {findingSimilar ? "Searching..." : "Find Similar"}
+                x
               </button>
-              {neighborIds.size > 0 && (
-                <div className={styles.neighborDots}>
-                  {Array.from(neighborIds).slice(0, 20).map((nid) => (
-                    <span key={nid} className={styles.neighborDot} title={nid} />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </aside>
-      </div>
+            </div>
+            <div className={styles.payloadList}>
+              {(() => {
+                const pl = selectedPoint.payload as Record<string, unknown>;
+                const severityHint = String(pl.severity ?? pl.Severity ?? "");
+                return Object.entries(selectedPoint.payload).map(([key, value]) => {
+                  const displayRaw =
+                    value != null && typeof value === "object"
+                      ? JSON.stringify(value)
+                      : String(value ?? "—");
+                  const display = formatDisplayIdsWithHash(displayRaw);
+                  return (
+                    <div key={key} className={styles.payloadRow}>
+                      <span className={styles.payloadKey}>{key}</span>
+                      <span className={styles.payloadValue}>
+                        {isScorePayloadKey(key) ? (
+                          <ScoreValueWithIcon value={display} severityHint={severityHint} />
+                        ) : (
+                          <FileNameWithIcon text={display} />
+                        )}
+                      </span>
+                    </div>
+                  );
+                });
+              })()}
+              <div className={styles.payloadRow}>
+                <span className={styles.payloadKey}>x</span>
+                <span className={styles.payloadValue}>{selectedPoint.x}</span>
+              </div>
+              <div className={styles.payloadRow}>
+                <span className={styles.payloadKey}>y</span>
+                <span className={styles.payloadValue}>{selectedPoint.y}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={styles.findSimilarBtn}
+              onClick={handleFindSimilar}
+              disabled={findingSimilar}
+            >
+              {findingSimilar ? "Searching..." : "Find Similar"}
+            </button>
+            {neighborIds.size > 0 && (
+              <div className={styles.neighborDots}>
+                {Array.from(neighborIds).slice(0, 20).map((nid) => (
+                  <span key={nid} className={styles.neighborDot} title={nid} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </aside>
     </div>
   );
 }

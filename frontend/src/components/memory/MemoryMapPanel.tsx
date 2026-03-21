@@ -2,7 +2,10 @@
 
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import type { MemoryGraphData, MemoryGraphNode } from "./memoryGraphTypes";
-import { DUMMY_MEMORY_GRAPH } from "./dummyMemoryGraph";
+import FileNameWithIcon from "./FileNameWithIcon";
+import ScoreValueWithIcon from "./ScoreValueWithIcon";
+import { isScoreMetaLabel } from "./scoreFieldIcon";
+import { formatDisplayIdsWithHash } from "./formatDisplayIds";
 import styles from "./MemoryMapPanel.module.css";
 
 const GROUP_COLORS: Record<MemoryGraphNode["group"], string> = {
@@ -55,20 +58,26 @@ type ForceGraphInstance = InstanceType<typeof import("force-graph").default>;
 
 export default function MemoryMapPanel({ graphData, projectId }: Props) {
   const [fetchedData, setFetchedData] = useState<MemoryGraphData | null>(null);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
-    if (!projectId) { setFetchedData(null); return; }
+    if (!projectId) { setFetchedData(null); setFetching(false); setFetchError(false); return; }
     let cancelled = false;
+    setFetching(true);
+    setFetchError(false);
     fetch(`/api/projects/${projectId}/memory-graph`, { credentials: "include", cache: "no-store" })
       .then((r) => { if (!r.ok) throw new Error("fetch failed"); return r.json(); })
       .then((json: MemoryGraphData) => {
-        if (!cancelled && json.nodes?.length) setFetchedData(json);
+        if (!cancelled) { setFetchedData(json?.nodes?.length ? json : null); setFetching(false); }
       })
-      .catch(() => { /* fall back to dummy */ });
+      .catch(() => { if (!cancelled) { setFetchedData(null); setFetching(false); setFetchError(true); } });
     return () => { cancelled = true; };
   }, [projectId]);
 
-  const data = graphData ?? fetchedData ?? DUMMY_MEMORY_GRAPH;
+  const data = graphData ?? fetchedData;
+  const hasMemories = data != null && data.nodes.length > 1;
+  const showEmpty = !fetching && !hasMemories;
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<ForceGraphInstance | null>(null);
   const selectedIdRef = useRef<string | null>(null);
@@ -100,14 +109,20 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
 
   const nodeById = useMemo(() => {
     const m = new Map<string, MemoryGraphNode>();
-    for (const n of data.nodes) m.set(n.id, n);
+    if (data) for (const n of data.nodes) m.set(n.id, n);
     return m;
-  }, [data.nodes]);
+  }, [data]);
 
   const selectedNode = selectedId ? nodeById.get(selectedId) ?? null : null;
 
+  const selectedSeverityHint = useMemo(() => {
+    const meta = selectedNode?.meta;
+    if (!meta?.length) return "";
+    return meta.find((row) => /^severity$/i.test(row.label.trim()))?.value ?? "";
+  }, [selectedNode]);
+
   const neighbors = useMemo(() => {
-    if (!selectedId) return { out: [] as { otherId: string; kind: string }[], in: [] as { otherId: string; kind: string }[] };
+    if (!selectedId || !data) return { out: [] as { otherId: string; kind: string }[], in: [] as { otherId: string; kind: string }[] };
     const out: { otherId: string; kind: string }[] = [];
     const inn: { otherId: string; kind: string }[] = [];
     for (const l of data.links) {
@@ -116,7 +131,7 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
       if (l.target === selectedId) inn.push({ otherId: l.source, kind: k });
     }
     return { out, in: inn };
-  }, [data.links, selectedId]);
+  }, [data, selectedId]);
 
   useEffect(() => {
     setSelectedId(null);
@@ -143,9 +158,10 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
     const h0 = Math.floor(el.clientHeight);
     if (w0 > 0 && h0 > 0) setDims({ w: w0, h: h0 });
     return () => ro.disconnect();
-  }, []);
+  }, [fetching, hasMemories]);
 
   const fgData = useMemo(() => {
+    if (!data) return { nodes: [], links: [] };
     return {
       nodes: data.nodes.map((n) => ({ ...n })),
       links: data.links.map((l) => ({ ...l })),
@@ -243,7 +259,7 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
         .backgroundColor("transparent")
         .graphData(fgData)
         .nodeId("id")
-        .nodeLabel("name")
+        .nodeLabel((n) => formatDisplayIdsWithHash((n as MemoryGraphNode).name))
         .nodeColor((n) => GROUP_COLORS[(n as MemoryGraphNode).group] ?? "#aaa")
         .nodeVal(1)
         .nodeRelSize(5)
@@ -279,6 +295,29 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
 
   return (
     <div className={styles.root} aria-label="Memory map">
+      {fetching ? (
+        <div className={styles.emptyState} role="status">
+          <div className={styles.spinner} />
+          <p className={styles.emptyTitle}>Loading memory graph…</p>
+        </div>
+      ) : showEmpty ? (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon} aria-hidden>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+          </div>
+          <p className={styles.emptyTitle}>No memories yet</p>
+          <p className={styles.emptyDesc}>
+            {fetchError
+              ? "Could not load the memory graph. Try again later."
+              : projectId
+                ? "Run a scan on this project to start building its memory graph."
+                : "Select a project to view its memory graph."}
+          </p>
+        </div>
+      ) : (
       <div className={`${styles.graphRow} ${hasDetailPanel ? styles.graphRowWithDetail : ""}`}>
         <div className={styles.graphColumn}>
           <div className={styles.graphStage}>
@@ -351,15 +390,32 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
                     ×
                   </button>
                 </div>
-                <h3 className={styles.detailTitle}>{selectedNode.name}</h3>
-                {selectedNode.summary ? <p className={styles.detailSummary}>{selectedNode.summary}</p> : null}
-                {selectedNode.detail ? <p className={styles.detailBody}>{selectedNode.detail}</p> : null}
+                <h3 className={styles.detailTitle}>
+                  <FileNameWithIcon text={formatDisplayIdsWithHash(selectedNode.name)} />
+                </h3>
+                {selectedNode.summary ? (
+                  <p className={styles.detailSummary}>
+                    <FileNameWithIcon text={formatDisplayIdsWithHash(selectedNode.summary)} />
+                  </p>
+                ) : null}
+                {selectedNode.detail ? (
+                  <p className={styles.detailBody}>{formatDisplayIdsWithHash(selectedNode.detail)}</p>
+                ) : null}
                 {selectedNode.meta && selectedNode.meta.length > 0 ? (
                   <dl className={styles.metaList}>
                     {selectedNode.meta.map((row) => (
                       <div key={row.label} className={styles.metaRow}>
                         <dt>{row.label}</dt>
-                        <dd>{row.value}</dd>
+                        <dd>
+                          {isScoreMetaLabel(row.label) ? (
+                            <ScoreValueWithIcon
+                              value={formatDisplayIdsWithHash(row.value)}
+                              severityHint={selectedSeverityHint}
+                            />
+                          ) : (
+                            <FileNameWithIcon text={formatDisplayIdsWithHash(row.value)} />
+                          )}
+                        </dd>
                       </div>
                     ))}
                   </dl>
@@ -387,7 +443,9 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
                                   beginDetailLoad();
                                 }}
                               >
-                                {nodeById.get(otherId)?.name ?? otherId}
+                                <FileNameWithIcon
+                                  text={formatDisplayIdsWithHash(nodeById.get(otherId)?.name ?? otherId)}
+                                />
                               </button>
                               <span className={styles.neighborKind}>{kind}</span>
                             </li>
@@ -411,7 +469,9 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
                                   beginDetailLoad();
                                 }}
                               >
-                                {nodeById.get(otherId)?.name ?? otherId}
+                                <FileNameWithIcon
+                                  text={formatDisplayIdsWithHash(nodeById.get(otherId)?.name ?? otherId)}
+                                />
                               </button>
                               <span className={styles.neighborKind}>{kind}</span>
                             </li>
@@ -433,6 +493,7 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
           </aside>
         ) : null}
       </div>
+      )}
     </div>
   );
 }
