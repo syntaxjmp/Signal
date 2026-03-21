@@ -64,4 +64,12 @@ export const env = {
     concurrency: Number(process.env.SCAN_CONCURRENCY) || 10,
     maxFiles: Number(process.env.SCAN_MAX_FILES) || 100,
   },
+  qdrant: {
+    url: process.env.QDRANT_URL || '',
+    apiKey: process.env.QDRANT_API_KEY || '',
+    findingCollection: process.env.QDRANT_FINDING_COLLECTION || 'finding_embeddings',
+  },
+  automation: {
+    slaIntervalMs: Number(process.env.SLA_INTERVAL_MS) || 60 * 60 * 1000,
+  },
 };
