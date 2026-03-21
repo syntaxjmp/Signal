@@ -55,8 +55,14 @@ export function openWorkspaceReportPanel(
     mediaRoot &&
     panel.webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, 'signal_evenbigger.png')).toString();
 
+  const langMediaUri = mediaRoot ? vscode.Uri.joinPath(mediaRoot, 'lang') : null;
+  const langIconBase = langMediaUri
+    ? panel.webview.asWebviewUri(langMediaUri).toString().replace(/\/$/, '') + '/'
+    : null;
+
   const payload = {
     workspaceName: workspaceFolderName,
+    generatedAt: new Date().toISOString(),
     message: result.message ?? null,
     securityScore: summary.securityScore,
     severityCounts: summary.severityCounts,
@@ -64,6 +70,7 @@ export function openWorkspaceReportPanel(
     scannedFilesCount: summary.scannedFilesCount,
     findings: result.findings,
     fileRows: fileBreakdown(result.findings),
+    langIconBase,
   };
 
   const csp = [
@@ -117,12 +124,22 @@ export function openWorkspaceReportPanel(
     }
     .brand span.sig { color: var(--accent); }
     .brand span.sep { color: var(--accent); opacity: 0.9; font-weight: 900; }
-    h1 {
-      margin: 0.5rem 0 0;
+    .report-header {
+      margin: 0.75rem 0 1.75rem;
+      padding-bottom: 0.15rem;
+    }
+    .report-header h1 {
+      margin: 0 0 0.45rem 0;
       font-size: clamp(1.2rem, 3vw, 1.65rem);
       font-weight: 800;
+      line-height: 1.2;
     }
-    .subtitle { color: var(--muted); margin: 0.4rem 0 1rem; line-height: 1.45; }
+    .report-generated {
+      margin: 0;
+      color: rgba(255, 220, 210, 0.72);
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
     .banner {
       padding: 0.65rem 0.85rem;
       border-radius: 10px;
@@ -135,6 +152,7 @@ export function openWorkspaceReportPanel(
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 0.75rem;
+      margin-top: 0.25rem;
       margin-bottom: 1rem;
     }
     .card {
@@ -236,16 +254,106 @@ export function openWorkspaceReportPanel(
     .bar--medium { background: rgba(202, 138, 4, 0.22); color: #fef08a; }
     .bar--low { background: rgba(34, 197, 94, 0.15); color: #bbf7d0; }
     .summary-text { margin-top: 0.35rem; color: var(--muted); line-height: 1.5; }
-    .file-rows { margin-top: 0.65rem; }
-    .file-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 0.5rem;
-      font-size: 0.8rem;
-      padding: 0.25rem 0;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+    .card__sublabel {
+      margin: 0.85rem 0 0.4rem;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #e8a87c;
     }
-    .file-row span:last-child { font-weight: 800; color: var(--accent); }
+    .file-bars-hint {
+      margin: 0 0 0.5rem;
+      font-size: 0.68rem;
+      color: rgba(255, 220, 210, 0.5);
+    }
+    .file-bar-row {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) minmax(0, 2.2fr) 34px;
+      gap: 0.45rem 0.55rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .file-bar-icon-img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      border-radius: 5px;
+      flex-shrink: 0;
+      display: block;
+    }
+    .file-bar-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      font-size: 0.45rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .file-bar-icon--py {
+      background: linear-gradient(145deg, #3b8cc4, #1e4a6b);
+      color: #fff;
+    }
+    .file-bar-icon--js {
+      background: linear-gradient(145deg, #f5d547, #c9a812);
+      color: #1a1a1a;
+    }
+    .file-bar-icon--ts {
+      background: linear-gradient(145deg, #3178c6, #235a97);
+      color: #fff;
+    }
+    .file-bar-icon--jsx,
+    .file-bar-icon--tsx {
+      background: linear-gradient(145deg, #61dafb, #2a8bb8);
+      color: #0d1117;
+    }
+    .file-bar-icon--go { background: linear-gradient(145deg, #00add8, #007d9c); color: #fff; }
+    .file-bar-icon--rs { background: linear-gradient(145deg, #dea584, #8b4513); color: #fff; }
+    .file-bar-icon--default {
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 248, 246, 0.9);
+    }
+    .file-bar-name {
+      font-size: 0.8rem;
+      font-family: var(--vscode-editor-font-family, monospace);
+      color: #fef8f6;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    .file-bar-track {
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      min-width: 0;
+    }
+    .file-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      min-width: 4px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
+    }
+    .file-bar-fill--top {
+      background: linear-gradient(90deg, #f87171, #ef4444);
+    }
+    .file-bar-fill--second {
+      background: linear-gradient(90deg, #fb923c, #ea580c);
+    }
+    .file-bar-count {
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: #fef8f6;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
     .table-wrap { overflow-x: auto; margin-top: 0.75rem; }
     table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     th {
@@ -291,7 +399,10 @@ export function openWorkspaceReportPanel(
 </head>
 <body>
   <div class="brand">${logoUri ? `<img class="brand__logo" src="${logoUri}" alt="" width="35" height="35" />` : ''}<span class="sig">Signal</span><span class="sep">/</span><span>Workspace report</span></div>
-  <h1 id="title"></h1>
+  <header class="report-header">
+    <h1 id="title"></h1>
+    <p class="report-generated" id="generatedAt"></p>
+  </header>
   <div id="banner" class="banner" style="display:none"></div>
   <section class="topgrid">
     <div class="card score-card">
@@ -314,7 +425,7 @@ export function openWorkspaceReportPanel(
     <div class="card">
       <div class="card__label">Summary</div>
       <div class="summary-text" id="genSummary"></div>
-      <div class="file-rows" id="fileRows"></div>
+      <div class="file-heatmap-host" id="fileHeatmapHost"></div>
     </div>
   </section>
   <div class="card">
@@ -326,6 +437,19 @@ export function openWorkspaceReportPanel(
     const PAYLOAD = ${JSON.stringify(payload)};
 
     document.getElementById('title').textContent = 'Workspace: ' + PAYLOAD.workspaceName;
+    var genEl = document.getElementById('generatedAt');
+    if (PAYLOAD.generatedAt && genEl) {
+      try {
+        genEl.textContent =
+          'Generated ' +
+          new Date(PAYLOAD.generatedAt).toLocaleString(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          });
+      } catch (e) {
+        genEl.textContent = 'Generated ' + PAYLOAD.generatedAt;
+      }
+    }
 
     if (PAYLOAD.message) {
       const b = document.getElementById('banner');
@@ -368,13 +492,94 @@ export function openWorkspaceReportPanel(
       'Total findings: ' + PAYLOAD.totalFindings + ' across ' + PAYLOAD.scannedFilesCount + ' scanned files.';
 
     const fr = PAYLOAD.fileRows || [];
-    const frHost = document.getElementById('fileRows');
-    if (fr.length) {
-      frHost.innerHTML = fr.map(function (r) {
-        return '<div class="file-row"><span class="mono" title="' + String(r.path).replace(/"/g, '&quot;') + '">' +
-          String(r.file).replace(/</g, '&lt;') + '</span><span>' + r.count + '</span></div>';
-      }).join('');
-    } else {
+    const frHost = document.getElementById('fileHeatmapHost');
+    if (fr.length && frHost) {
+      var sorted = fr.slice().sort(function (a, b) {
+        return b.count - a.count;
+      });
+      var top2 = sorted.slice(0, 2);
+      var maxTop = top2[0] && top2[0].count > 0 ? top2[0].count : 1;
+      function fileExtKey(name) {
+        var m = String(name).toLowerCase().match(/\\.([a-z0-9]+)$/);
+        return m ? m[1] : '';
+      }
+      function iconClass(ext) {
+        var known = {
+          py: 'py',
+          js: 'js',
+          mjs: 'js',
+          cjs: 'js',
+          ts: 'ts',
+          jsx: 'jsx',
+          tsx: 'tsx',
+          go: 'go',
+          rs: 'rs',
+        };
+        return known[ext] ? 'file-bar-icon--' + known[ext] : 'file-bar-icon--default';
+      }
+      function iconLabel(ext) {
+        if (!ext) return '·';
+        if (ext.length <= 2) return ext.toUpperCase();
+        return ext.slice(0, 2).toUpperCase();
+      }
+      function langIconPng(file, ext) {
+        var lower = String(file).toLowerCase();
+        if (lower === 'dockerfile' || lower.endsWith('/dockerfile')) return 'docker.png';
+        var e = (ext || '').toLowerCase();
+        if (e === 'py') return 'python.png';
+        if (e === 'js' || e === 'mjs' || e === 'cjs' || e === 'jsx') return 'js.png';
+        if (e === 'ts' || e === 'tsx') return 'typescript.png';
+        if (e === 'rs') return 'rust.png';
+        return null;
+      }
+      var rowsHtml = top2
+        .map(function (r, idx) {
+          var ext = fileExtKey(r.file);
+          var ic = iconClass(ext);
+          var il = iconLabel(ext);
+          var png = langIconPng(r.file, ext);
+          var iconBase = PAYLOAD.langIconBase;
+          var iconCell =
+            iconBase && png
+              ? '<img class="file-bar-icon-img" src="' +
+                iconBase +
+                png +
+                '" alt="" width="24" height="24" />'
+              : '<span class="file-bar-icon ' + ic + '">' + il + '</span>';
+          var pct = maxTop > 0 ? Math.min(100, Math.round((r.count / maxTop) * 100)) : 0;
+          var fillClass = idx === 0 ? 'file-bar-fill--top' : 'file-bar-fill--second';
+          var safePath = String(r.path).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+          var safeFile = String(r.file).replace(/</g, '&lt;');
+          return (
+            '<div class="file-bar-row" title="' +
+            safePath +
+            ' — ' +
+            r.count +
+            ' finding' +
+            (r.count === 1 ? '' : 's') +
+            '">' +
+            iconCell +
+            '<span class="file-bar-name">' +
+            safeFile +
+            '</span>' +
+            '<div class="file-bar-track"><div class="file-bar-fill ' +
+            fillClass +
+            '" style="width:' +
+            pct +
+            '%"></div></div>' +
+            '<span class="file-bar-count">' +
+            r.count +
+            '</span></div>'
+          );
+        })
+        .join('');
+      frHost.innerHTML =
+        '<div class="card__sublabel">Findings by file</div>' +
+        '<p class="file-bars-hint">Top 2 files by finding count (heat bar = share of the highest).</p>' +
+        '<div class="file-bars-list">' +
+        rowsHtml +
+        '</div>';
+    } else if (frHost) {
       frHost.innerHTML = '';
     }
 
