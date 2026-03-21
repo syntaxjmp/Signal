@@ -287,6 +287,7 @@ function FrameworkAlignmentSection({
   disclaimer,
   emptyScan,
   onToggle,
+  onDeselectAll,
   variant,
 }: {
   catalog: NonNullable<CompliancePayload["frameworkCatalog"]>;
@@ -295,6 +296,7 @@ function FrameworkAlignmentSection({
   disclaimer?: string;
   emptyScan: boolean;
   onToggle: (id: string, checked: boolean) => void;
+  onDeselectAll: () => void;
   variant: "empty" | "full";
 }) {
   const label =
@@ -313,21 +315,32 @@ function FrameworkAlignmentSection({
         </p>
       ) : null}
       <div className={styles.fwPicker}>
-        {catalog.map((fw) => (
-          <label key={fw.id} className={styles.fwPickerLabel}>
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(fw.id)}
-              onChange={(e) => {
-                onToggle(fw.id, e.target.checked);
-              }}
-            />
-            <span className={styles.fwPickerText}>
-              <strong>{fw.shortLabel}</strong>
-              <span className={styles.fwPickerName}>{fw.name}</span>
-            </span>
-          </label>
-        ))}
+        <div className={styles.fwPickerChips}>
+          {catalog.map((fw) => (
+            <label key={fw.id} className={styles.fwPickerLabel}>
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(fw.id)}
+                onChange={(e) => {
+                  onToggle(fw.id, e.target.checked);
+                }}
+              />
+              <span className={styles.fwPickerText}>
+                <strong>{fw.shortLabel}</strong>
+                <span className={styles.fwPickerName}>{fw.name}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={styles.fwPickerTab}
+          onClick={onDeselectAll}
+          disabled={selectedIds.length === 0}
+          aria-label="Deselect all compliance frameworks"
+        >
+          Deselect all
+        </button>
       </div>
       {!emptyScan && (!scores || scores.length === 0) ? (
         <p className={styles.fwNoneHint}>
@@ -437,6 +450,35 @@ export default function ComplianceReportPage() {
     } else {
       next = next.filter((id) => id !== fwId);
     }
+    const patchId = ++patchSeqRef.current;
+    frameworkSelectionRef.current = next;
+    setData((d) => (d ? { ...d, selectedFrameworkIds: next } : null));
+    try {
+      const r = await fetch(`/api/projects/${projectId}/compliance-frameworks`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ frameworkIds: next }),
+      });
+      const json = (await readApiResponse(r)) as { error?: string; frameworkIds?: string[] };
+      if (!r.ok) throw new Error(json.error || "Save failed");
+      if (patchId !== patchSeqRef.current) return;
+      const saved = json.frameworkIds ?? next;
+      frameworkSelectionRef.current = saved;
+      setData((d) => (d ? { ...d, selectedFrameworkIds: saved } : null));
+    } catch (e) {
+      if (patchId !== patchSeqRef.current) return;
+      frameworkSelectionRef.current = prev;
+      setData((d) => (d ? { ...d, selectedFrameworkIds: prev } : null));
+      alert(e instanceof Error ? e.message : "Save failed");
+    }
+  }
+
+  async function deselectAllFrameworks() {
+    if (!projectId || !session || !data?.frameworkCatalog) return;
+    const prev = [...(frameworkSelectionRef.current ?? data.selectedFrameworkIds ?? [])];
+    if (prev.length === 0) return;
+    const next: string[] = [];
     const patchId = ++patchSeqRef.current;
     frameworkSelectionRef.current = next;
     setData((d) => (d ? { ...d, selectedFrameworkIds: next } : null));
@@ -628,6 +670,7 @@ export default function ComplianceReportPage() {
             disclaimer={data.frameworkDisclaimer}
             emptyScan
             onToggle={toggleFramework}
+            onDeselectAll={deselectAllFrameworks}
           />
         ) : null}
 
@@ -652,6 +695,7 @@ export default function ComplianceReportPage() {
                 disclaimer={data.frameworkDisclaimer}
                 emptyScan={false}
                 onToggle={toggleFramework}
+                onDeselectAll={deselectAllFrameworks}
               />
             ) : null}
 
