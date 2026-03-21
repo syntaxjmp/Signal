@@ -9,6 +9,7 @@ export function getSignalConfig() {
     apiToken: c.get<string>('apiToken') ?? '',
     workspaceScanPath: c.get<string>('workspaceScanPath') ?? '/api/extension/workspace-scan',
     snippetScanPath: c.get<string>('snippetScanPath') ?? '/api/extension/snippet-scan',
+    explainFindingPath: c.get<string>('explainFindingPath') ?? '/api/extension/explain-finding',
     maxFiles: c.get<number>('maxFiles') ?? 100,
     maxFileBytes: c.get<number>('maxFileBytes') ?? 1024 * 1024,
     scanOnStartup: c.get<boolean>('scanOnStartup') ?? true,

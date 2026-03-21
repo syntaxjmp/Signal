@@ -396,6 +396,37 @@ function toExtensionFinding(f) {
     lineNumber: f.lineNumber ?? undefined,
     filePath: f.filePath,
     snippet: f.snippet ? String(f.snippet).slice(0, 800) : undefined,
+    weightedScore: typeof f.weightedScore === 'number' ? f.weightedScore : severityToWeight(f.severity),
+  };
+}
+
+/** Same security score model as GitHub project scans (0–50, higher = more risk). */
+function buildExtensionWorkspaceSummary(uniqueFindings, scannedFilesCount) {
+  const severityCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+  let totalWeight = 0;
+  for (const f of uniqueFindings) {
+    const sev = f.severity;
+    if (Object.prototype.hasOwnProperty.call(severityCounts, sev)) {
+      severityCounts[sev] += 1;
+    } else {
+      severityCounts.low += 1;
+    }
+    totalWeight += f.weightedScore ?? severityToWeight(sev);
+  }
+  const rawTotalWeightedScore = totalWeight;
+  const severityPressure =
+    severityCounts.critical * 4.0 +
+    severityCounts.high * 2.0 +
+    severityCounts.medium * 0.5 +
+    severityCounts.low * 0.1;
+  const riskIndex = rawTotalWeightedScore + severityPressure * 8;
+  const securityScore = Math.max(0, Math.min(50, Math.round(50 * (1 - Math.exp(-riskIndex / 80)))));
+  return {
+    scannedFilesCount,
+    totalFindings: uniqueFindings.length,
+    severityCounts,
+    securityScore,
+    totalWeightedScore: rawTotalWeightedScore,
   };
 }
 
@@ -465,9 +496,26 @@ export async function extensionScanWorkspaceFiles({
   if (!openAiApiKey?.trim()) {
     throw new Error('OPENAI_API_KEY is not configured');
   }
-  if (!Array.isArray(files) || files.length === 0) {
-    return { findings: [] };
+  if (!Array.isArray(files)) {
+    return {
+      findings: [],
+      summary: buildExtensionWorkspaceSummary([], 0),
+    };
   }
+
+  const scannedFilesCount = files.filter((f) => {
+    const rel = typeof f.path === 'string' ? f.path.replace(/\\/g, '/') : '';
+    const content = typeof f.content === 'string' ? f.content : '';
+    return Boolean(rel && content.trim());
+  }).length;
+
+  if (files.length === 0) {
+    return {
+      findings: [],
+      summary: buildExtensionWorkspaceSummary([], 0),
+    };
+  }
+
   const client = new OpenAI({ apiKey: openAiApiKey });
   const limit = pLimit(SCAN_CONCURRENCY);
   const tasks = [];
@@ -526,7 +574,11 @@ export async function extensionScanWorkspaceFiles({
   }
 
   const unique = dedupeVulnerabilityFindings(findings);
-  return { findings: unique.map(toExtensionFinding) };
+  const summary = buildExtensionWorkspaceSummary(unique, scannedFilesCount);
+  return {
+    findings: unique.map(toExtensionFinding),
+    summary,
+  };
 }
 
 export function validateGitHubUrl(githubUrl) {

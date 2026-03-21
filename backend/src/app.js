@@ -26,7 +26,8 @@ export function createApp() {
 
   app.all('/api/auth/*', toNodeHandler(auth));
 
-  app.use(express.json({ limit: '1mb' }));
+  /** Large limit for VS Code extension workspace-scan payloads (many small files). */
+  app.use(express.json({ limit: '25mb' }));
 
   app.use('/api', apiRouter);
 

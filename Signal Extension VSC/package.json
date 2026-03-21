@@ -1,7 +1,7 @@
 {
-  "name": "signal-security",
-  "displayName": "Signal Security",
-  "description": "Scan your workspace and selections with Signal (hackathon MVP).",
+  "name": "signal",
+  "displayName": "Signal",
+  "description": "Scan your workspace and selections with Signal.",
   "version": "0.0.1",
   "publisher": "signal",
   "engines": {
@@ -27,12 +27,28 @@
       {
         "command": "signal.resolveFinding",
         "title": "Signal: Resolve finding (placeholder)"
+      },
+      {
+        "command": "signal.openWorkspaceReport",
+        "title": "Signal: Open workspace report"
+      },
+      {
+        "command": "signal.explainFinding",
+        "title": "Signal: Explain finding"
       }
     ],
     "menus": {
       "commandPalette": [
         {
           "command": "signal.scanWorkspace",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "signal.openWorkspaceReport",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "signal.explainFinding",
           "when": "workspaceFolderCount > 0"
         },
         {
@@ -52,13 +68,23 @@
           "command": "signal.scanWorkspace",
           "when": "view == signal.findings",
           "group": "navigation@1"
+        },
+        {
+          "command": "signal.openWorkspaceReport",
+          "when": "view == signal.findings",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
         {
-          "command": "signal.resolveFinding",
+          "command": "signal.explainFinding",
           "when": "view == signal.findings && viewItem == finding",
           "group": "signal@1"
+        },
+        {
+          "command": "signal.resolveFinding",
+          "when": "view == signal.findings && viewItem == finding",
+          "group": "signal@2"
         }
       ]
     },
@@ -93,6 +119,11 @@
           "type": "string",
           "default": "/api/extension/snippet-scan",
           "description": "Path appended to apiBaseUrl for selection scans (POST JSON)."
+        },
+        "signal.explainFindingPath": {
+          "type": "string",
+          "default": "/api/extension/explain-finding",
+          "description": "Path appended to apiBaseUrl for explain-finding (AI breakdown for junior devs)."
         },
         "signal.maxFiles": {
           "type": "number",

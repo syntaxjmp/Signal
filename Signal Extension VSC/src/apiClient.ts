@@ -1,4 +1,5 @@
-import type { Finding, IndexedFile, SnippetScanPayload, WorkspaceScanResult } from './types';
+import { deriveWorkspaceSummaryFromFindings } from './scanSummary';
+import type { Finding, IndexedFile, SnippetScanPayload, WorkspaceScanResult, WorkspaceScanSummary } from './types';
 
 /** Expected JSON shape from Signal extension API (to be implemented on the backend). */
 interface ExtensionScanResponse {
@@ -46,8 +47,42 @@ function parseFindings(raw: unknown): Finding[] {
       filePath: typeof o.filePath === 'string' ? o.filePath : undefined,
       lineNumber: typeof o.lineNumber === 'number' ? o.lineNumber : undefined,
       snippet: typeof o.snippet === 'string' ? o.snippet : undefined,
+      weightedScore: typeof o.weightedScore === 'number' ? o.weightedScore : undefined,
     };
   });
+}
+
+function parseWorkspaceSummary(
+  data: unknown,
+  indexedFileCount: number,
+  findings: Finding[],
+): WorkspaceScanSummary {
+  if (!data || typeof data !== 'object') {
+    return deriveWorkspaceSummaryFromFindings(findings, indexedFileCount);
+  }
+  const summary = (data as { summary?: unknown }).summary;
+  if (!summary || typeof summary !== 'object') {
+    return deriveWorkspaceSummaryFromFindings(findings, indexedFileCount);
+  }
+  const s = summary as Record<string, unknown>;
+  const sc = s.severityCounts;
+  if (typeof s.securityScore !== 'number' || !sc || typeof sc !== 'object') {
+    return deriveWorkspaceSummaryFromFindings(findings, indexedFileCount);
+  }
+  const c = sc as Record<string, unknown>;
+  return {
+    scannedFilesCount:
+      typeof s.scannedFilesCount === 'number' ? s.scannedFilesCount : indexedFileCount,
+    totalFindings: typeof s.totalFindings === 'number' ? s.totalFindings : findings.length,
+    severityCounts: {
+      critical: Number(c.critical) || 0,
+      high: Number(c.high) || 0,
+      medium: Number(c.medium) || 0,
+      low: Number(c.low) || 0,
+    },
+    securityScore: s.securityScore,
+    totalWeightedScore: typeof s.totalWeightedScore === 'number' ? s.totalWeightedScore : undefined,
+  };
 }
 
 /**
@@ -65,6 +100,7 @@ export async function scanWorkspaceWithApi(
       findings: [],
       indexedFileCount,
       message: 'Set signal.apiBaseUrl to POST scans to your API.',
+      summary: deriveWorkspaceSummaryFromFindings([], indexedFileCount),
     };
   }
 
@@ -94,16 +130,28 @@ export async function scanWorkspaceWithApi(
         typeof data === 'object' && data && 'error' in data
           ? String((data as { error?: string }).error)
           : `HTTP ${res.status}`;
-      return { findings: [], indexedFileCount, message: err };
+      return {
+        findings: [],
+        indexedFileCount,
+        message: err,
+        summary: deriveWorkspaceSummaryFromFindings([], indexedFileCount),
+      };
     }
 
+    const findings = parseFindings(data);
     return {
-      findings: parseFindings(data),
+      findings,
       indexedFileCount,
+      summary: parseWorkspaceSummary(data, indexedFileCount, findings),
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { findings: [], indexedFileCount, message: msg };
+    return {
+      findings: [],
+      indexedFileCount,
+      message: msg,
+      summary: deriveWorkspaceSummaryFromFindings([], indexedFileCount),
+    };
   }
 }
 
@@ -149,5 +197,57 @@ export async function scanSnippetWithApi(
     return { findings: parseFindings(data) };
   } catch (e) {
     return { findings: [], message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function explainFindingWithApi(
+  apiBaseUrl: string,
+  apiToken: string,
+  explainPath: string,
+  finding: Finding,
+): Promise<{ explanation: string; error?: string }> {
+  if (!apiBaseUrl) {
+    return { explanation: '', error: 'Set signal.apiBaseUrl to enable Explain finding.' };
+  }
+  try {
+    const res = await fetch(buildUrl(apiBaseUrl, explainPath), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(apiToken),
+      },
+      body: JSON.stringify({
+        source: 'vscode-extension',
+        finding: {
+          severity: finding.severity,
+          category: finding.category,
+          description: finding.description,
+          filePath: finding.filePath,
+          lineNumber: finding.lineNumber,
+          snippet: finding.snippet,
+        },
+      }),
+    });
+    const text = await res.text();
+    let data: unknown;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { error: text || 'Invalid response' };
+    }
+    if (!res.ok) {
+      const err =
+        typeof data === 'object' && data && 'error' in data
+          ? String((data as { error?: string }).error)
+          : `HTTP ${res.status}`;
+      return { explanation: '', error: err };
+    }
+    const explanation =
+      typeof data === 'object' && data && typeof (data as { explanation?: string }).explanation === 'string'
+        ? (data as { explanation: string }).explanation
+        : '';
+    return { explanation };
+  } catch (e) {
+    return { explanation: '', error: e instanceof Error ? e.message : String(e) };
   }
 }

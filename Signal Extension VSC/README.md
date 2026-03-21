@@ -1,6 +1,6 @@
 # Signal — VS Code extension (MVP skeleton)
 
-Hackathon MVP: index the open workspace, optionally POST to your Signal API, and show findings in the **Explorer → Signal Findings** tree. Selection scan and resolve actions are wired as commands for the next iteration.
+Workspace scans open a **findings report** panel (aligned with the web report) titled with your **workspace folder name** (e.g. `folderA`), plus the **Signal Findings** tree. Use **Signal: Open workspace report** to reopen the last scan. Selection scans update the tree only.
 
 ## Run locally
 
@@ -44,10 +44,17 @@ Routes live on the Signal API under **`/api/extension`** (`snippet-scan`, `works
 }
 ```
 
-**Response** (200):
+**Workspace response** (200) includes a **`summary`** (security score 0–50, severity counts, scanned file count) and optional **`weightedScore`** on each finding.
 
 ```json
 {
+  "summary": {
+    "scannedFilesCount": 12,
+    "totalFindings": 3,
+    "securityScore": 18,
+    "severityCounts": { "critical": 0, "high": 1, "medium": 2, "low": 0 },
+    "totalWeightedScore": 22
+  },
   "findings": [
     {
       "id": "uuid",
@@ -56,17 +63,22 @@ Routes live on the Signal API under **`/api/extension`** (`snippet-scan`, `works
       "description": "...",
       "filePath": "src/db.ts",
       "lineNumber": 42,
-      "snippet": "optional"
+      "snippet": "optional",
+      "weightedScore": 10
     }
   ]
 }
 ```
 
+Snippet scans return `{ "findings": [ ... ] }` only (no `summary`).
+
 `severity` must be one of: `critical`, `high`, `medium`, `low`, `info` (matches DB enum).
 
 ## Commands
 
-- **Signal: Scan workspace** — re-run index + API call  
+- **Signal: Scan workspace** — index + API call, opens the workspace report panel  
+- **Signal: Open workspace report** — reopen the last workspace scan report  
+- **Signal: Explain finding** — natural-language breakdown (junior dev friendly). Right‑click a finding in the tree, or use the Explain button in the report  
 - **Signal: Scan selection** — context menu / palette when text is selected  
 - **Signal: Resolve finding** — right-click a finding (placeholder until project/finding IDs exist)
 

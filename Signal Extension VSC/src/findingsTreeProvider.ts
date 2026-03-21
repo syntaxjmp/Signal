@@ -33,6 +33,10 @@ export class FindingsTreeProvider implements vscode.TreeDataProvider<FindingTree
     return this.findingById.get(id);
   }
 
+  getFindings(): Finding[] {
+    return this.lastResult?.findings ?? [];
+  }
+
   getTreeItem(element: FindingTreeItemModel): vscode.TreeItem {
     const item = new vscode.TreeItem(element.label, element.collapsible ?? vscode.TreeItemCollapsibleState.None);
 

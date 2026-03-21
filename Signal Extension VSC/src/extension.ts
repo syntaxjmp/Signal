@@ -1,11 +1,94 @@
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { scanSnippetWithApi, scanWorkspaceWithApi } from './apiClient';
 import { getSignalConfig } from './config';
 import { FindingsTreeProvider, sortFindings } from './findingsTreeProvider';
-import type { Finding, WorkspaceScanResult } from './types';
+import type { Finding, FindingSeverity, WorkspaceScanResult } from './types';
 import { collectWorkspaceFiles } from './workspaceScanner';
+import { explainFindingWithApi } from './apiClient';
+import { openExplainFindingPanel } from './explainFindingPanel';
+import { openWorkspaceReportPanel } from './workspaceReportPanel';
+
+let lastWorkspaceScan: { folderName: string; result: WorkspaceScanResult } | null = null;
+
+function getWorkspaceFolderDisplayName(): string {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (!folder) return 'Workspace';
+  return path.basename(folder.uri.fsPath);
+}
+
+const SEVERITY_ORDER: FindingSeverity[] = ['critical', 'high', 'medium', 'low', 'info'];
+
+function getSeverityBreakdown(findings: Finding[]): string {
+  if (findings.length === 0) return '';
+  const counts = new Map<FindingSeverity, number>();
+  for (const f of findings) {
+    counts.set(f.severity, (counts.get(f.severity) ?? 0) + 1);
+  }
+  return SEVERITY_ORDER.filter((s) => (counts.get(s) ?? 0) > 0)
+    .map((s) => `${counts.get(s)} ${s}`)
+    .join(', ');
+}
+
+/** Worst severity present (critical > high > …). */
+function getHighestSeverityLevel(findings: Finding[]): FindingSeverity | null {
+  for (const sev of SEVERITY_ORDER) {
+    if (findings.some((f) => f.severity === sev)) return sev;
+  }
+  return null;
+}
+
+/** Unique finding titles (API `category`), first few, truncated for toast length. */
+function getFindingTitlesPreview(findings: Finding[], maxTitles = 4, maxChars = 160): string {
+  const seen = new Set<string>();
+  const titles: string[] = [];
+  for (const f of findings) {
+    const t = (f.category || 'Finding').trim() || 'Finding';
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    titles.push(t);
+    if (titles.length >= maxTitles) break;
+  }
+  let joined = titles.join('; ');
+  if (joined.length > maxChars) {
+    joined = `${joined.slice(0, maxChars - 1)}…`;
+  }
+  return joined;
+}
+
+function formatSignalFoundMessage(findings: Finding[], context: 'selection' | 'workspace'): string {
+  if (findings.length === 0) {
+    return context === 'selection'
+      ? 'Signal found no security findings in this selection.'
+      : 'Signal found no security findings in the workspace.';
+  }
+  const breakdown = getSeverityBreakdown(findings);
+  const level = getHighestSeverityLevel(findings);
+  const titles = getFindingTitlesPreview(findings);
+  const where = context === 'selection' ? 'this selection' : 'your workspace';
+  return [
+    `Signal found ${findings.length} finding(s) in ${where}.`,
+    `Severity: ${breakdown}.`,
+    level ? `Highest level: ${level}.` : '',
+    titles ? `What we found: ${titles}.` : '',
+    'Open Signal Findings for full details.',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
 
 let findingsProvider: FindingsTreeProvider;
+
+async function runExplainFinding(finding: Finding): Promise<void> {
+  const cfg = getSignalConfig();
+  const { explanation, error } = await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'Signal: explaining finding…' },
+    async () =>
+      explainFindingWithApi(cfg.apiBaseUrl, cfg.apiToken, cfg.explainFindingPath, finding),
+  );
+  openExplainFindingPanel(finding, explanation || '', error);
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   findingsProvider = new FindingsTreeProvider();
@@ -42,8 +125,19 @@ export function activate(context: vscode.ExtensionContext): void {
     };
     findingsProvider.refresh(result);
 
+    const folderName = getWorkspaceFolderDisplayName();
+    lastWorkspaceScan = { folderName, result };
+    openWorkspaceReportPanel(folderName, result, { onExplainFinding: runExplainFinding });
+
+    if (result.findings.length > 0) {
+      vscode.window.showInformationMessage(formatSignalFoundMessage(result.findings, 'workspace'));
+    }
+
     status.text = `$(shield) Signal (${result.findings.length})`;
-    status.tooltip = `${result.indexedFileCount} files indexed · ${result.findings.length} findings`;
+    const severityPart = getSeverityBreakdown(result.findings);
+    status.tooltip = severityPart
+      ? `${result.indexedFileCount} files indexed · ${result.findings.length} findings (${severityPart})`
+      : `${result.indexedFileCount} files indexed · ${result.findings.length} findings`;
   };
 
   context.subscriptions.push(
@@ -76,7 +170,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (message && findings.length === 0) {
         vscode.window.showWarningMessage(`Signal: ${message}`);
       } else {
-        vscode.window.showInformationMessage(`Signal: ${findings.length} finding(s) in selection.`);
+        vscode.window.showInformationMessage(formatSignalFoundMessage(findings, 'selection'));
       }
     }),
 
@@ -108,6 +202,44 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.window.showInformationMessage(
         `Resolve (placeholder): ${f.category} — wire to POST /projects/:id/findings/:findingId/resolve`,
       );
+    }),
+
+    vscode.commands.registerCommand('signal.openWorkspaceReport', () => {
+      if (!lastWorkspaceScan) {
+        vscode.window.showWarningMessage('Signal: run “Scan workspace” first to generate a report.');
+        return;
+      }
+      openWorkspaceReportPanel(lastWorkspaceScan.folderName, lastWorkspaceScan.result, {
+        onExplainFinding: runExplainFinding,
+      });
+    }),
+
+    vscode.commands.registerCommand('signal.explainFinding', async (treeItem?: vscode.TreeItem) => {
+      let finding: Finding | undefined;
+      if (treeItem?.id) {
+        finding = findingsProvider.getFinding(treeItem.id);
+      }
+      if (!finding) {
+        const findings = findingsProvider.getFindings();
+        if (findings.length === 0) {
+          vscode.window.showWarningMessage(
+            'Signal: no findings to explain. Run a scan first, then right-click a finding and choose "Explain finding".',
+          );
+          return;
+        }
+        const pick = await vscode.window.showQuickPick(
+          findings.map((f) => ({
+            label: `${f.severity}: ${f.category}`,
+            description: f.filePath ? `${f.filePath}${f.lineNumber != null ? `:${f.lineNumber}` : ''}` : undefined,
+            finding: f,
+          })),
+          { placeHolder: 'Choose a finding to explain', matchOnDescription: true },
+        );
+        finding = pick?.finding;
+      }
+      if (finding) {
+        await runExplainFinding(finding);
+      }
     }),
   );
 
