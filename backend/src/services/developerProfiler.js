@@ -109,7 +109,7 @@ export async function buildDeveloperProfiles(pool, projectId, scanId, githubUrl)
 
     const riskScore = computeRiskScore(counts, authorFindings.length);
 
-    // Upsert profile
+    // Upsert profile — replace counts (idempotent) rather than adding to avoid double-counting on retry
     const [upsertResult] = await pool.execute(
       `INSERT INTO developer_profiles
         (id, project_id, author_email, author_name, total_findings_introduced,
@@ -118,11 +118,11 @@ export async function buildDeveloperProfiles(pool, projectId, scanId, githubUrl)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
        ON DUPLICATE KEY UPDATE
          author_name = VALUES(author_name),
-         total_findings_introduced = total_findings_introduced + VALUES(total_findings_introduced),
-         critical_count = critical_count + VALUES(critical_count),
-         high_count = high_count + VALUES(high_count),
-         medium_count = medium_count + VALUES(medium_count),
-         low_count = low_count + VALUES(low_count),
+         total_findings_introduced = VALUES(total_findings_introduced),
+         critical_count = VALUES(critical_count),
+         high_count = VALUES(high_count),
+         medium_count = VALUES(medium_count),
+         low_count = VALUES(low_count),
          top_categories = VALUES(top_categories),
          risk_score = VALUES(risk_score),
          last_seen_at = CURRENT_TIMESTAMP`,
@@ -148,21 +148,22 @@ export async function buildDeveloperProfiles(pool, projectId, scanId, githubUrl)
     );
     if (!profile) continue;
 
-    // Insert finding links
-    for (const f of authorFindings) {
+    // Batch-insert finding links (IGNORE skips duplicate/FK errors)
+    const LINK_BATCH = 50;
+    for (let li = 0; li < authorFindings.length; li += LINK_BATCH) {
+      const batch = authorFindings.slice(li, li + LINK_BATCH);
+      const placeholders = batch.map(() => '(UUID(), ?, ?, ?, ?, ?)').join(', ');
+      const values = batch.flatMap((f) => [f.findingId, profile.id, f.commitSha, f.blameLine, f.introducedAt]);
       try {
-        await pool.execute(
-          `INSERT INTO developer_finding_links
+        const [res] = await pool.execute(
+          `INSERT IGNORE INTO developer_finding_links
             (id, finding_id, developer_profile_id, commit_sha, blame_line, introduced_at)
-           VALUES (UUID(), ?, ?, ?, ?, ?)`,
-          [f.findingId, profile.id, f.commitSha, f.blameLine, f.introducedAt],
+           VALUES ${placeholders}`,
+          values,
         );
-        linksCreated++;
+        linksCreated += Number(res?.affectedRows || 0);
       } catch (e) {
-        // Duplicate or FK constraint — skip
-        if (!e.code?.includes('ER_DUP_ENTRY')) {
-          console.warn('[dev-profiler] link insert failed', e instanceof Error ? e.message : String(e));
-        }
+        console.warn('[dev-profiler] batch link insert failed', e instanceof Error ? e.message : String(e));
       }
     }
   }

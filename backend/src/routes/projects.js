@@ -27,7 +27,13 @@ import {
   getAcceptedRisks,
   checkAcceptedRiskValidity,
 } from '../services/statefulMemory.js';
-import { searchSimilarDismissedFindings, upsertFindingEmbeddings } from '../services/vectorStore.js';
+import {
+  searchSimilarDismissedFindings,
+  searchSimilarFixes,
+  searchSimilarVulnerablePatterns,
+  upsertFindingEmbeddings,
+  upsertCodePatternEmbeddings,
+} from '../services/vectorStore.js';
 import { createFixOutcome } from '../services/fixOutcomeTracker.js';
 import { buildDeveloperProfiles } from '../services/developerProfiler.js';
 
@@ -180,7 +186,8 @@ async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiA
 
     try {
       const [findingRows] = await pool.query(
-        `SELECT id, fingerprint, severity, category, description, file_path AS filePath, snippet, status
+        `SELECT id, fingerprint, severity, category, description, file_path AS filePath, snippet, status,
+                line_number AS lineNumber
          FROM project_findings
          WHERE project_id = ? AND scan_id = ?
          ORDER BY weighted_score DESC
@@ -188,6 +195,13 @@ async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiA
         [projectId, scanId],
       );
       await upsertFindingEmbeddings({
+        findings: findingRows,
+        projectId,
+        scanId,
+      });
+
+      // Phase 2: Embed code patterns from findings for vulnerability pattern recognition
+      await upsertCodePatternEmbeddings({
         findings: findingRows,
         projectId,
         scanId,
@@ -974,11 +988,11 @@ projectsRouter.post('/projects/:id/findings/:findingId/dismiss', requireUser, as
     await pool.execute(
       `INSERT INTO finding_dismissals
         (id, fingerprint, project_id, user_id, reason_code, justification, scope, is_active)
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?, 1)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, 1) AS new_row
        ON DUPLICATE KEY UPDATE
-        user_id = VALUES(user_id),
-        reason_code = VALUES(reason_code),
-        justification = VALUES(justification),
+        user_id = new_row.user_id,
+        reason_code = new_row.reason_code,
+        justification = new_row.justification,
         is_active = 1,
         updated_at = CURRENT_TIMESTAMP`,
       [finding.fingerprint, projectId, req.userId, reasonCode, justification || null, scope],
@@ -1068,6 +1082,71 @@ projectsRouter.get('/projects/:id/findings/:findingId/similar-dismissed', requir
       scoreThreshold: Math.max(0.7, Math.min(0.99, Number(req.query.threshold) || 0.92)),
     });
     res.json({ findingId, similar });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Similar past fixes for a finding (Phase 2d) ---
+projectsRouter.get('/projects/:id/findings/:findingId/similar-fixes', requireUser, async (req, res, next) => {
+  try {
+    const { id: projectId, findingId } = req.params;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [[finding]] = await pool.query(
+      `SELECT id, severity, category, description, file_path AS filePath, snippet
+       FROM project_findings
+       WHERE id = ? AND project_id = ?
+       LIMIT 1`,
+      [findingId, projectId],
+    );
+    if (!finding) { res.status(404).json({ error: 'Finding not found' }); return; }
+
+    const similar = await searchSimilarFixes({
+      finding,
+      limit: Math.min(10, Math.max(1, Number(req.query.limit) || 3)),
+      scoreThreshold: Math.max(0.5, Math.min(0.99, Number(req.query.threshold) || 0.80)),
+    });
+    res.json({ findingId, similarFixes: similar });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Similar vulnerable code patterns for a finding (Phase 2) ---
+projectsRouter.get('/projects/:id/findings/:findingId/similar-patterns', requireUser, async (req, res, next) => {
+  try {
+    const { id: projectId, findingId } = req.params;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [[finding]] = await pool.query(
+      `SELECT id, snippet, file_path AS filePath
+       FROM project_findings
+       WHERE id = ? AND project_id = ?
+       LIMIT 1`,
+      [findingId, projectId],
+    );
+    if (!finding) { res.status(404).json({ error: 'Finding not found' }); return; }
+
+    const similar = await searchSimilarVulnerablePatterns({
+      snippet: finding.snippet,
+      filePath: finding.filePath,
+      limit: Math.min(10, Math.max(1, Number(req.query.limit) || 5)),
+      scoreThreshold: Math.max(0.5, Math.min(0.99, Number(req.query.threshold) || 0.88)),
+    });
+    res.json({ findingId, similarPatterns: similar });
   } catch (e) {
     next(e);
   }

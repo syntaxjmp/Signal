@@ -30,7 +30,7 @@ export async function runSlaChecksOnce(pool) {
        WHERE f.project_id = ?
          AND f.status = 'open'
          AND f.severity = ?
-         AND TIMESTAMPDIFF(HOUR, f.created_at, CURRENT_TIMESTAMP) > ?`,
+         AND f.created_at < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? HOUR)`,
       [policy.projectId, severity, maxAgeHours],
     );
 

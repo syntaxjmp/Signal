@@ -194,6 +194,7 @@ export async function checkAcceptedRiskValidity(pool, projectId, currentFileChec
 
   let invalidated = 0;
   let reviewDue = 0;
+  const toInvalidate = []; // { id, reason }
 
   for (const risk of risks) {
     const checksums = typeof risk.dependsOnChecksums === 'string'
@@ -227,15 +228,28 @@ export async function checkAcceptedRiskValidity(pool, projectId, currentFileChec
     }
 
     if (reason) {
-      await pool.execute(
-        `UPDATE accepted_risks
-         SET is_valid = 0, invalidated_reason = ?, invalidated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [reason, risk.id],
-      );
-      invalidated++;
+      toInvalidate.push({ id: risk.id, reason });
     }
   }
+
+  // Batch-update all invalidated risks in one round-trip per batch
+  const BATCH = 50;
+  for (let i = 0; i < toInvalidate.length; i += BATCH) {
+    const batch = toInvalidate.slice(i, i + BATCH);
+    const cases = batch.map(() => 'WHEN id = ? THEN ?').join(' ');
+    const ids = batch.map((b) => b.id);
+    const caseParams = batch.flatMap((b) => [b.id, b.reason]);
+    const placeholders = ids.map(() => '?').join(',');
+    await pool.execute(
+      `UPDATE accepted_risks
+       SET is_valid = 0,
+           invalidated_reason = CASE ${cases} END,
+           invalidated_at = CURRENT_TIMESTAMP
+       WHERE id IN (${placeholders})`,
+      [...caseParams, ...ids],
+    );
+  }
+  invalidated = toInvalidate.length;
 
   return { invalidated, reviewDue };
 }

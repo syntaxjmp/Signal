@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import { resolveAgentPrompt } from '../ai/resolveAgentPrompt.js';
 import { sendWebhookForUser } from './webhookHandler.js';
 import { createFixOutcome } from './fixOutcomeTracker.js';
+import { searchSimilarFixes } from './vectorStore.js';
 
 /**
  * Build common GitHub API headers.
@@ -174,9 +175,47 @@ async function createPullRequest({ owner, repo, branchName, baseBranch, title, b
 }
 
 /**
- * Ask the LLM to produce a fixed version of the file.
+ * Build a context block from similar past fixes that were successfully merged.
  */
-async function getFixedFileContent({ fileContent, filePath, findings, openAiApiKey, openAiModel }) {
+function buildSimilarFixContext(similarFixes) {
+  if (!similarFixes || similarFixes.length === 0) return '';
+
+  const fixExamples = similarFixes
+    .map((fix, i) => {
+      const p = fix.payload;
+      const lines = [
+        `Example ${i + 1} (similarity: ${(fix.score * 100).toFixed(0)}%):`,
+        `  Category: ${p.category || 'unknown'}`,
+        `  Description: ${p.description || 'N/A'}`,
+      ];
+      if (p.fix_diff) {
+        lines.push(`  Applied diff:\n${p.fix_diff.slice(0, 600)}`);
+      }
+      return lines.join('\n');
+    })
+    .join('\n\n');
+
+  return `
+═══════════════════════════════════════════════════════════
+SIMILAR FIXES THAT WERE SUCCESSFULLY MERGED IN PAST PRs
+═══════════════════════════════════════════════════════════
+
+The following fixes for similar vulnerabilities were applied in other projects
+and their PRs were merged successfully. Use these as reference for the fix approach,
+but adapt to the specific code and context of this file.
+
+${fixExamples}
+
+Use a similar approach if applicable, but DO NOT copy code verbatim — adapt it to this file's
+existing patterns, imports, and style.
+`;
+}
+
+/**
+ * Ask the LLM to produce a fixed version of the file.
+ * Augmented with similar past fix context from the vector store (Phase 2d).
+ */
+async function getFixedFileContent({ fileContent, filePath, findings, openAiApiKey, openAiModel, similarFixes }) {
   const client = new OpenAI({ apiKey: openAiApiKey });
 
   const findingsDescription = findings
@@ -187,13 +226,19 @@ async function getFixedFileContent({ fileContent, filePath, findings, openAiApiK
     )
     .join('\n');
 
+  const fixContext = buildSimilarFixContext(similarFixes);
+
+  const systemContent = fixContext
+    ? `${resolveAgentPrompt}\n${fixContext}`
+    : resolveAgentPrompt;
+
   const response = await client.chat.completions.create({
     model: openAiModel,
     temperature: 0,
     messages: [
       {
         role: 'system',
-        content: resolveAgentPrompt,
+        content: systemContent,
       },
       {
         role: 'user',
@@ -289,6 +334,38 @@ export async function runResolutionJob({ jobId, projectId, findingIds, githubUrl
       [branchName, jobId],
     );
 
+    // Phase 2d: Search for similar past fixes to augment the resolution prompt
+    let similarFixesMap = new Map(); // category → similar fixes
+    try {
+      const categories = [...new Set(findings.map((f) => f.category).filter(Boolean))];
+      const searchPromises = categories.map(async (category) => {
+        const representative = findings.find((f) => f.category === category);
+        if (!representative) return [category, []];
+        const results = await searchSimilarFixes({
+          finding: {
+            category: representative.category,
+            severity: representative.severity,
+            description: representative.description,
+            snippet: representative.snippet,
+          },
+          limit: 3,
+          scoreThreshold: 0.80,
+        });
+        return [category, results];
+      });
+      const results = await Promise.allSettled(searchPromises);
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value[1].length > 0) {
+          similarFixesMap.set(r.value[0], r.value[1]);
+        }
+      }
+      if (similarFixesMap.size > 0) {
+        console.info(`[resolve] job=${jobId} found similar past fixes for ${similarFixesMap.size} categories`);
+      }
+    } catch (vectorErr) {
+      console.warn('[resolve] non-fatal: similar fix search failed', vectorErr instanceof Error ? vectorErr.message : String(vectorErr));
+    }
+
     const fixedFiles = [];
     const skippedFindingIds = [];
 
@@ -300,12 +377,28 @@ export async function runResolutionJob({ jobId, projectId, findingIds, githubUrl
         const fileContent = await fetchFileContent({ owner, repo, filePath, githubToken });
         console.info(`[resolve] job=${jobId} fetched ${filePath} (${String(fileContent).length} chars), sending to LLM…`);
 
+        // Gather similar fixes for all categories in this file's findings
+        const fileSimilarFixes = [];
+        for (const f of fileFindings) {
+          const fixes = similarFixesMap.get(f.category);
+          if (fixes) fileSimilarFixes.push(...fixes);
+        }
+        // Deduplicate by fix_diff content
+        const seen = new Set();
+        const uniqueFixes = fileSimilarFixes.filter((f) => {
+          const key = f.payload?.fix_diff || '';
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, 3);
+
         const fixedContent = await getFixedFileContent({
           fileContent,
           filePath,
           findings: fileFindings,
           openAiApiKey,
           openAiModel,
+          similarFixes: uniqueFixes,
         });
 
         return { filePath, fileFindings, fileContent, fixedContent };

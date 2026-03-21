@@ -10,12 +10,12 @@
 > | **[PARTIAL]** | Partially implemented (some pieces missing) |
 > | **[NOT DONE]** | Not yet implemented |
 >
-> **Overall: ~55-60% of this architecture is implemented.**
+> **Overall: ~65-70% of this architecture is implemented.**
 >
 > | Phase | Status | Summary |
 > |-------|--------|---------|
 > | Phase 1: Stateful Foundation (MySQL) | **[DONE] ~100%** | All backend logic complete: dismissals, regressions, baselines, fix outcomes, developer profiles, accepted risks. Frontend UIs still partial. |
-> | Phase 2: Vector Intelligence (Qdrant) | **[PARTIAL] ~50%** | Infrastructure + finding embeddings + dismissal matching done. Fix augmentation missing. |
+> | Phase 2: Vector Intelligence (Qdrant) | **[DONE] ~100%** | All 3 collections (finding, fix, code pattern embeddings) implemented. Contextual fix augmentation injects similar past fixes into resolution agent. API endpoints for similar-fixes and similar-patterns. |
 > | Phase 3: Code Structure Graph | **[PARTIAL] ~40%** | Code element extraction done. Attack chain detection + combined analysis missing. |
 > | Phase 4: Policy Engine & Org | **[PARTIAL] ~30%** | Policies + SLA tracking done. Organization model missing. |
 > | Frontend UIs | **[PARTIAL] ~20%** | Most intelligence features are backend-only with no frontend UI yet. Compliance report is the exception. |
@@ -74,8 +74,8 @@ Vectors become necessary when we need **semantic similarity**, not exact matchin
 | Feature | Why Vectors Are Needed | Status |
 |---------|----------------------|--------|
 | **Smart false-positive suppression** | User dismisses "Hardcoded password in config.js line 12". Next scan finds "Embedded credential in config.js line 14" — different fingerprint, same thing. Exact match fails. Vector similarity catches it. | **[DONE]** |
-| **Similar fix lookup** | "A finding like this was resolved via PR #47 in another project. That fix used Knex query builder. Want to apply the same approach?" | **[NOT DONE]** |
-| **Code pattern recognition** | Embed code snippets, find snippets that are structurally similar to known-vulnerable patterns even when variable names differ. | **[NOT DONE]** |
+| **Similar fix lookup** | "A finding like this was resolved via PR #47 in another project. That fix used Knex query builder. Want to apply the same approach?" | **[DONE]** |
+| **Code pattern recognition** | Embed code snippets, find snippets that are structurally similar to known-vulnerable patterns even when variable names differ. | **[DONE]** |
 
 **Recommendation: Qdrant (self-hosted, open source, purpose-built for this)**
 
@@ -201,7 +201,7 @@ This means **no graph database in the initial architecture.** We model the code 
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Vector Store (Qdrant) Collections — **[PARTIAL]** Infrastructure done, 1 of 3 collections implemented
+### Vector Store (Qdrant) Collections — **[DONE]** All 3 collections implemented
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -221,7 +221,7 @@ This means **no graph database in the initial architecture.** We model the code 
 │    - "Find findings across all org repos similar to this one"   │
 │    - "What fix pattern was used for similar findings?"           │
 │                                                                 │
-│  Collection: code_pattern_embeddings  [NOT DONE]                │
+│  Collection: code_pattern_embeddings  [DONE]                │
 │  ─────────────────────────────────────────────                  │
 │  vector: embed(normalized_code_snippet)           [1536 dim]    │
 │  payload: {                                                     │
@@ -235,7 +235,7 @@ This means **no graph database in the initial architecture.** We model the code 
 │    - "This code matches a known-safe parameterized query"       │
 │    - Pre-filter before LLM to reduce false positives            │
 │                                                                 │
-│  Collection: fix_embeddings  [NOT DONE]                         │
+│  Collection: fix_embeddings  [DONE]                         │
 │  ─────────────────────────────────────────────                  │
 │  vector: embed(finding_description + fix_diff)    [1536 dim]    │
 │  payload: {                                                     │
@@ -379,7 +379,7 @@ Developer Risk Score formula:
                   60 days = 0.7, 90 days = 0.4, older = 0.2
 ```
 
-### Flow 4: Contextual Fix Generation (Vector-Augmented) — **[NOT DONE]**
+### Flow 4: Contextual Fix Generation (Vector-Augmented) — **[DONE]**
 
 ```
 User clicks "Resolve" on Finding X
@@ -693,7 +693,7 @@ CREATE TABLE `accepted_risks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### Phase 2: Vector Intelligence (~2-3 weeks after Phase 1) — **[PARTIAL] ~50%**
+### Phase 2: Vector Intelligence (~2-3 weeks after Phase 1) — **[DONE] ~100%**
 
 Add Qdrant. Requires one new service dependency.
 
@@ -711,10 +711,13 @@ Add Qdrant. Requires one new service dependency.
 - ~~Similarity > 0.92: auto-suppress with "Previously dismissed (similar)" label~~ Done
 - Similarity 0.85-0.92: show with "Similar to dismissed finding" hint + one-click dismiss — API exists (`GET /similar-dismissed`), **frontend UI: [NOT DONE]**
 
-**2d. Contextual Fix Augmentation — [NOT DONE]**
-- No `fix_embeddings` collection created
-- Resolution agent does not search for similar past fixes
-- No historical fix context injected into prompts
+**2d. Contextual Fix Augmentation — [DONE]**
+- ~~`fix_embeddings` collection created~~ Done — `vectorStore.js: ensureCollection()` + `upsertFixEmbedding()`
+- ~~Resolution agent searches for similar past fixes~~ Done — `resolutionAgent.js: searchSimilarFixes()` called before fix generation
+- ~~Historical fix context injected into prompts~~ Done — `buildSimilarFixContext()` appends merged fix examples to system prompt
+- ~~`code_pattern_embeddings` collection~~ Done — `upsertCodePatternEmbeddings()` + `searchSimilarVulnerablePatterns()`
+- ~~Fix embedding on PR merge~~ Done — `fixOutcomeTracker.js: embedMergedFix()` triggers when `pollFixOutcomes()` detects a merged PR
+- API endpoints: `GET /projects/:id/findings/:findingId/similar-fixes`, `GET /projects/:id/findings/:findingId/similar-patterns`
 
 **Docker Compose addition:**
 ```yaml
@@ -870,7 +873,7 @@ How to know this is working:
 |--------|--------|----------------|-------------------|
 | False positive rate | Decrease 40% within 90 days of deployment | Count auto-suppressed findings / total findings per scan | **[PARTIAL]** — dismissals tracked, no auto-suppression metrics dashboard |
 | Scan-over-scan accuracy | Fewer dismissed findings per scan over time | Track dismissal rate trend per project | **[PARTIAL]** — data exists, no trend UI |
-| Fix merge rate | >70% of generated PRs get merged | fix_outcomes.pr_status = 'merged' / total | **[NOT YET]** — fix_outcomes table not implemented |
+| Fix merge rate | >70% of generated PRs get merged | fix_outcomes.pr_status = 'merged' / total | **[YES]** — fix_outcomes table + polling + merge rate API endpoint implemented |
 | Regression detection rate | Catch 100% of reintroduced findings | finding_regressions count vs manual reports | **[YES]** — regression detection fully working |
 | User retention signal | Users who see trend data retain 2x better | Cohort analysis: users with >5 scans vs users with 1-2 | **[NOT YET]** — no cohort analysis |
 | Time to remediate | Decrease 30% within 6 months | Avg time from finding.created_at to status='resolved' | **[PARTIAL]** — timestamps exist, no reporting |

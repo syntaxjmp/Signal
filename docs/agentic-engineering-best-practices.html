@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentic Engineering Best Practices | Signal</title>
+  <link rel="icon" href="../frontend/public/signal_transparent.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ── Signal Brand Tokens ── */
+    :root {
+      --bg-deep:       #200100;
+      --bg-mid:        #180302;
+      --bg-dark:       #120504;
+      --fg:            #f8f2f1;
+      --fg-muted:      #ffe9e4;
+      --fg-soft:       #ffd3c7;
+      --fg-dim:        #ffb59f;
+      --accent:        #ff5a34;
+      --accent-soft:   #ff8f70;
+      --line:          #785150;
+      --rust:          #8b2510;
+      --rust-soft:     rgba(139, 37, 16, 0.55);
+      --card-bg:       rgba(30, 8, 6, 0.65);
+      --card-border:   rgba(120, 81, 80, 0.35);
+      --glow:          rgba(255, 90, 52, 0.18);
+      --heading-font:  'Space Grotesk', 'Trebuchet MS', sans-serif;
+      --body-font:     'Manrope', 'Segoe UI', sans-serif;
+      --mono-font:     'JetBrains Mono', monospace;
+    }
+
+    /* ── Page ── */
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body-font);
+      background: linear-gradient(180deg, #200100 0%, #180302 40%, #120504 100%);
+      color: var(--fg);
+      line-height: 1.72;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ── Watermark ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(255, 88, 53, 0.08), transparent 55%),
+        radial-gradient(circle at 80% 70%, rgba(139, 37, 16, 0.12), transparent 45%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .watermark {
+      position: fixed;
+      bottom: 30px;
+      right: 40px;
+      opacity: 0.06;
+      width: 320px;
+      height: 320px;
+      pointer-events: none;
+      z-index: 0;
+      filter: grayscale(20%);
+    }
+
+    .watermark-text {
+      position: fixed;
+      bottom: 18px;
+      right: 48px;
+      font-family: var(--heading-font);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 0 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 56px 0 40px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 48px;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .header-brand img {
+      width: 48px;
+      height: 48px;
+    }
+
+    .header-brand span {
+      font-family: var(--heading-font);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+    }
+
+    .header h1 {
+      font-family: var(--heading-font);
+      font-size: 42px;
+      font-weight: 700;
+      line-height: 1.15;
+      color: var(--fg);
+      margin-bottom: 12px;
+    }
+
+    .header h1 span {
+      background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header .subtitle {
+      font-size: 17px;
+      color: var(--fg-dim);
+      max-width: 640px;
+    }
+
+    .header .meta {
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--line);
+      font-family: var(--mono-font);
+    }
+
+    /* ── Table of Contents ── */
+    .toc {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 48px;
+      backdrop-filter: blur(12px);
+    }
+
+    .toc h2 {
+      font-family: var(--heading-font);
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc;
+      columns: 2;
+      column-gap: 32px;
+    }
+
+    .toc li {
+      counter-increment: toc;
+      margin-bottom: 8px;
+    }
+
+    .toc li::before {
+      content: counter(toc, decimal-leading-zero) ".";
+      font-family: var(--mono-font);
+      font-size: 12px;
+      color: var(--accent-soft);
+      margin-right: 8px;
+    }
+
+    .toc a {
+      color: var(--fg-soft);
+      text-decoration: none;
+      font-size: 14.5px;
+      transition: color 180ms ease;
+    }
+
+    .toc a:hover { color: var(--accent); }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 56px;
+    }
+
+    .section-number {
+      font-family: var(--mono-font);
+      font-size: 13px;
+      color: var(--accent);
+      opacity: 0.7;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .section h2 {
+      font-family: var(--heading-font);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--fg);
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+
+    .section .section-lead {
+      font-size: 15.5px;
+      color: var(--fg-dim);
+      margin-bottom: 24px;
+      max-width: 700px;
+    }
+
+    .section h3 {
+      font-family: var(--heading-font);
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin: 28px 0 12px;
+    }
+
+    .section p {
+      margin-bottom: 14px;
+      color: var(--fg-soft);
+      font-size: 15px;
+    }
+
+    .section ul, .section ol {
+      margin: 12px 0 20px 20px;
+      color: var(--fg-soft);
+      font-size: 15px;
+    }
+
+    .section li {
+      margin-bottom: 10px;
+      padding-left: 4px;
+    }
+
+    .section li::marker {
+      color: var(--accent-soft);
+    }
+
+    /* ── Principle Cards ── */
+    .principle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 20px 0 28px;
+    }
+
+    .principle-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 20px 22px;
+      backdrop-filter: blur(8px);
+      transition: border-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .principle-card:hover {
+      border-color: rgba(255, 90, 52, 0.35);
+      box-shadow: 0 0 24px -8px var(--glow);
+    }
+
+    .principle-card .card-icon {
+      font-size: 22px;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .principle-card h4 {
+      font-family: var(--heading-font);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--fg-muted);
+      margin-bottom: 6px;
+    }
+
+    .principle-card p {
+      font-size: 13.5px;
+      color: var(--fg-dim);
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    /* ── Code Blocks ── */
+    .code-block {
+      background: rgba(10, 5, 3, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 16px 0 24px;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .code-block .code-label {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-family: var(--mono-font);
+      font-size: 10.5px;
+      color: var(--line);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .code-block code {
+      font-family: var(--mono-font);
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: var(--fg-soft);
+    }
+
+    .code-block .comment { color: #785150; }
+    .code-block .keyword { color: var(--accent); }
+    .code-block .string  { color: var(--accent-soft); }
+    .code-block .func    { color: #ffd3c7; }
+
+    /* ── Callout Boxes ── */
+    .callout {
+      border-left: 3px solid var(--accent);
+      background: rgba(255, 90, 52, 0.05);
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+
+    .callout-title {
+      font-family: var(--heading-font);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .callout p {
+      font-size: 14px;
+      color: var(--fg-dim);
+      margin: 0;
+    }
+
+    /* ── Separator ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--card-border);
+      margin: 48px 0;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 40px 0 56px;
+      border-top: 1px solid var(--card-border);
+      text-align: center;
+    }
+
+    .footer img {
+      width: 36px;
+      height: 36px;
+      margin-bottom: 12px;
+      opacity: 0.6;
+    }
+
+    .footer p {
+      font-size: 13px;
+      color: var(--line);
+    }
+
+    .footer .signal-tag {
+      font-family: var(--heading-font);
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: 0.5;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+
+    /* ── Badge ── */
+    .badge {
+      display: inline-block;
+      font-family: var(--mono-font);
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--fg-dim);
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .badge.accent {
+      border-color: rgba(255, 90, 52, 0.3);
+      color: var(--accent-soft);
+    }
+
+    /* ── Anti-patterns table ── */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0 28px;
+      font-size: 14px;
+    }
+
+    .comparison-table th {
+      font-family: var(--heading-font);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .comparison-table th:first-child { color: #ff6b6b; }
+    .comparison-table th:last-child  { color: #6bffa3; }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(120, 81, 80, 0.15);
+      color: var(--fg-soft);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .container { padding: 0 20px; }
+      .header h1 { font-size: 30px; }
+      .toc ol { columns: 1; }
+      .principle-grid { grid-template-columns: 1fr; }
+      .watermark { width: 200px; height: 200px; bottom: 16px; right: 16px; }
+    }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; color: #1a1a1a; }
+      .watermark, .watermark-text { display: none; }
+      .principle-card, .toc, .code-block, .callout {
+        border-color: #ccc;
+        background: #f9f9f9;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Signal Watermark -->
+  <img src="../frontend/public/signal_transparent.png" alt="" class="watermark" />
+  <span class="watermark-text">Signal Security</span>
+
+  <div class="container">
+
+    <!-- ═══════════════════ HEADER ═══════════════════ -->
+    <header class="header">
+      <div class="header-brand">
+        <img src="../frontend/public/signal_transparent.png" alt="Signal" />
+        <span>Signal</span>
+      </div>
+      <h1>Agentic Engineering<br /><span>Best Practices</span></h1>
+      <p class="subtitle">
+        A comprehensive guide to designing, building, and operating autonomous AI agent systems &mdash;
+        from architecture patterns to production safety guardrails.
+      </p>
+      <p class="meta">v1.0.0 &middot; March 2026 &middot; Signal Engineering</p>
+    </header>
+
+    <!-- ═══════════════════ TOC ═══════════════════ -->
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#foundations">Foundational Principles</a></li>
+        <li><a href="#architecture">Agent Architecture Patterns</a></li>
+        <li><a href="#tool-design">Tool Design &amp; Integration</a></li>
+        <li><a href="#memory">Memory &amp; State Management</a></li>
+        <li><a href="#orchestration">Multi-Agent Orchestration</a></li>
+        <li><a href="#safety">Safety, Guardrails &amp; Alignment</a></li>
+        <li><a href="#evaluation">Evaluation &amp; Testing</a></li>
+        <li><a href="#prompting">Prompt Engineering for Agents</a></li>
+        <li><a href="#observability">Observability &amp; Debugging</a></li>
+        <li><a href="#production">Production Operations</a></li>
+        <li><a href="#antipatterns">Anti-Patterns to Avoid</a></li>
+        <li><a href="#checklist">Ship-Ready Checklist</a></li>
+      </ol>
+    </nav>
+
+    <!-- ═══════════════════ 01 FOUNDATIONS ═══════════════════ -->
+    <section class="section" id="foundations">
+      <span class="section-number">01</span>
+      <h2>Foundational Principles</h2>
+      <p class="section-lead">
+        Agentic systems amplify both capability and risk. These principles form the bedrock of every design decision.
+      </p>
+
+      <div class="principle-grid">
+        <div class="principle-card">
+          <span class="card-icon">&#9711;</span>
+          <h4>Minimal Authority</h4>
+          <p>Grant agents the least privilege required for each task. Scope tool access, API permissions, and file system reach per-invocation, not globally.</p>
+        </div>
+        <div class="principle-card">
+          <span class="card-icon">&#9670;</span>
+          <h4>Deterministic When Possible</h4>
+          <p>Prefer deterministic logic for control flow and branching. Reserve LLM calls for tasks that genuinely require reasoning or generation.</p>
+        </div>
+        <div class="principle-card">
+          <span class="card-icon">&#9651;</span>
+          <h4>Fail Loud, Recover Gracefully</h4>
+          <p>Surface errors to the operator immediately. Design retry logic that degrades scope rather than retrying the same failing action endlessly.</p>
+        </div>
+        <div class="principle-card">
+          <span class="card-icon">&#9632;</span>
+          <h4>Human-in-the-Loop by Default</h4>
+          <p>Default to requiring approval for irreversible or high-blast-radius actions. Let users opt into more autonomy, never the reverse.</p>
+        </div>
+      </div>
+
+      <h3>The Agent Contract</h3>
+      <p>
+        Every agent should have a clearly defined contract: what inputs it accepts, what tools it can use,
+        what side effects it may produce, and what outputs it returns. This contract should be explicit in code,
+        not implied by prompt text alone.
+      </p>
+
+      <div class="callout">
+        <div class="callout-title">Principle</div>
+        <p>
+          An agent that cannot explain what it is about to do and why should not be allowed to do it.
+          Build introspection into the loop, not as an afterthought.
+        </p>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 02 ARCHITECTURE ═══════════════════ -->
+    <section class="section" id="architecture">
+      <span class="section-number">02</span>
+      <h2>Agent Architecture Patterns</h2>
+      <p class="section-lead">
+        Choose the right architecture for the right level of complexity. Over-engineering agent systems is as dangerous as under-engineering them.
+      </p>
+
+      <h3>ReAct Loop (Reason + Act)</h3>
+      <p>
+        The foundational pattern. The agent reasons about the current state, selects an action (tool call),
+        observes the result, and repeats until the task is complete or a termination condition is met.
+      </p>
+      <ul>
+        <li><strong>When to use:</strong> Single-domain tasks with clear completion criteria (code generation, data retrieval, document analysis).</li>
+        <li><strong>Strength:</strong> Simple to implement, easy to debug, predictable token usage.</li>
+        <li><strong>Risk:</strong> Can loop indefinitely without proper exit conditions.</li>
+      </ul>
+
+      <div class="code-block">
+        <span class="code-label">Pattern</span>
+        <code><pre><span class="keyword">while</span> <span class="func">not</span> done:
+    <span class="comment"># 1. Reason about current state</span>
+    thought = llm.reason(context, observations)
+
+    <span class="comment"># 2. Select and execute action</span>
+    action = llm.select_tool(thought, available_tools)
+    observation = <span class="func">execute</span>(action)
+
+    <span class="comment"># 3. Update context and check termination</span>
+    context.<span class="func">append</span>(thought, action, observation)
+    done = <span class="func">check_completion</span>(context, max_steps)</pre></code>
+      </div>
+
+      <h3>Plan-then-Execute</h3>
+      <p>
+        A planning phase generates a structured task list before execution begins. Each step is executed
+        independently, with optional re-planning if a step fails.
+      </p>
+      <ul>
+        <li><strong>When to use:</strong> Multi-step tasks where the full plan can be determined upfront (migrations, refactors, batch operations).</li>
+        <li><strong>Strength:</strong> Predictable execution, easy to checkpoint and resume.</li>
+        <li><strong>Risk:</strong> Plans may become stale if the environment changes during execution.</li>
+      </ul>
+
+      <h3>Router / Dispatch</h3>
+      <p>
+        A lightweight classifier routes incoming requests to specialized sub-agents. Each sub-agent owns
+        a narrow domain and has access to only the tools it needs.
+      </p>
+      <ul>
+        <li><strong>When to use:</strong> Systems handling diverse request types (support bots, developer tools, ops automation).</li>
+        <li><strong>Strength:</strong> Separation of concerns, independent scaling and testing of each agent.</li>
+        <li><strong>Risk:</strong> Misrouting can send tasks to the wrong agent; needs strong fallback handling.</li>
+      </ul>
+
+      <h3>Hierarchical (Orchestrator + Workers)</h3>
+      <p>
+        A coordinator agent decomposes complex goals into subtasks, delegates to worker agents, aggregates
+        results, and handles cross-cutting concerns like error recovery.
+      </p>
+      <ul>
+        <li><strong>When to use:</strong> Complex, multi-domain tasks where subtasks have dependencies (full-stack feature implementation, incident response).</li>
+        <li><strong>Strength:</strong> Handles complexity that single agents cannot. Parallelism where subtasks are independent.</li>
+        <li><strong>Risk:</strong> Coordination overhead, harder to debug, potential for cascading failures.</li>
+      </ul>
+
+      <div class="callout">
+        <div class="callout-title">Rule of Thumb</div>
+        <p>
+          Start with a single ReAct agent. Only add orchestration layers when you have evidence that a single
+          agent cannot handle the task. Complexity should be earned, not assumed.
+        </p>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 03 TOOL DESIGN ═══════════════════ -->
+    <section class="section" id="tool-design">
+      <span class="section-number">03</span>
+      <h2>Tool Design &amp; Integration</h2>
+      <p class="section-lead">
+        Tools are the agent's hands. Well-designed tools make agents reliable; poorly designed tools make them dangerous.
+      </p>
+
+      <h3>Design Principles</h3>
+      <ul>
+        <li><strong>Single responsibility:</strong> Each tool does one thing. A <code>search_files</code> tool should not also modify files.</li>
+        <li><strong>Descriptive schemas:</strong> Parameter names, descriptions, and examples in the tool schema are the primary way the agent understands when and how to use a tool. Invest heavily here.</li>
+        <li><strong>Idempotent where possible:</strong> Calling the same tool with the same inputs should produce the same result. This makes retries safe and debugging easier.</li>
+        <li><strong>Bounded output:</strong> Tools should return bounded, structured data. Never return unbounded text dumps &mdash; truncate, paginate, or summarize.</li>
+        <li><strong>Error messages as guidance:</strong> When a tool call fails, the error message should tell the agent what went wrong and suggest corrective action.</li>
+      </ul>
+
+      <h3>Dangerous Tool Patterns</h3>
+      <ul>
+        <li><strong>Shell escape hatches:</strong> A generic "run any bash command" tool gives the agent unlimited power. Scope it tightly or replace with purpose-built tools.</li>
+        <li><strong>Mutable state without confirmation:</strong> Tools that write to databases, send messages, or deploy code should require explicit confirmation for destructive operations.</li>
+        <li><strong>Unbounded recursion:</strong> A tool that can invoke the agent creates unbounded recursion risk. If self-invocation is needed, enforce depth limits.</li>
+      </ul>
+
+      <div class="code-block">
+        <span class="code-label">Good Tool Schema</span>
+        <code><pre>{
+  <span class="string">"name"</span>: <span class="string">"search_codebase"</span>,
+  <span class="string">"description"</span>: <span class="string">"Search for code patterns across the repository. Returns
+    matching file paths and line numbers. Use this before editing
+    to locate the right files."</span>,
+  <span class="string">"parameters"</span>: {
+    <span class="string">"pattern"</span>:    { <span class="string">"type"</span>: <span class="string">"string"</span>,  <span class="string">"description"</span>: <span class="string">"Regex pattern to match"</span> },
+    <span class="string">"file_glob"</span>:  { <span class="string">"type"</span>: <span class="string">"string"</span>,  <span class="string">"description"</span>: <span class="string">"Filter to specific files, e.g. '*.py'"</span> },
+    <span class="string">"max_results"</span>: { <span class="string">"type"</span>: <span class="string">"integer"</span>, <span class="string">"default"</span>: 20 }
+  }
+}</pre></code>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 04 MEMORY ═══════════════════ -->
+    <section class="section" id="memory">
+      <span class="section-number">04</span>
+      <h2>Memory &amp; State Management</h2>
+      <p class="section-lead">
+        Agents without memory repeat mistakes. Agents with poorly managed memory hallucinate from stale context.
+      </p>
+
+      <h3>Memory Layers</h3>
+      <ul>
+        <li><strong>Working memory (context window):</strong> The current conversation. Actively manage this &mdash; compress, summarize, or evict irrelevant information as the conversation grows.</li>
+        <li><strong>Short-term memory (session):</strong> Task-scoped state like plans, intermediate results, and tool outputs. Store in structured formats (JSON, task lists) not prose.</li>
+        <li><strong>Long-term memory (persistent):</strong> Cross-session knowledge like user preferences, project conventions, and learned corrections. Use file-based or vector stores with explicit read/write operations.</li>
+        <li><strong>Semantic memory (retrieval):</strong> Embeddings over documentation, code, and past conversations. Use RAG patterns with careful relevance filtering.</li>
+      </ul>
+
+      <h3>State Management Rules</h3>
+      <ol>
+        <li><strong>Explicit over implicit:</strong> Never rely on the LLM "remembering" something from earlier in a long conversation. If state matters, write it down in a structured store.</li>
+        <li><strong>Read before write:</strong> Always check existing state before creating new entries. Duplicates and contradictions in memory degrade agent performance rapidly.</li>
+        <li><strong>Timestamp everything:</strong> Memory without temporal context is a liability. Stale memories are worse than no memories.</li>
+        <li><strong>Separate facts from interpretations:</strong> Store what happened and what was decided separately from why. The "why" changes; the "what" doesn't.</li>
+      </ol>
+
+      <div class="callout">
+        <div class="callout-title">Signal Pattern</div>
+        <p>
+          Signal's stateful memory service uses vector embeddings to find relevant context from past scans,
+          then injects only high-similarity results into the agent's working context. This keeps the context
+          window lean while preserving institutional knowledge.
+        </p>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 05 ORCHESTRATION ═══════════════════ -->
+    <section class="section" id="orchestration">
+      <span class="section-number">05</span>
+      <h2>Multi-Agent Orchestration</h2>
+      <p class="section-lead">
+        When a single agent isn't enough, orchestration becomes the critical engineering challenge.
+      </p>
+
+      <h3>Communication Patterns</h3>
+      <ul>
+        <li><strong>Message passing:</strong> Agents communicate through structured messages with typed payloads. Each message has a sender, recipient, and schema-validated body.</li>
+        <li><strong>Shared blackboard:</strong> Agents read and write to a shared state object. Simple but requires careful concurrency handling.</li>
+        <li><strong>Event-driven:</strong> Agents subscribe to events and react independently. Excellent for loosely-coupled systems but harder to reason about ordering.</li>
+      </ul>
+
+      <h3>Coordination Rules</h3>
+      <ol>
+        <li><strong>Define handoff protocols:</strong> When Agent A delegates to Agent B, define exactly what context is passed, what Agent B is expected to return, and what happens if Agent B fails.</li>
+        <li><strong>Set budget limits:</strong> Every agent invocation should have a token budget, time budget, and step budget. Runaway agents are expensive and dangerous.</li>
+        <li><strong>Avoid shared mutable state:</strong> If two agents can write to the same resource, you will get conflicts. Use ownership semantics &mdash; only one agent writes to a given resource at a time.</li>
+        <li><strong>Parallelize independent work:</strong> If subtasks have no data dependencies, run them concurrently. But merge results carefully &mdash; conflicting outputs need resolution logic.</li>
+      </ol>
+
+      <div class="code-block">
+        <span class="code-label">Orchestration</span>
+        <code><pre><span class="comment">// Hierarchical orchestration with budget enforcement</span>
+<span class="keyword">const</span> orchestrator = <span class="keyword">new</span> <span class="func">Agent</span>({
+  role: <span class="string">"coordinator"</span>,
+  maxSteps: <span class="string">25</span>,
+  maxTokens: <span class="string">50_000</span>,
+  timeout: <span class="string">120_000</span>,
+  workers: {
+    researcher:  { tools: [search, read],  maxSteps: <span class="string">10</span> },
+    implementer: { tools: [read, edit],     maxSteps: <span class="string">15</span> },
+    reviewer:    { tools: [read, lint, test], maxSteps: <span class="string">8</span> },
+  },
+  <span class="comment">// Only the orchestrator can approve irreversible actions</span>
+  escalation: (action) => action.sideEffects.<span class="func">includes</span>(<span class="string">"write"</span>)
+});</pre></code>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 06 SAFETY ═══════════════════ -->
+    <section class="section" id="safety">
+      <span class="section-number">06</span>
+      <h2>Safety, Guardrails &amp; Alignment</h2>
+      <p class="section-lead">
+        Safety is not a feature &mdash; it's a property of the system. Every layer of the stack should contribute to it.
+      </p>
+
+      <h3>Defense in Depth</h3>
+      <ol>
+        <li><strong>Prompt-level guardrails:</strong> System prompts that define boundaries, refusal conditions, and escalation triggers. Necessary but not sufficient alone.</li>
+        <li><strong>Tool-level permissions:</strong> Each tool enforces its own access controls independent of the prompt. A "delete file" tool should verify the path is within the allowed directory regardless of what the agent says.</li>
+        <li><strong>Runtime monitors:</strong> Separate processes that observe agent behavior and can intervene &mdash; killing runaway loops, blocking suspicious tool calls, alerting operators.</li>
+        <li><strong>Output validation:</strong> Validate all agent outputs against schemas before they reach users or downstream systems. Reject malformed or out-of-scope responses.</li>
+      </ol>
+
+      <h3>Prompt Injection Defense</h3>
+      <ul>
+        <li>Treat all external data (user input, API responses, file contents, web pages) as untrusted.</li>
+        <li>Clearly delimit system instructions from user-provided content in the prompt.</li>
+        <li>Validate tool call arguments against expected schemas before execution.</li>
+        <li>Monitor for sudden behavior changes after processing external content.</li>
+      </ul>
+
+      <h3>Blast Radius Control</h3>
+      <ul>
+        <li><strong>Sandbox execution:</strong> Run agent tool calls in isolated environments (containers, VMs, worktrees) whenever possible.</li>
+        <li><strong>Reversibility bias:</strong> Prefer reversible actions. If an action is irreversible, require explicit human approval.</li>
+        <li><strong>Incremental deployment:</strong> Roll out agent capabilities gradually. Start with read-only tools, then add write tools with approval gates, then reduce gates based on observed reliability.</li>
+      </ul>
+
+      <div class="callout">
+        <div class="callout-title">Critical</div>
+        <p>
+          Never trust an agent's self-assessment of safety. "I've verified this is safe" from an LLM
+          is not verification. Use deterministic checks and human review for high-stakes actions.
+        </p>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 07 EVALUATION ═══════════════════ -->
+    <section class="section" id="evaluation">
+      <span class="section-number">07</span>
+      <h2>Evaluation &amp; Testing</h2>
+      <p class="section-lead">
+        Agentic systems are non-deterministic. Traditional unit tests are necessary but not sufficient.
+      </p>
+
+      <h3>Testing Layers</h3>
+      <ul>
+        <li><strong>Unit tests for tools:</strong> Each tool should have deterministic tests. Mock the LLM, test the tool logic in isolation.</li>
+        <li><strong>Integration tests for loops:</strong> Test the full agent loop with recorded LLM responses. Verify that the agent selects the right tools in the right order.</li>
+        <li><strong>Eval suites for reasoning:</strong> Curated sets of tasks with known-good solutions. Run regularly, track pass rates and regressions across model versions and prompt changes.</li>
+        <li><strong>Adversarial testing:</strong> Deliberately try to break the agent. Feed it conflicting instructions, malformed data, prompt injections, and impossible tasks.</li>
+        <li><strong>Shadow mode:</strong> Run the agent in parallel with human operators. Compare decisions without executing the agent's actions.</li>
+      </ul>
+
+      <h3>Metrics That Matter</h3>
+      <ul>
+        <li><strong>Task completion rate:</strong> What percentage of tasks are completed successfully without human intervention?</li>
+        <li><strong>Steps to completion:</strong> Efficient agents complete tasks in fewer steps. Track median and p95.</li>
+        <li><strong>Tool call accuracy:</strong> How often does the agent call the right tool with the right arguments on the first try?</li>
+        <li><strong>Guardrail trigger rate:</strong> How often do safety guardrails fire? A rate near zero might mean they're not sensitive enough.</li>
+        <li><strong>Cost per task:</strong> Total token usage and API costs per completed task. Optimize for both quality and efficiency.</li>
+      </ul>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 08 PROMPTING ═══════════════════ -->
+    <section class="section" id="prompting">
+      <span class="section-number">08</span>
+      <h2>Prompt Engineering for Agents</h2>
+      <p class="section-lead">
+        Agent prompts are different from chat prompts. They define behavior loops, not single responses.
+      </p>
+
+      <h3>System Prompt Structure</h3>
+      <ol>
+        <li><strong>Identity and role:</strong> Who is the agent? What domain does it operate in? What is its primary goal?</li>
+        <li><strong>Available tools:</strong> List tools with detailed descriptions, parameter docs, and usage examples. This is the most impactful section for tool selection accuracy.</li>
+        <li><strong>Operating rules:</strong> Constraints, permissions, and behavioral guidelines. Be specific: "do not modify files outside /src" is better than "be careful with files."</li>
+        <li><strong>Output format:</strong> Define exactly how the agent should structure its responses. Structured output (JSON, XML) reduces parsing errors.</li>
+        <li><strong>Examples:</strong> Show complete reasoning traces including thought, action, observation, and conclusion. Few-shot examples dramatically improve agent behavior.</li>
+      </ol>
+
+      <h3>Prompting Anti-Patterns</h3>
+      <ul>
+        <li><strong>Vague instructions:</strong> "Be helpful" tells the agent nothing. "When the user asks to modify a file, first read the file to understand its structure, then make the minimal edit needed" tells it exactly what to do.</li>
+        <li><strong>Contradictory rules:</strong> "Always ask for confirmation" + "minimize back-and-forth" creates confusion. Resolve contradictions explicitly by defining priority.</li>
+        <li><strong>Over-reliance on prompt for safety:</strong> Prompts can be overridden. Use them for behavioral guidance, not as the sole safety mechanism.</li>
+      </ul>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 09 OBSERVABILITY ═══════════════════ -->
+    <section class="section" id="observability">
+      <span class="section-number">09</span>
+      <h2>Observability &amp; Debugging</h2>
+      <p class="section-lead">
+        You cannot improve what you cannot see. Agentic systems require deeper observability than traditional software.
+      </p>
+
+      <h3>What to Log</h3>
+      <ul>
+        <li><strong>Full reasoning traces:</strong> Every thought, action, and observation in the agent loop. This is your primary debugging tool.</li>
+        <li><strong>Tool call metadata:</strong> Input arguments, execution duration, output size, success/failure, and any errors.</li>
+        <li><strong>Token usage:</strong> Per-step and per-task token counts, broken down by input and output tokens.</li>
+        <li><strong>Decision points:</strong> When the agent chose between multiple tools or approaches, log what it considered and why it chose what it did.</li>
+        <li><strong>Guardrail activations:</strong> Every time a safety check fires, log the trigger condition and the action that was blocked.</li>
+      </ul>
+
+      <h3>Debugging Strategies</h3>
+      <ul>
+        <li><strong>Replay from checkpoint:</strong> Serialize the agent's state at each step so you can replay from any point with modified prompts or tools.</li>
+        <li><strong>Trace comparison:</strong> When a task fails, compare the trace against a known-good trace for a similar task. The divergence point reveals the issue.</li>
+        <li><strong>Ablation testing:</strong> Remove individual tools or prompt sections to isolate which component is causing a behavior.</li>
+      </ul>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 10 PRODUCTION ═══════════════════ -->
+    <section class="section" id="production">
+      <span class="section-number">10</span>
+      <h2>Production Operations</h2>
+      <p class="section-lead">
+        Running agents in production requires the same operational rigor as any critical system, plus additional considerations unique to non-deterministic software.
+      </p>
+
+      <h3>Operational Essentials</h3>
+      <ul>
+        <li><strong>Rate limiting:</strong> Enforce rate limits on both inbound requests and outbound API calls. A single runaway agent can exhaust your LLM API budget in minutes.</li>
+        <li><strong>Circuit breakers:</strong> If an agent or model provider starts failing, trip the circuit breaker and fall back to a degraded mode rather than retrying into a cascade.</li>
+        <li><strong>Graceful degradation:</strong> Define what happens when the LLM is unavailable. Can the agent fall back to rule-based logic? Can it queue tasks for later?</li>
+        <li><strong>Cost controls:</strong> Set per-user, per-task, and per-day spending limits. Alert when approaching limits. Kill tasks that exceed them.</li>
+        <li><strong>Model version pinning:</strong> Pin the model version in production. Model updates can change agent behavior in unexpected ways. Test new versions in staging first.</li>
+      </ul>
+
+      <h3>Deployment Strategy</h3>
+      <ol>
+        <li><strong>Canary deployments:</strong> Route a small percentage of traffic to new agent versions. Compare performance metrics before full rollout.</li>
+        <li><strong>Feature flags per tool:</strong> Enable new tools gradually. Start disabled, enable for internal users, then expand.</li>
+        <li><strong>Rollback plan:</strong> Every deployment should have a one-command rollback. Agent behavior changes can be subtle &mdash; fast rollback is critical.</li>
+      </ol>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 11 ANTI-PATTERNS ═══════════════════ -->
+    <section class="section" id="antipatterns">
+      <span class="section-number">11</span>
+      <h2>Anti-Patterns to Avoid</h2>
+      <p class="section-lead">
+        Learn from the mistakes that have cost teams the most time, money, and reliability.
+      </p>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Anti-Pattern</th>
+            <th>Better Approach</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Giving the agent unlimited shell access</td>
+            <td>Purpose-built tools with scoped permissions per operation</td>
+          </tr>
+          <tr>
+            <td>One massive system prompt with every rule</td>
+            <td>Modular prompt composition &mdash; load relevant sections based on task type</td>
+          </tr>
+          <tr>
+            <td>Relying on the LLM to "remember" state</td>
+            <td>Explicit state management with structured stores and read-before-act patterns</td>
+          </tr>
+          <tr>
+            <td>Retrying failed actions in a loop</td>
+            <td>Diagnose root cause, try alternative approach, or escalate to human</td>
+          </tr>
+          <tr>
+            <td>Building a multi-agent system from day one</td>
+            <td>Start with one agent, add orchestration only when single-agent approach provably fails</td>
+          </tr>
+          <tr>
+            <td>Testing only happy paths</td>
+            <td>Adversarial evals, edge cases, prompt injection attempts, and impossible tasks</td>
+          </tr>
+          <tr>
+            <td>Trusting the agent's self-reported confidence</td>
+            <td>Deterministic validation, schema checks, and human review for high-stakes outputs</td>
+          </tr>
+          <tr>
+            <td>No spending limits on LLM API calls</td>
+            <td>Per-task and per-day budgets with hard kill switches</td>
+          </tr>
+          <tr>
+            <td>Logging only inputs and outputs</td>
+            <td>Full reasoning traces, tool call metadata, and decision-point annotations</td>
+          </tr>
+          <tr>
+            <td>Deploying new model versions without staging</td>
+            <td>Pin model versions, test in staging, canary deploy, then promote</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- ═══════════════════ 12 CHECKLIST ═══════════════════ -->
+    <section class="section" id="checklist">
+      <span class="section-number">12</span>
+      <h2>Ship-Ready Checklist</h2>
+      <p class="section-lead">
+        Before deploying an agentic system to production, verify every item.
+      </p>
+
+      <h3>Architecture</h3>
+      <ul>
+        <li>Agent contract is explicitly defined (inputs, tools, side effects, outputs)</li>
+        <li>Architecture pattern matches task complexity (not over-engineered)</li>
+        <li>Termination conditions exist for every loop (step limit, token limit, timeout)</li>
+      </ul>
+
+      <h3>Tools</h3>
+      <ul>
+        <li>Each tool has a single responsibility and a descriptive schema</li>
+        <li>Destructive tools require confirmation gates</li>
+        <li>Tool outputs are bounded and structured</li>
+        <li>Error messages guide the agent toward corrective action</li>
+      </ul>
+
+      <h3>Safety</h3>
+      <ul>
+        <li>Minimal-authority principle applied to all tool permissions</li>
+        <li>External data treated as untrusted (prompt injection defense)</li>
+        <li>Irreversible actions require human approval by default</li>
+        <li>Runtime monitors can kill runaway agents</li>
+        <li>Output validated against schemas before delivery</li>
+      </ul>
+
+      <h3>Observability</h3>
+      <ul>
+        <li>Full reasoning traces logged for every agent invocation</li>
+        <li>Token usage and cost tracked per task</li>
+        <li>Guardrail activations logged and alerted on</li>
+        <li>Replay-from-checkpoint capability for debugging</li>
+      </ul>
+
+      <h3>Operations</h3>
+      <ul>
+        <li>Rate limits on inbound and outbound API calls</li>
+        <li>Per-task and per-day cost limits with hard kills</li>
+        <li>Model version pinned and tested before promotion</li>
+        <li>One-command rollback available</li>
+        <li>Graceful degradation defined for LLM outages</li>
+      </ul>
+
+      <h3>Testing</h3>
+      <ul>
+        <li>Unit tests for every tool</li>
+        <li>Integration tests for the full agent loop</li>
+        <li>Eval suite with pass rate tracking across versions</li>
+        <li>Adversarial testing performed and documented</li>
+      </ul>
+    </section>
+
+    <!-- ═══════════════════ FOOTER ═══════════════════ -->
+    <footer class="footer">
+      <img src="../frontend/public/signal_transparent.png" alt="Signal" />
+      <p>Built by Signal Engineering &middot; Agentic Engineering Best Practices v1.0.0</p>
+      <p class="signal-tag">Signal &mdash; Detect. Resolve. Protect.</p>
+    </footer>
+
+  </div>
+</body>
+</html>

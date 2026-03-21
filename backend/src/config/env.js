@@ -68,6 +68,8 @@ export const env = {
     url: process.env.QDRANT_URL || '',
     apiKey: process.env.QDRANT_API_KEY || '',
     findingCollection: process.env.QDRANT_FINDING_COLLECTION || 'finding_embeddings',
+    fixCollection: process.env.QDRANT_FIX_COLLECTION || 'fix_embeddings',
+    codePatternCollection: process.env.QDRANT_CODE_PATTERN_COLLECTION || 'code_pattern_embeddings',
   },
   automation: {
     slaIntervalMs: Number(process.env.SLA_INTERVAL_MS) || 60 * 60 * 1000,
