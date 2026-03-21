@@ -1,0 +1,79 @@
+/* Flush with dashboard shell — legend overlays bottom of graph */
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.graphStage {
+  position: relative;
+  width: 100%;
+  min-height: 420px;
+}
+
+.graphInner {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  min-height: 420px;
+  overflow: visible;
+}
+
+.graphFooter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0 0.35rem 0.35rem;
+  pointer-events: none;
+}
+
+.graphFooter .legend,
+.graphFooter .hint {
+  pointer-events: auto;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 420px;
+  font-size: 0.9rem;
+  color: rgba(255, 210, 195, 0.65);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.78rem;
+  color: rgba(255, 220, 205, 0.88);
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.95),
+    0 0 12px rgba(0, 0, 0, 0.65);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255, 210, 195, 0.72);
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.95),
+    0 0 12px rgba(0, 0, 0, 0.65);
+}

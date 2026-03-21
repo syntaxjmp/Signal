@@ -61,6 +61,10 @@
 }
 
 .download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   padding: 0.45rem 0.95rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 240, 234, 0.28);
@@ -70,6 +74,11 @@
   font-size: 0.9rem;
   cursor: pointer;
   font-family: inherit;
+}
+
+.downloadIcon {
+  flex-shrink: 0;
+  opacity: 0.95;
 }
 
 .download:hover:not(:disabled) {
@@ -755,8 +764,48 @@
 .fwPicker {
   display: flex;
   flex-wrap: wrap;
+  align-items: stretch;
   gap: 0.55rem;
   margin-bottom: 0.75rem;
+}
+
+.fwPickerChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fwPickerTab {
+  flex: 1 1 7.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 7.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.18);
+  color: color-mix(in srgb, var(--foreground) 88%, transparent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.fwPickerTab:hover:not(:disabled) {
+  background: rgba(255, 90, 52, 0.1);
+  border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+}
+
+.fwPickerTab:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 .fwPickerLabel {
@@ -813,25 +862,27 @@
 .fwCardHead {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.65rem;
-  margin-bottom: 0.45rem;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .fwCardTitle {
   margin: 0;
   font-size: 1rem;
   font-weight: 850;
+  line-height: 1.28;
   flex: 1;
-  min-width: 200px;
+  min-width: min(100%, 200px);
 }
 
 .fwOverall {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.25rem;
-  padding: 0.25rem 0.65rem;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.28rem;
+  padding: 0.18rem 0.55rem 0.2rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
@@ -847,8 +898,9 @@
 }
 
 .fwOverallVal {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 950;
+  line-height: 1;
 }
 
 .fwOverallOf {
