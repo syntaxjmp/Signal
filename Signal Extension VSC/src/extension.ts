@@ -8,6 +8,12 @@ import { collectWorkspaceFiles } from './workspaceScanner';
 import { explainFindingWithApi } from './apiClient';
 import { openExplainFindingPanel } from './explainFindingPanel';
 import { openWorkspaceReportPanel } from './workspaceReportPanel';
+import {
+  ensureSkillsFile,
+  getSkillsUri,
+  openSkillsDocument,
+  updateSkillsFromFindings,
+} from './workspaceSkills';
 
 let lastWorkspaceScan: { folderName: string; result: WorkspaceScanResult } | null = null;
 
@@ -127,6 +133,28 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const folderName = getWorkspaceFolderDisplayName();
     lastWorkspaceScan = { folderName, result };
+
+    const wsFolder = vscode.workspace.workspaceFolders?.[0];
+    if (wsFolder && cfg.autoUpdateSkillsOnScan) {
+      try {
+        const { uri, created } = await updateSkillsFromFindings(
+          context.extensionUri,
+          wsFolder.uri,
+          cfg.skillsFile,
+          result.findings,
+        );
+        const rel = vscode.workspace.asRelativePath(uri);
+        if (created) {
+          void vscode.window.showInformationMessage(
+            `Signal: created ${rel} — scan rules appended for your AI assistant.`,
+          );
+        }
+      } catch (e) {
+        void vscode.window.showWarningMessage(
+          `Signal: could not update ${cfg.skillsFile} — ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
     openWorkspaceReportPanel(folderName, result, {
       extensionUri: context.extensionUri,
       onExplainFinding: runExplainFinding,
@@ -216,6 +244,44 @@ export function activate(context: vscode.ExtensionContext): void {
         extensionUri: context.extensionUri,
         onExplainFinding: runExplainFinding,
       });
+    }),
+
+    vscode.commands.registerCommand('signal.openProjectSkills', async () => {
+      const folder = vscode.workspace.workspaceFolders?.[0];
+      if (!folder) {
+        vscode.window.showWarningMessage('Signal: open a folder first.');
+        return;
+      }
+      const cfg = getSignalConfig();
+      const uri = await ensureSkillsFile(context.extensionUri, folder.uri, cfg.skillsFile);
+      await openSkillsDocument(uri);
+    }),
+
+    vscode.commands.registerCommand('signal.updateSkillsFromLastScan', async () => {
+      if (!lastWorkspaceScan) {
+        vscode.window.showWarningMessage('Signal: run “Scan workspace” first, then try again.');
+        return;
+      }
+      const folder = vscode.workspace.workspaceFolders?.[0];
+      if (!folder) {
+        vscode.window.showWarningMessage('Signal: open a folder first.');
+        return;
+      }
+      const cfg = getSignalConfig();
+      try {
+        await updateSkillsFromFindings(
+          context.extensionUri,
+          folder.uri,
+          cfg.skillsFile,
+          lastWorkspaceScan.result.findings,
+        );
+        await openSkillsDocument(getSkillsUri(folder.uri, cfg.skillsFile));
+        void vscode.window.showInformationMessage('Signal: updated skills file from last scan.');
+      } catch (e) {
+        void vscode.window.showErrorMessage(
+          `Signal: could not update skills — ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
     }),
 
     vscode.commands.registerCommand('signal.explainFinding', async (treeItem?: vscode.TreeItem) => {
