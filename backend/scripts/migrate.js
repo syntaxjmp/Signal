@@ -22,6 +22,14 @@ async function main() {
   try {
     await conn.query(sql);
     console.log('Migration applied:', schemaPath);
+    try {
+      await conn.query(
+        "ALTER TABLE projects ADD COLUMN compliance_frameworks JSON NULL COMMENT 'Selected framework ids for compliance scoring'",
+      );
+      console.log('Applied additive: projects.compliance_frameworks');
+    } catch (e) {
+      if (e?.code !== 'ER_DUP_FIELDNAME') throw e;
+    }
   } finally {
     await conn.end();
   }

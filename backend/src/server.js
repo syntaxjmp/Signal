@@ -312,6 +312,40 @@ async function maybeEnsurePolicyAndModelingTables() {
   }
 }
 
+async function maybeEnsureComplianceFrameworksColumn() {
+  const conn = await mysql.createConnection({
+    host: env.mysql.host,
+    port: env.mysql.port,
+    user: env.mysql.user,
+    password: env.mysql.password,
+    database: env.mysql.database,
+    multipleStatements: true,
+  });
+
+  try {
+    const [rows] = await conn.query(
+      `SELECT COUNT(*) AS cnt
+       FROM information_schema.columns
+       WHERE table_schema = ?
+         AND table_name = 'projects'
+         AND column_name = 'compliance_frameworks'`,
+      [env.mysql.database],
+    );
+    if (Number(rows?.[0]?.cnt || 0) === 0) {
+      await conn.query(
+        `ALTER TABLE projects ADD COLUMN compliance_frameworks JSON NULL COMMENT 'Selected framework ids for compliance scoring'`,
+      );
+    }
+  } catch (e) {
+    console.warn(
+      '[db:migrate] compliance_frameworks column skipped',
+      e instanceof Error ? e.message : String(e),
+    );
+  } finally {
+    await conn.end();
+  }
+}
+
 function startSlaAutomationLoop() {
   const intervalMs = Math.max(60_000, Number(env.automation.slaIntervalMs) || 60 * 60 * 1000);
   const run = async () => {
@@ -336,6 +370,7 @@ async function main() {
   await maybeEnsureUserWebhookTable();
   await maybeEnsureStatefulMemoryTables();
   await maybeEnsurePolicyAndModelingTables();
+  await maybeEnsureComplianceFrameworksColumn();
 
   const app = createApp();
   const server = app.listen(env.port, () => {

@@ -18,6 +18,7 @@ import {
   complianceReportPdfFilename,
   pipeComplianceReportPdf,
 } from '../services/complianceReport.js';
+import { normalizeFrameworkIds } from '../services/complianceFrameworks.js';
 import {
   buildScanMemoryContext,
   detectAndStoreRegressions,
@@ -524,11 +525,22 @@ projectsRouter.get('/projects/:id/findings', requireUser, async (req, res, next)
   }
 });
 
+function complianceFrameworkIdsFromQuery(req) {
+  const q = req.query.frameworks;
+  if (q == null || q === '') return undefined;
+  const ids = String(q)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return ids.length ? normalizeFrameworkIds(ids) : undefined;
+}
+
 projectsRouter.get('/projects/:id/compliance-report/export', requireUser, async (req, res, next) => {
   try {
     const projectId = req.params.id;
     const pool = getPool();
-    const payload = await buildComplianceReportPayload(pool, projectId, req.userId);
+    const frameworkIds = complianceFrameworkIdsFromQuery(req);
+    const payload = await buildComplianceReportPayload(pool, projectId, req.userId, { frameworkIds });
     if (payload.error === 'not_found') {
       res.status(404).json({ error: 'Project not found' });
       return;
@@ -548,7 +560,8 @@ projectsRouter.get('/projects/:id/compliance-report', requireUser, async (req, r
   try {
     const projectId = req.params.id;
     const pool = getPool();
-    const payload = await buildComplianceReportPayload(pool, projectId, req.userId);
+    const frameworkIds = complianceFrameworkIdsFromQuery(req);
+    const payload = await buildComplianceReportPayload(pool, projectId, req.userId, { frameworkIds });
     if (payload.error === 'not_found') {
       res.status(404).json({ error: 'Project not found' });
       return;
@@ -558,6 +571,37 @@ projectsRouter.get('/projects/:id/compliance-report', requireUser, async (req, r
       return;
     }
     res.json(payload);
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.patch('/projects/:id/compliance-frameworks', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    if (project.userId !== req.userId) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    if (!Array.isArray(req.body?.frameworkIds)) {
+      res.status(400).json({ error: 'frameworkIds must be an array (use [] for none)' });
+      return;
+    }
+    const normalized = normalizeFrameworkIds(req.body.frameworkIds);
+    await pool.query(`UPDATE projects SET compliance_frameworks = ? WHERE id = ?`, [
+      JSON.stringify(normalized),
+      projectId,
+    ]);
+    res.json({ ok: true, frameworkIds: normalized });
   } catch (e) {
     next(e);
   }

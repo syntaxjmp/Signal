@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import styles from "./page.module.css";
 
@@ -68,6 +68,29 @@ type CompliancePayload = {
     createdAt: string;
   }>;
   emptyReason?: string | null;
+  frameworkCatalog?: Array<{
+    id: string;
+    name: string;
+    shortLabel: string;
+    description: string;
+    criteria: Array<{ id: string; label: string }>;
+  }>;
+  selectedFrameworkIds?: string[];
+  frameworkScores?: Array<{
+    frameworkId: string;
+    frameworkName: string;
+    shortLabel: string;
+    description: string;
+    overallScore: number;
+    criteria: Array<{
+      id: string;
+      label: string;
+      score: number;
+      matchedFindingCount: number;
+      unresolvedCount: number;
+    }>;
+  }>;
+  frameworkDisclaimer?: string;
 };
 
 async function readApiResponse(response: Response) {
@@ -208,6 +231,140 @@ function ExecutiveSummaryVisuals({
   );
 }
 
+const STEP_COLORS = {
+  box: "#3F3D56",
+  rose: "#D86D82",
+};
+
+function StepScoreIndicator({ score, compact }: { score: number; compact?: boolean }) {
+  const steps = 10;
+  const clamped = Math.min(100, Math.max(0, score));
+  const filled = Math.min(steps, Math.max(0, Math.round(clamped / 10)));
+  const decile = Math.min(10, Math.max(0, Math.round(clamped / 10)));
+  const boxLabel = decile === 10 ? "10" : String(decile);
+  const pct = Math.round(clamped);
+
+  return (
+    <div
+      className={compact ? styles.stepWrapCompact : styles.stepWrap}
+      title={`${pct}%`}
+      role="img"
+      aria-label={`${pct} percent`}
+    >
+      <div
+        className={styles.stepBox}
+        style={{ backgroundColor: STEP_COLORS.box }}
+        aria-hidden
+      >
+        {boxLabel}
+      </div>
+      <div className={styles.stepRow}>
+        {Array.from({ length: steps }, (_, i) => (
+          <span
+            key={i}
+            className={i < filled ? styles.stepDotFilled : styles.stepDotEmpty}
+            style={
+              i < filled
+                ? { backgroundColor: STEP_COLORS.rose, borderColor: STEP_COLORS.rose }
+                : { borderColor: STEP_COLORS.rose }
+            }
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FrameworkAlignmentSection({
+  catalog,
+  selectedIds,
+  scores,
+  disclaimer,
+  emptyScan,
+  onToggle,
+  variant,
+}: {
+  catalog: NonNullable<CompliancePayload["frameworkCatalog"]>;
+  selectedIds: string[];
+  scores: CompliancePayload["frameworkScores"];
+  disclaimer?: string;
+  emptyScan: boolean;
+  onToggle: (id: string, checked: boolean) => void;
+  variant: "empty" | "full";
+}) {
+  const label =
+    variant === "full"
+      ? "2 · Compliance framework alignment"
+      : "Compliance frameworks (saved for this project)";
+  return (
+    <section className={styles.section} aria-labelledby="fw-heading">
+      <div id="fw-heading" className={styles.sectionLabel}>
+        {label}
+      </div>
+      {disclaimer ? <p className={styles.fwDisclaimer}>{disclaimer}</p> : null}
+      {emptyScan ? (
+        <p className={styles.fwScanHint}>
+          Run a completed scan to populate per-control scores. Your framework selection is saved on this project.
+        </p>
+      ) : null}
+      <div className={styles.fwPicker}>
+        {catalog.map((fw) => (
+          <label key={fw.id} className={styles.fwPickerLabel}>
+            <input
+              type="checkbox"
+              checked={selectedIds.includes(fw.id)}
+              onChange={(e) => {
+                onToggle(fw.id, e.target.checked);
+              }}
+            />
+            <span className={styles.fwPickerText}>
+              <strong>{fw.shortLabel}</strong>
+              <span className={styles.fwPickerName}>{fw.name}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {!emptyScan && (!scores || scores.length === 0) ? (
+        <p className={styles.fwNoneHint}>
+          No frameworks selected. Check one or more above to see alignment scores.
+        </p>
+      ) : null}
+      {scores && scores.length > 0 && !emptyScan ? (
+        <div className={styles.fwScoreGrid}>
+          {scores.map((fw) => (
+            <div key={fw.frameworkId} className={styles.fwCard}>
+              <div className={styles.fwCardHead}>
+                <h3 className={styles.fwCardTitle}>{fw.frameworkName}</h3>
+                <div className={styles.fwOverall} aria-label={`Overall score ${fw.overallScore} out of 100`}>
+                  <span className={styles.fwOverallLabel}>Overall</span>
+                  <span className={styles.fwOverallVal}>{fw.overallScore}</span>
+                  <span className={styles.fwOverallOf}>/100</span>
+                </div>
+              </div>
+              <p className={styles.fwCardDesc}>{fw.description}</p>
+              <ul className={styles.fwCritList}>
+                {fw.criteria.map((c) => (
+                  <li key={c.id} className={styles.fwCritItem}>
+                    <div className={styles.fwCritRow}>
+                      <div className={styles.fwCritText}>
+                        <span className={styles.fwCritLabel}>{c.label}</span>
+                        <span className={styles.fwCritNums}>
+                          {c.matchedFindingCount} matched · {c.unresolvedCount} open
+                        </span>
+                      </div>
+                      <StepScoreIndicator score={c.score} compact />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default function ComplianceReportPage() {
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
@@ -218,11 +375,95 @@ export default function ComplianceReportPage() {
   const [data, setData] = useState<CompliancePayload | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
 
+  /** Latest framework selection (survives overlapping GET/PATCH races). null = never touched, trust server payload. */
+  const frameworkSelectionRef = useRef<string[] | null>(null);
+  const loadSeqRef = useRef(0);
+  const patchSeqRef = useRef(0);
+
+  useEffect(() => {
+    frameworkSelectionRef.current = null;
+  }, [projectId]);
+
+  const loadReport = useCallback(async () => {
+    if (!projectId) return;
+    const seq = ++loadSeqRef.current;
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/projects/${projectId}/compliance-report`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const json = (await readApiResponse(r)) as CompliancePayload;
+      if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load compliance report");
+      if (seq !== loadSeqRef.current) return;
+      setData(() => {
+        const inc = json;
+        const sel = frameworkSelectionRef.current;
+        return {
+          ...inc,
+          selectedFrameworkIds: sel !== null ? [...sel] : (inc.selectedFrameworkIds ?? []),
+        };
+      });
+      if (frameworkSelectionRef.current === null) {
+        frameworkSelectionRef.current = json.selectedFrameworkIds ?? [];
+      }
+    } catch (e) {
+      if (seq === loadSeqRef.current) {
+        setError(e instanceof Error ? e.message : "Failed to load");
+      }
+    } finally {
+      if (seq === loadSeqRef.current) setLoading(false);
+    }
+  }, [projectId]);
+
+  const displayScores = useMemo(() => {
+    if (!data?.frameworkScores?.length) return [];
+    const ids = data?.selectedFrameworkIds ?? [];
+    return data.frameworkScores.filter((fw) => ids.includes(fw.frameworkId));
+  }, [data?.frameworkScores, data?.selectedFrameworkIds]);
+
+  async function toggleFramework(fwId: string, checked: boolean) {
+    if (!projectId || !session || !data?.frameworkCatalog) return;
+    const prev = [...(frameworkSelectionRef.current ?? data.selectedFrameworkIds ?? [])];
+    let next = [...prev];
+    if (checked) {
+      if (!next.includes(fwId)) next.push(fwId);
+    } else {
+      next = next.filter((id) => id !== fwId);
+    }
+    const patchId = ++patchSeqRef.current;
+    frameworkSelectionRef.current = next;
+    setData((d) => (d ? { ...d, selectedFrameworkIds: next } : null));
+    try {
+      const r = await fetch(`/api/projects/${projectId}/compliance-frameworks`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ frameworkIds: next }),
+      });
+      const json = (await readApiResponse(r)) as { error?: string; frameworkIds?: string[] };
+      if (!r.ok) throw new Error(json.error || "Save failed");
+      if (patchId !== patchSeqRef.current) return;
+      const saved = json.frameworkIds ?? next;
+      frameworkSelectionRef.current = saved;
+      setData((d) => (d ? { ...d, selectedFrameworkIds: saved } : null));
+    } catch (e) {
+      if (patchId !== patchSeqRef.current) return;
+      frameworkSelectionRef.current = prev;
+      setData((d) => (d ? { ...d, selectedFrameworkIds: prev } : null));
+      alert(e instanceof Error ? e.message : "Save failed");
+    }
+  }
+
   async function downloadMarkdown() {
     if (!projectId || !session) return;
     setDownloadBusy(true);
     try {
-      const r = await fetch(`/api/projects/${projectId}/compliance-report/export`, {
+      const ids = data?.selectedFrameworkIds ?? [];
+      const fw =
+        ids.length > 0 ? `?frameworks=${encodeURIComponent(ids.join(","))}` : "";
+      const r = await fetch(`/api/projects/${projectId}/compliance-report/export${fw}`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -273,29 +514,8 @@ export default function ComplianceReportPage() {
 
   useEffect(() => {
     if (!projectId || pending || !session) return;
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const r = await fetch(`/api/projects/${projectId}/compliance-report`, {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const json = (await readApiResponse(r)) as CompliancePayload;
-        if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load compliance report");
-        if (!cancelled) setData(json);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, pending, session]);
+    void loadReport();
+  }, [projectId, pending, session, loadReport]);
 
   if (!pending && !session) {
     return (
@@ -312,6 +532,7 @@ export default function ComplianceReportPage() {
   }
 
   const es = data?.executiveSummary;
+  const selectedIds = data?.selectedFrameworkIds ?? [];
   const verdictClass =
     data?.verdict?.tone === "strong"
       ? `${styles.verdict} ${styles.verdictStrong}`
@@ -374,6 +595,18 @@ export default function ComplianceReportPage() {
           </div>
         ) : null}
 
+        {!loading && data?.frameworkCatalog && data.emptyReason === "no_completed_scan" ? (
+          <FrameworkAlignmentSection
+            variant="empty"
+            catalog={data.frameworkCatalog}
+            selectedIds={selectedIds}
+            scores={data.frameworkScores}
+            disclaimer={data.frameworkDisclaimer}
+            emptyScan
+            onToggle={toggleFramework}
+          />
+        ) : null}
+
         {!loading && data && !data.emptyReason && es ? (
           <>
             <section className={styles.section} aria-labelledby="exec-heading">
@@ -386,9 +619,21 @@ export default function ComplianceReportPage() {
               </div>
             </section>
 
+            {data.frameworkCatalog ? (
+              <FrameworkAlignmentSection
+                variant="full"
+                catalog={data.frameworkCatalog}
+                selectedIds={selectedIds}
+                scores={displayScores}
+                disclaimer={data.frameworkDisclaimer}
+                emptyScan={false}
+                onToggle={toggleFramework}
+              />
+            ) : null}
+
             <section className={styles.section} aria-labelledby="risk-heading">
               <div id="risk-heading" className={styles.sectionLabel}>
-                2 · High-level risk areas
+                3 · High-level risk areas
               </div>
               <p className={styles.sub} style={{ marginTop: 0, marginBottom: "0.75rem", fontSize: "0.95rem" }}>
                 Issues grouped by theme (not every finding listed).
@@ -411,7 +656,7 @@ export default function ComplianceReportPage() {
             {data.signalFixes ? (
               <section className={styles.section} aria-labelledby="fix-heading">
                 <div id="fix-heading" className={styles.sectionLabel}>
-                  3 · What Signal fixed (trust &amp; remediation)
+                  4 · What Signal fixed (trust &amp; remediation)
                 </div>
                 <p className={styles.fixIntro}>
                   Remediation coverage from finding status and completed PR workflows in Signal.
@@ -446,7 +691,7 @@ export default function ComplianceReportPage() {
 
             <section className={styles.section} aria-labelledby="str-heading">
               <div id="str-heading" className={styles.sectionLabel}>
-                4 · Security strengths
+                5 · Security strengths
               </div>
               <ul className={styles.strengthList}>
                 {(data.strengths ?? []).map((s) => (
@@ -458,7 +703,7 @@ export default function ComplianceReportPage() {
             {data.verdict ? (
               <section className={styles.section} aria-labelledby="verdict-heading">
                 <div id="verdict-heading" className={styles.sectionLabel}>
-                  5 · Final verdict
+                  6 · Final verdict
                 </div>
                 <div className={verdictClass}>
                   <h3>{data.verdict.headline}</h3>
@@ -469,7 +714,7 @@ export default function ComplianceReportPage() {
 
             <section className={styles.section} aria-labelledby="tl-heading">
               <div id="tl-heading" className={styles.sectionLabel}>
-                6 · Timeline &amp; evidence
+                7 · Timeline &amp; evidence
               </div>
               <p className={`${styles.sub} ${styles.timelineSub}`}>
                 Scan milestones and completed remediation jobs (PRs). Use alongside your change-management records.
@@ -493,7 +738,7 @@ export default function ComplianceReportPage() {
 
             <section className={styles.section} aria-labelledby="ev-heading">
               <div id="ev-heading" className={styles.sectionLabel}>
-                7 · Finding detail — impact, exploit path, fix
+                8 · Finding detail — impact, exploit path, fix
               </div>
               <div className={styles.evidence}>
                 {(data.evidence ?? []).map((ev) => (
