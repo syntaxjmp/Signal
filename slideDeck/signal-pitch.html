@@ -902,6 +902,105 @@
         .check { color: var(--accent); }
         .cross { color: var(--line); }
 
+        /* A4: larger competitor matrix (still fits 100dvh) */
+        .vs-table--xl {
+            font-size: clamp(0.78rem, 1.35vw, 1.12rem);
+        }
+        .vs-table--xl th {
+            font-size: clamp(0.65rem, 1.05vw, 0.88rem);
+            padding: clamp(6px, 0.9vw, 12px) clamp(8px, 1.2vw, 14px);
+        }
+        .vs-table--xl td {
+            font-size: clamp(0.78rem, 1.35vw, 1.12rem);
+            padding: clamp(6px, 0.85vw, 12px) clamp(8px, 1.2vw, 14px);
+        }
+        .vs-table--xl .check,
+        .vs-table--xl .cross {
+            font-size: clamp(1rem, 1.6vw, 1.35rem);
+        }
+
+        /* A4 slide 2: General LLM vs Signal */
+        .llm-compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(0.75rem, 2vw, 1.75rem);
+            width: 100%;
+            max-width: min(96vw, 1050px);
+            align-items: stretch;
+        }
+        @media (max-width: 800px) {
+            .llm-compare { grid-template-columns: 1fr; }
+        }
+        .llm-compare-col {
+            border-radius: clamp(10px, 1.5vw, 16px);
+            border: 1px solid rgba(255, 90, 52, 0.18);
+            background: rgba(10, 4, 2, 0.45);
+            padding: clamp(0.65rem, 1.8vw, 1.15rem);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.45rem, 1.2vw, 0.85rem);
+            min-height: 0;
+        }
+        .llm-compare-col--signal {
+            border-color: rgba(255, 90, 52, 0.42);
+            background: linear-gradient(165deg, rgba(255, 90, 52, 0.1), rgba(10, 4, 2, 0.55));
+            box-shadow: 0 0 0 1px rgba(255, 90, 52, 0.12) inset;
+        }
+        .llm-compare-label {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: clamp(0.85rem, 1.6vw, 1.15rem);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .llm-compare-col--signal .llm-compare-label {
+            color: var(--accent-soft);
+        }
+        .llm-compare-title {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: clamp(1.05rem, 2.2vw, 1.55rem);
+            line-height: 1.2;
+            color: var(--foreground);
+        }
+        .llm-compare-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.4rem, 1vw, 0.65rem);
+            margin: 0;
+            padding: 0;
+        }
+        .llm-compare-list li {
+            font-size: clamp(0.82rem, 1.45vw, 1.08rem);
+            line-height: 1.45;
+            color: var(--text-secondary);
+            padding-left: clamp(1rem, 2vw, 1.35rem);
+            position: relative;
+        }
+        .llm-compare-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.55em;
+            width: clamp(5px, 0.6vw, 7px);
+            height: clamp(5px, 0.6vw, 7px);
+            border-radius: 50%;
+            background: var(--line);
+        }
+        .llm-compare-col--signal .llm-compare-list li::before {
+            background: var(--accent);
+        }
+        .defend-slide .defend-kicker {
+            font-size: clamp(0.88rem, 1.5vw, 1.12rem);
+            color: var(--text-secondary);
+            max-width: 42em;
+            margin: 0 auto;
+            line-height: 1.45;
+            text-align: center;
+        }
+
         /* ======================================================
            SLIDE 6: BUSINESS CASE
            ====================================================== */
@@ -1055,7 +1154,7 @@
             <h1 class="reveal">Ship Faster,<br>Without Stress.</h1>
             <p class="title-tagline reveal">
                 AI-powered security scanning that detects critical vulnerabilities
-                in your codebase instantly&mdash;so your team ships with confidence.
+                in your codebase instantly so your team ships with confidence.
             </p>
             <div class="title-meta reveal">
                 <span class="pill pill-accent">FoundersHack 2026</span>
@@ -1359,7 +1458,7 @@
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">B1 &middot; Implementation</span>
-                <h2>Full-Stack, <span class="accent">Production-Ready</span></h2>
+                <h2>Our <span class="accent">Tech Stack</span></h2>
             </div>
             <div class="arch-diagram reveal">
                 <div class="arch-col">
@@ -1380,7 +1479,7 @@
                 <div class="arch-connector reveal">&#8644;</div>
                 <div class="arch-col">
                     <div class="arch-col-title">AI Engine</div>
-                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> OpenAI GPT-4o-mini</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> OpenAI GPT-5.4</div>
                     <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Vuln Analysis Agent</div>
                     <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Resolution Agent</div>
                     <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Qdrant Vector Store</div>
@@ -1402,17 +1501,18 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 8: DEFENSIBILITY & FUNCTIONALITY
+         SLIDE 8: DEFENSIBILITY — COMPETITORS (A4a)
          Rubric ref: A4 (12 pts)
          ====================================================== -->
-    <section class="slide defend-slide bg-subtle" aria-label="Defensibility">
+    <section class="slide defend-slide bg-subtle" aria-label="Defensibility — competitors">
         <span class="slide-number">08 / Defensibility</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
-                <h2>How we&rsquo;re <span class="accent">different</span></h2>
+                <h2 style="font-size: clamp(1.45rem, 4.2vw, 2.85rem);">How we&rsquo;re <span class="accent">different</span> &mdash; <span style="color: var(--text-secondary); font-weight: 600;">vs traditional AppSec</span></h2>
             </div>
-            <table class="vs-table reveal">
+            <p class="defend-kicker reveal">Snyk, SonarQube, and CodeQL excel at rules and static analysis&mdash;Signal adds <strong style="color: var(--foreground);">AI-native semantics</strong>, <strong style="color: var(--foreground);">fix PRs</strong>, and <strong style="color: var(--foreground);">compliance-ready reporting</strong> in one product surface.</p>
+            <table class="vs-table vs-table--xl reveal">
                 <thead>
                     <tr>
                         <th>Capability</th>
@@ -1424,63 +1524,88 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>AI Semantic Analysis</td>
+                        <td>AI semantic analysis</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
                     <tr>
-                        <td>Automated Fix PRs</td>
+                        <td>Automated fix PRs</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
                     <tr>
-                        <td>One-Click Setup</td>
+                        <td>One-click setup</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
                         <td><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
                     <tr>
-                        <td>Compliance PDFs (SOC 2, ISO)</td>
+                        <td>Compliance PDFs (e.g. SOC 2 themes)</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
                         <td>Paid</td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
                     <tr>
-                        <td>Audit Trail + Diff Tracking</td>
+                        <td>Audit trail + diff tracking</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
                         <td>Partial</td>
                         <td><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
-                    <tr>
-                        <td>Free &amp; Open Setup</td>
-                        <td class="col-signal"><span class="check">&#10003;</span></td>
-                        <td>Freemium</td>
-                        <td>Community</td>
-                        <td><span class="check">&#10003;</span></td>
-                    </tr>
                 </tbody>
             </table>
-            <ul class="bullet-list reveal" style="max-width: 700px; margin: 0 auto;">
-                <li><strong style="color: var(--foreground);">LLM-powered semantic analysis</strong> catches logic-level vulnerabilities that rule-based tools miss</li>
-                <li><strong style="color: var(--foreground);">Resolution agent</strong> forks the repo, applies AI-generated fixes, and opens a ready-to-merge PR</li>
-                <li><strong style="color: var(--foreground);">Stateful memory</strong> tracks dismissals, regressions, and baselines across scans</li>
-            </ul>
         </div>
     </section>
 
     <!-- ======================================================
-         SLIDE 9: BUSINESS CASE
+         SLIDE 9: DEFENSIBILITY — VS GENERAL LLM + MEMORY (A4b)
+         Rubric ref: A4 (12 pts)
+         ====================================================== -->
+    <section class="slide defend-slide bg-subtle" aria-label="Defensibility — LLM and memory">
+        <span class="slide-number">09 / Defensibility</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
+                <h2 style="font-size: clamp(1.45rem, 4vw, 2.65rem);">Not a <span class="accent">chatbot</span> &mdash; a <span class="accent">grounded</span> security brain</h2>
+            </div>
+            <div class="llm-compare reveal">
+                <div class="llm-compare-col">
+                    <span class="llm-compare-label">General-purpose LLM</span>
+                    <div class="llm-compare-title">Claude-style tools</div>
+                    <ul class="llm-compare-list">
+                        <li>No durable <strong style="color: var(--foreground);">project memory</strong> across scans&mdash;each prompt is a one-off.</li>
+                        <li>Can hallucinate fixes without your repo, CI, or finding IDs as source of truth.</li>
+                        <li>Not integrated into the <strong style="color: var(--foreground);">developer workflow</strong> (PRs, audits, baselines).</li>
+                    </ul>
+                </div>
+                <div class="llm-compare-col llm-compare-col--signal">
+                    <span class="llm-compare-label">Signal</span>
+                    <div class="llm-compare-title">Stateful AppSec + workspace</div>
+                    <ul class="llm-compare-list">
+                        <li><strong style="color: var(--foreground);">Memory graph:</strong> baselines, dismissals, regressions, and embeddings (Qdrant) tied to real entities&mdash;not a blank slate each time.</li>
+                        <li><strong style="color: var(--foreground);">VS Code extension:</strong> brings findings and context into the editor where code actually ships.</li>
+                        <li><strong style="color: var(--foreground);">Resolution agent + PRs:</strong> AI fixes land as reviewable merges, not pasted snippets.</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="defend-kicker reveal" style="margin-top: clamp(0.2rem, 0.8vw, 0.6rem);">
+                <strong style="color: var(--foreground);">Why it matters:</strong> competitors and generic LLMs don&rsquo;t maintain a <span class="accent-soft">living memory layer</span> for your codebase&mdash;Signal does, so analysis stays consistent, explainable, and defensible for auditors.
+            </p>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 10: BUSINESS CASE
          Rubric ref: A5 (5 pts) + A6 (5 pts)
          ====================================================== -->
     <section class="slide biz-slide bg-accent-glow" aria-label="Business Case">
-        <span class="slide-number">09 / Business Case</span>
+        <span class="slide-number">10 / Business Case</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A5 + A6 &middot; GTM Strategy &amp; Market</span>
@@ -1522,11 +1647,11 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 10: OVERVIEW & CLOSING
+         SLIDE 11: OVERVIEW & CLOSING
          Rubric ref: C2 (7 pts) + B2 (8 pts)
          ====================================================== -->
     <section class="slide overview-slide bg-radial" aria-label="Overview and closing">
-        <span class="slide-number">10 / Overview</span>
+        <span class="slide-number">11 / Overview</span>
         <div class="slide-content">
             <div class="reveal">
                 <h2>Everything Maps to the <span class="accent">Rubric</span></h2>
@@ -1551,12 +1676,12 @@
                 <div class="rubric-card">
                     <div class="rubric-card-ref">A4</div>
                     <div class="rubric-card-title">Defensibility</div>
-                    <div class="rubric-card-weight">12 pts &middot; Slide 08</div>
+                    <div class="rubric-card-weight">12 pts &middot; Slides 08&ndash;09</div>
                 </div>
                 <div class="rubric-card">
                     <div class="rubric-card-ref">A5&ndash;A6</div>
                     <div class="rubric-card-title">Business Case</div>
-                    <div class="rubric-card-weight">10% &middot; Slide 09</div>
+                    <div class="rubric-card-weight">10% &middot; Slide 10</div>
                 </div>
                 <div class="rubric-card">
                     <div class="rubric-card-ref">C1&ndash;C2</div>
