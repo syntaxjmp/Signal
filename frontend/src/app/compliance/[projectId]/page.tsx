@@ -231,10 +231,23 @@ function ExecutiveSummaryVisuals({
   );
 }
 
-const STEP_COLORS = {
-  box: "#3F3D56",
-  rose: "#D86D82",
-};
+/** Per-dot color along the row: muted red (low score / left) → muted green (high score / right). */
+function stepDotGradientStyle(index: number, steps: number, isFilled: boolean): React.CSSProperties {
+  const t = steps <= 1 ? 0 : index / (steps - 1);
+  const h = 4 + t * 138;
+  const s = 32 + t * 14;
+  const l = 42 + t * 6;
+  if (isFilled) {
+    return {
+      backgroundColor: `hsl(${h} ${s}% ${l}%)`,
+      borderColor: `hsl(${h} ${Math.max(22, s - 6)}% ${Math.max(36, l - 3)}%)`,
+    };
+  }
+  return {
+    backgroundColor: "transparent",
+    borderColor: `hsla(${h}, ${s * 0.55}%, ${l + 8}%, 0.36)`,
+  };
+}
 
 function StepScoreIndicator({ score, compact }: { score: number; compact?: boolean }) {
   const steps = 10;
@@ -251,11 +264,7 @@ function StepScoreIndicator({ score, compact }: { score: number; compact?: boole
       role="img"
       aria-label={`${pct} percent`}
     >
-      <div
-        className={styles.stepBox}
-        style={{ backgroundColor: STEP_COLORS.box }}
-        aria-hidden
-      >
+      <div className={styles.stepBox} aria-hidden>
         {boxLabel}
       </div>
       <div className={styles.stepRow}>
@@ -263,11 +272,7 @@ function StepScoreIndicator({ score, compact }: { score: number; compact?: boole
           <span
             key={i}
             className={i < filled ? styles.stepDotFilled : styles.stepDotEmpty}
-            style={
-              i < filled
-                ? { backgroundColor: STEP_COLORS.rose, borderColor: STEP_COLORS.rose }
-                : { borderColor: STEP_COLORS.rose }
-            }
+            style={stepDotGradientStyle(i, steps, i < filled)}
           />
         ))}
       </div>
