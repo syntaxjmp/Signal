@@ -113,11 +113,6 @@ function ExecutiveSummaryVisuals({
   ];
   const areas = riskAreas ?? [];
   const maxRisk = Math.max(1, ...areas.map((a) => a.findingCount));
-  const score = es.securityScore;
-  const scorePct =
-    score == null || Number.isNaN(Number(score))
-      ? null
-      : Math.min(100, Math.max(0, (Number(score) / 50) * 100));
 
   const totalFindings = es.criticalIssues + es.highIssues + es.mediumIssues + es.lowIssues;
 
@@ -165,16 +160,10 @@ function ExecutiveSummaryVisuals({
             </>
           ) : null}
 
-          <div className={styles.execScoreTop} style={{ marginTop: totalFindings > 0 ? "0.85rem" : 0 }}>
-            <span className={styles.execScoreLabel}>Security score (0–50, lower is better)</span>
-            <span className={styles.execScoreValue}>{es.securityScore ?? "—"}</span>
-          </div>
-          <div className={styles.execScoreTrack}>
-            {scorePct != null ? (
-              <span className={styles.execScoreMarker} style={{ left: `${scorePct}%` }} title={`${String(score)} / 50`} />
-            ) : null}
-          </div>
-          <div className={styles.execUnresolved}>
+          <div
+            className={styles.execUnresolved}
+            style={totalFindings > 0 ? { marginTop: "0.85rem" } : undefined}
+          >
             <span className={styles.execChip}>Overall risk: {es.overallRisk}</span>
             <span className={styles.execChip}>Open critical: {es.criticalUnresolved}</span>
             <span className={styles.execChip}>Open high: {es.highUnresolved}</span>
