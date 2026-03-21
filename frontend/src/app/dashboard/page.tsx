@@ -1847,7 +1847,7 @@ export default function DashboardPage() {
               <path d="M14 11a5 5 0 0 1 0 7l-1 1a5 5 0 0 1-7-7l1-1" />
             </svg>
           </span>
-          <span className="dash-bottomnav__label">Connect</span>
+          <span className="dash-bottomnav__label">Add Codebase</span>
         </button>
       </nav>
     </div>
