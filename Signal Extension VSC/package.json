@@ -1,0 +1,128 @@
+{
+  "name": "signal-security",
+  "displayName": "Signal Security",
+  "description": "Scan your workspace and selections with Signal (hackathon MVP).",
+  "version": "0.0.1",
+  "publisher": "signal",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "signal.scanWorkspace",
+        "title": "Signal: Scan workspace"
+      },
+      {
+        "command": "signal.scanSelection",
+        "title": "Signal: Scan selection"
+      },
+      {
+        "command": "signal.openFinding",
+        "title": "Signal: Open finding location"
+      },
+      {
+        "command": "signal.resolveFinding",
+        "title": "Signal: Resolve finding (placeholder)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "signal.scanWorkspace",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "signal.scanSelection",
+          "when": "editorHasSelection"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "signal.scanSelection",
+          "when": "editorHasSelection",
+          "group": "signal@1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "signal.scanWorkspace",
+          "when": "view == signal.findings",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "signal.resolveFinding",
+          "when": "view == signal.findings && viewItem == finding",
+          "group": "signal@1"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "signal.findings",
+          "name": "Signal Findings",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Signal",
+      "properties": {
+        "signal.apiBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:4000",
+          "description": "Signal API origin (matches local backend default PORT). Clear this value to scan offline (index only, no HTTP)."
+        },
+        "signal.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "Optional Bearer token for authenticated scan requests."
+        },
+        "signal.workspaceScanPath": {
+          "type": "string",
+          "default": "/api/extension/workspace-scan",
+          "description": "Path appended to apiBaseUrl for full workspace scans (POST JSON). Must include /api — Express mounts the API there."
+        },
+        "signal.snippetScanPath": {
+          "type": "string",
+          "default": "/api/extension/snippet-scan",
+          "description": "Path appended to apiBaseUrl for selection scans (POST JSON)."
+        },
+        "signal.maxFiles": {
+          "type": "number",
+          "default": 100,
+          "minimum": 1,
+          "maximum": 2000,
+          "description": "Maximum source files to collect per workspace scan."
+        },
+        "signal.maxFileBytes": {
+          "type": "number",
+          "default": 1048576,
+          "minimum": 1024,
+          "description": "Skip files larger than this many bytes."
+        },
+        "signal.scanOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run a workspace scan when VS Code finishes startup."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}
