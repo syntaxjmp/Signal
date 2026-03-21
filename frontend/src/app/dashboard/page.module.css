@@ -578,6 +578,15 @@
   margin-top: 1.2rem;
 }
 
+/* Memory map: min-height reserves top bar + shell padding + fixed dock (bottom: 18px, z-index 40) */
+:global(.dash-memoryStage) {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: calc(100dvh - 12.75rem);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
 /* —— Dashboard Audit (scan diffs) —— */
 :global(.dash-auditSelectWrap) {
   position: relative;

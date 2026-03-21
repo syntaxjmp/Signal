@@ -1605,7 +1605,7 @@ export default function DashboardPage() {
             </div>
           </section>
         ) : activeSection === "memory" ? (
-          <section className="dash-teamPanel" id="memory">
+          <section className="dash-teamPanel dash-memoryStage" id="memory">
             <MemoryMapPanel />
           </section>
         ) : (

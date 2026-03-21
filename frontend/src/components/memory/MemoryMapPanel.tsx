@@ -55,7 +55,7 @@ export default function MemoryMapPanel({ graphData }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<ForceGraphInstance | null>(null);
   const selectedIdRef = useRef<string | null>(null);
-  const [dims, setDims] = useState({ w: 0, h: 420 });
+  const [dims, setDims] = useState({ w: 0, h: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   selectedIdRef.current = selectedId;
 
@@ -86,12 +86,17 @@ export default function MemoryMapPanel({ graphData }: Props) {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
-      const w = el.clientWidth;
-      if (w > 0) setDims((d) => ({ ...d, w }));
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr) return;
+      const w = Math.floor(cr.width);
+      const h = Math.floor(cr.height);
+      if (w > 0 && h > 0) setDims((d) => (d.w === w && d.h === h ? d : { w, h }));
     });
     ro.observe(el);
-    setDims((d) => ({ ...d, w: el.clientWidth }));
+    const w0 = Math.floor(el.clientWidth);
+    const h0 = Math.floor(el.clientHeight);
+    if (w0 > 0 && h0 > 0) setDims({ w: w0, h: h0 });
     return () => ro.disconnect();
   }, []);
 
@@ -153,7 +158,7 @@ export default function MemoryMapPanel({ graphData }: Props) {
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || dims.w <= 0) return;
+    if (!el || dims.w <= 0 || dims.h <= 0) return;
 
     let cancelled = false;
 
@@ -166,7 +171,7 @@ export default function MemoryMapPanel({ graphData }: Props) {
 
       const fg = new ForceGraph(containerRef.current)
         .width(dims.w)
-        .height(420)
+        .height(dims.h)
         .backgroundColor("transparent")
         .graphData(fgData)
         .nodeId("id")
@@ -196,7 +201,7 @@ export default function MemoryMapPanel({ graphData }: Props) {
       fgRef.current?._destructor();
       fgRef.current = null;
     };
-  }, [dims.w, fgData, applyHighlight]);
+  }, [dims.w, dims.h, fgData, applyHighlight]);
 
   return (
     <div className={styles.root} aria-label="Memory map">
@@ -204,7 +209,7 @@ export default function MemoryMapPanel({ graphData }: Props) {
         <div className={styles.graphColumn}>
           <div className={styles.graphStage}>
             <div ref={containerRef} className={styles.graphInner}>
-              {dims.w <= 0 ? (
+              {dims.w <= 0 || dims.h <= 0 ? (
                 <div className={styles.loading} role="status">
                   Preparing canvas…
                 </div>
