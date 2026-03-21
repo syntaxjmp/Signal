@@ -1,0 +1,398 @@
+.root {
+  position: relative;
+}
+
+/* Subtle brand watermark (screen only; export uses Markdown header/footer) */
+.watermark::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    -36deg,
+    transparent,
+    transparent 120px,
+    rgba(255, 90, 52, 0.028) 120px,
+    rgba(255, 90, 52, 0.028) 240px
+  );
+}
+
+.watermark::after {
+  content: "SIGNAL";
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-22deg);
+  font-size: clamp(3rem, 12vw, 9rem);
+  font-weight: 950;
+  letter-spacing: 0.42em;
+  color: rgba(255, 90, 52, 0.065);
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+  white-space: nowrap;
+  text-indent: 0.15em;
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.25rem 0 3rem;
+}
+
+.topnav {
+  position: relative;
+  z-index: 2;
+  width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navActions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 850;
+  font-size: 1.35rem;
+  color: #fff0ea;
+  text-decoration: none;
+}
+
+.back {
+  padding: 0.45rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 90, 52, 0.35);
+  color: #fef8f6;
+  text-decoration: none;
+  font-weight: 650;
+  font-size: 0.9rem;
+}
+
+.download {
+  padding: 0.45rem 0.95rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 240, 234, 0.28);
+  background: rgba(255, 90, 52, 0.14);
+  color: #fff8f4;
+  font-weight: 750;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.download:hover:not(:disabled) {
+  background: rgba(255, 90, 52, 0.22);
+}
+
+.download:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.title {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 900;
+}
+
+.sub {
+  margin: 0 0 1.5rem;
+  color: rgba(255, 220, 210, 0.82);
+  line-height: 1.5;
+}
+
+.section {
+  margin-bottom: 1.75rem;
+}
+
+.sectionLabel {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 140, 110, 0.95);
+  margin-bottom: 0.65rem;
+}
+
+.execGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.execCard {
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 90, 52, 0.22);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.execCardMuted {
+  grid-column: 1 / -1;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.95rem;
+  color: rgba(255, 230, 220, 0.88);
+}
+
+.execValue {
+  font-size: 1.85rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.execKey {
+  font-size: 0.8rem;
+  color: rgba(255, 200, 185, 0.75);
+  margin-top: 0.35rem;
+}
+
+.riskList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.riskItem {
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.riskTitle {
+  font-weight: 800;
+  margin-bottom: 0.35rem;
+}
+
+.riskMeta {
+  font-size: 0.88rem;
+  color: rgba(255, 210, 195, 0.72);
+}
+
+.fixGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .fixGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fixCard {
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(82, 214, 162, 0.25);
+  background: linear-gradient(145deg, rgba(20, 40, 30, 0.5), rgba(0, 0, 0, 0.25));
+}
+
+.fixCardHighlight {
+  border-color: rgba(255, 180, 80, 0.35);
+  background: linear-gradient(145deg, rgba(50, 35, 15, 0.45), rgba(0, 0, 0, 0.25));
+}
+
+.fixPct {
+  font-size: 2rem;
+  font-weight: 950;
+  color: #7ae8b8;
+}
+
+.fixLabel {
+  font-size: 0.82rem;
+  color: rgba(255, 220, 210, 0.78);
+  margin-top: 0.25rem;
+}
+
+.strengthList {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: rgba(255, 230, 220, 0.9);
+  line-height: 1.65;
+}
+
+.strengthList li {
+  margin-bottom: 0.4rem;
+}
+
+.verdict {
+  padding: 1.25rem 1.35rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 90, 52, 0.35);
+  background: rgba(30, 10, 8, 0.55);
+}
+
+.verdictStrong {
+  border-color: rgba(82, 214, 162, 0.4);
+  background: rgba(10, 28, 22, 0.45);
+}
+
+.verdictWarn {
+  border-color: rgba(255, 100, 80, 0.45);
+}
+
+.verdict h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.verdict p {
+  margin: 0;
+  color: rgba(255, 220, 210, 0.88);
+  line-height: 1.55;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tlRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 560px) {
+  .tlRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tlDate {
+  color: rgba(255, 200, 185, 0.65);
+  font-variant-numeric: tabular-nums;
+}
+
+.evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.evCard {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.evHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sev {
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+}
+
+.sevCritical {
+  background: rgba(255, 60, 60, 0.25);
+  color: #ffb0a8;
+}
+
+.sevHigh {
+  background: rgba(255, 140, 80, 0.22);
+  color: #ffd0a8;
+}
+
+.sevMedium {
+  background: rgba(255, 200, 100, 0.15);
+  color: #ffe8c8;
+}
+
+.sevLow {
+  background: rgba(200, 220, 255, 0.12);
+  color: #dde8ff;
+}
+
+.evTitle {
+  font-weight: 750;
+  flex: 1;
+  min-width: 200px;
+}
+
+.evBody {
+  padding: 0.85rem 1rem 1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(255, 225, 215, 0.88);
+}
+
+.evBody dt {
+  font-weight: 750;
+  color: rgba(255, 180, 155, 0.95);
+  margin-top: 0.65rem;
+}
+
+.evBody dt:first-child {
+  margin-top: 0;
+}
+
+.evBody dd {
+  margin: 0.25rem 0 0;
+}
+
+.fileRef {
+  font-size: 0.82rem;
+  color: rgba(255, 200, 185, 0.65);
+  margin-top: 0.35rem;
+}
+
+.error {
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 80, 60, 0.35);
+  background: rgba(40, 10, 8, 0.4);
+}
+
+.loading {
+  padding: 2rem;
+  text-align: center;
+  color: rgba(255, 220, 210, 0.65);
+}
+
+.empty {
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: rgba(255, 220, 210, 0.78);
+  line-height: 1.55;
+}
+
+.prLink {
+  color: #7ec8ff;
+  word-break: break-all;
+}

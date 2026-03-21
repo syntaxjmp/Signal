@@ -13,6 +13,11 @@ import {
   sendWebhookForUser,
   setUserWebhook,
 } from '../services/webhookHandler.js';
+import {
+  buildComplianceReportPayload,
+  complianceReportFilename,
+  complianceReportToMarkdown,
+} from '../services/complianceReport.js';
 
 export const projectsRouter = Router();
 
@@ -454,6 +459,48 @@ projectsRouter.get('/projects/:id/findings', requireUser, async (req, res, next)
           }
         : null,
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.get('/projects/:id/compliance-report/export', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const payload = await buildComplianceReportPayload(pool, projectId, req.userId);
+    if (payload.error === 'not_found') {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    if (payload.error === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    const markdown = complianceReportToMarkdown(payload);
+    const filename = complianceReportFilename(payload.project?.projectName);
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(markdown);
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.get('/projects/:id/compliance-report', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const payload = await buildComplianceReportPayload(pool, projectId, req.userId);
+    if (payload.error === 'not_found') {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    if (payload.error === 'forbidden') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    res.json(payload);
   } catch (e) {
     next(e);
   }
