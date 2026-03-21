@@ -46,6 +46,9 @@ function linkEndpointId(end: string | { id?: string } | null | undefined): strin
 type Props = {
   /** Pass real graph data from the memory API later; defaults to dummy data. */
   graphData?: MemoryGraphData;
+  /** Dashboard Memory tab scopes the map to a project (future API wiring). */
+  projectId?: string;
+  projectName?: string;
 };
 
 type ForceGraphInstance = InstanceType<typeof import("force-graph").default>;

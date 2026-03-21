@@ -37,6 +37,19 @@ function repoPathFromUrl(githubUrl) {
   }
 }
 
+/** Better Auth `user` row → display string for audit "Ran by" */
+function displayNameFromUserRow(row) {
+  if (!row) return null;
+  const name = typeof row.name === 'string' ? row.name.trim() : '';
+  if (name) return name;
+  const email = typeof row.email === 'string' ? row.email.trim() : '';
+  if (email) {
+    const local = email.split('@')[0];
+    if (local) return local;
+  }
+  return null;
+}
+
 async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiApiKey }) {
   try {
     const result = await scanGitHubProject({
@@ -644,6 +657,38 @@ projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) =>
       [projectId, limit + 1],
     );
 
+    const userIds = new Set();
+    for (const s of scans) {
+      if (s.ranByUserId) userIds.add(String(s.ranByUserId));
+    }
+    if (project.userId) userIds.add(String(project.userId));
+
+    const userDisplayById = new Map();
+    const idList = [...userIds].filter(Boolean);
+    if (idList.length) {
+      const placeholders = idList.map(() => '?').join(',');
+      try {
+        const [userRows] = await pool.query(
+          `SELECT id, name, email FROM \`user\` WHERE id IN (${placeholders})`,
+          idList,
+        );
+        for (const row of userRows) {
+          const id = String(row.id);
+          const dn = displayNameFromUserRow(row);
+          userDisplayById.set(id, dn ?? `User ${id.slice(0, 8)}`);
+        }
+      } catch (e) {
+        console.warn('[audit] Could not load user names:', e?.message || e);
+      }
+    }
+
+    function ranByDisplayNameFor(ranByUserId) {
+      if (!ranByUserId) return 'Unknown';
+      const key = String(ranByUserId);
+      if (userDisplayById.has(key)) return userDisplayById.get(key);
+      return `User ${key.slice(0, 8)}`;
+    }
+
     const entries = scans.slice(0, limit).map((scan, idx) => {
       const prev = scans[idx + 1] || null; // older scan
       const next = idx > 0 ? scans[idx - 1] : null; // newer scan
@@ -805,6 +850,7 @@ projectsRouter.get('/projects/:id/audit', requireUser, async (req, res, next) =>
           createdAt: scan.createdAt,
           finishedAt: scan.finishedAt,
           ranByUserId,
+          ranByDisplayName: ranByDisplayNameFor(ranByUserId),
           securityScore,
           scoreDelta,
           prUrl: latestPrJob?.prUrl ?? null,
