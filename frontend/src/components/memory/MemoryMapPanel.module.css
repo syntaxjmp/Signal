@@ -352,6 +352,8 @@
   padding: 0;
   margin: 0;
   text-align: left;
+  display: inline-flex;
+  align-items: center;
   color: rgba(120, 200, 255, 0.95);
   text-decoration: underline;
   text-underline-offset: 3px;
