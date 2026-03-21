@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VectorCollection, VectorPoint2D, VectorStatsResponse, VectorReduceResponse } from "./vectorTypes";
+import FileNameWithIcon from "./FileNameWithIcon";
+import ScoreValueWithIcon from "./ScoreValueWithIcon";
+import { isScorePayloadKey } from "./scoreFieldIcon";
+import { formatDisplayIdsWithHash } from "./formatDisplayIds";
 import styles from "./VectorExplorerPanel.module.css";
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -45,11 +49,13 @@ function getPointColor(payload: Record<string, unknown>, collectionName: string)
 }
 
 function pointLabel(payload: Record<string, unknown>): string {
-  if (payload.category) return String(payload.category);
-  if (payload.fix_category) return String(payload.fix_category);
-  if (payload.file_path) return String(payload.file_path).split("/").pop() || "";
-  if (payload.vulnerability_category) return String(payload.vulnerability_category);
-  return String(payload.id || "point");
+  let raw: string;
+  if (payload.category) raw = String(payload.category);
+  else if (payload.fix_category) raw = String(payload.fix_category);
+  else if (payload.file_path) raw = String(payload.file_path).split("/").pop() || "";
+  else if (payload.vulnerability_category) raw = String(payload.vulnerability_category);
+  else raw = String(payload.id || "point");
+  return formatDisplayIdsWithHash(raw);
 }
 
 type Props = {
@@ -400,12 +406,29 @@ export default function VectorExplorerPanel({ projectId }: Props) {
                 </button>
               </div>
               <div className={styles.payloadList}>
-                {Object.entries(selectedPoint.payload).map(([key, value]) => (
-                  <div key={key} className={styles.payloadRow}>
-                    <span className={styles.payloadKey}>{key}</span>
-                    <span className={styles.payloadValue}>{String(value ?? "—")}</span>
-                  </div>
-                ))}
+                {(() => {
+                  const pl = selectedPoint.payload as Record<string, unknown>;
+                  const severityHint = String(pl.severity ?? pl.Severity ?? "");
+                  return Object.entries(selectedPoint.payload).map(([key, value]) => {
+                    const displayRaw =
+                      value != null && typeof value === "object"
+                        ? JSON.stringify(value)
+                        : String(value ?? "—");
+                    const display = formatDisplayIdsWithHash(displayRaw);
+                    return (
+                      <div key={key} className={styles.payloadRow}>
+                        <span className={styles.payloadKey}>{key}</span>
+                        <span className={styles.payloadValue}>
+                          {isScorePayloadKey(key) ? (
+                            <ScoreValueWithIcon value={display} severityHint={severityHint} />
+                          ) : (
+                            <FileNameWithIcon text={display} />
+                          )}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
                 <div className={styles.payloadRow}>
                   <span className={styles.payloadKey}>x</span>
                   <span className={styles.payloadValue}>{selectedPoint.x}</span>

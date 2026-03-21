@@ -3,6 +3,10 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import type { MemoryGraphData, MemoryGraphNode } from "./memoryGraphTypes";
 import { DUMMY_MEMORY_GRAPH } from "./dummyMemoryGraph";
+import FileNameWithIcon from "./FileNameWithIcon";
+import ScoreValueWithIcon from "./ScoreValueWithIcon";
+import { isScoreMetaLabel } from "./scoreFieldIcon";
+import { formatDisplayIdsWithHash } from "./formatDisplayIds";
 import styles from "./MemoryMapPanel.module.css";
 
 const GROUP_COLORS: Record<MemoryGraphNode["group"], string> = {
@@ -105,6 +109,12 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
   }, [data.nodes]);
 
   const selectedNode = selectedId ? nodeById.get(selectedId) ?? null : null;
+
+  const selectedSeverityHint = useMemo(() => {
+    const meta = selectedNode?.meta;
+    if (!meta?.length) return "";
+    return meta.find((row) => /^severity$/i.test(row.label.trim()))?.value ?? "";
+  }, [selectedNode]);
 
   const neighbors = useMemo(() => {
     if (!selectedId) return { out: [] as { otherId: string; kind: string }[], in: [] as { otherId: string; kind: string }[] };
@@ -243,7 +253,7 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
         .backgroundColor("transparent")
         .graphData(fgData)
         .nodeId("id")
-        .nodeLabel("name")
+        .nodeLabel((n) => formatDisplayIdsWithHash((n as MemoryGraphNode).name))
         .nodeColor((n) => GROUP_COLORS[(n as MemoryGraphNode).group] ?? "#aaa")
         .nodeVal(1)
         .nodeRelSize(5)
@@ -351,15 +361,32 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
                     ×
                   </button>
                 </div>
-                <h3 className={styles.detailTitle}>{selectedNode.name}</h3>
-                {selectedNode.summary ? <p className={styles.detailSummary}>{selectedNode.summary}</p> : null}
-                {selectedNode.detail ? <p className={styles.detailBody}>{selectedNode.detail}</p> : null}
+                <h3 className={styles.detailTitle}>
+                  <FileNameWithIcon text={formatDisplayIdsWithHash(selectedNode.name)} />
+                </h3>
+                {selectedNode.summary ? (
+                  <p className={styles.detailSummary}>
+                    <FileNameWithIcon text={formatDisplayIdsWithHash(selectedNode.summary)} />
+                  </p>
+                ) : null}
+                {selectedNode.detail ? (
+                  <p className={styles.detailBody}>{formatDisplayIdsWithHash(selectedNode.detail)}</p>
+                ) : null}
                 {selectedNode.meta && selectedNode.meta.length > 0 ? (
                   <dl className={styles.metaList}>
                     {selectedNode.meta.map((row) => (
                       <div key={row.label} className={styles.metaRow}>
                         <dt>{row.label}</dt>
-                        <dd>{row.value}</dd>
+                        <dd>
+                          {isScoreMetaLabel(row.label) ? (
+                            <ScoreValueWithIcon
+                              value={formatDisplayIdsWithHash(row.value)}
+                              severityHint={selectedSeverityHint}
+                            />
+                          ) : (
+                            <FileNameWithIcon text={formatDisplayIdsWithHash(row.value)} />
+                          )}
+                        </dd>
                       </div>
                     ))}
                   </dl>
@@ -387,7 +414,9 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
                                   beginDetailLoad();
                                 }}
                               >
-                                {nodeById.get(otherId)?.name ?? otherId}
+                                <FileNameWithIcon
+                                  text={formatDisplayIdsWithHash(nodeById.get(otherId)?.name ?? otherId)}
+                                />
                               </button>
                               <span className={styles.neighborKind}>{kind}</span>
                             </li>
@@ -411,7 +440,9 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
                                   beginDetailLoad();
                                 }}
                               >
-                                {nodeById.get(otherId)?.name ?? otherId}
+                                <FileNameWithIcon
+                                  text={formatDisplayIdsWithHash(nodeById.get(otherId)?.name ?? otherId)}
+                                />
                               </button>
                               <span className={styles.neighborKind}>{kind}</span>
                             </li>
