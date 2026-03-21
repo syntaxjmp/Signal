@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "dev": "node --watch-path=src src/server.js",
     "db:migrate": "node scripts/migrate.js",
     "auth:migrate": "npx @better-auth/cli migrate --config ./src/auth.js --yes"
   },

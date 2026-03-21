@@ -53,8 +53,22 @@ type Props = {
 
 type ForceGraphInstance = InstanceType<typeof import("force-graph").default>;
 
-export default function MemoryMapPanel({ graphData }: Props) {
-  const data = graphData ?? DUMMY_MEMORY_GRAPH;
+export default function MemoryMapPanel({ graphData, projectId }: Props) {
+  const [fetchedData, setFetchedData] = useState<MemoryGraphData | null>(null);
+
+  useEffect(() => {
+    if (!projectId) { setFetchedData(null); return; }
+    let cancelled = false;
+    fetch(`/api/projects/${projectId}/memory-graph`, { credentials: "include", cache: "no-store" })
+      .then((r) => { if (!r.ok) throw new Error("fetch failed"); return r.json(); })
+      .then((json: MemoryGraphData) => {
+        if (!cancelled && json.nodes?.length) setFetchedData(json);
+      })
+      .catch(() => { /* fall back to dummy */ });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  const data = graphData ?? fetchedData ?? DUMMY_MEMORY_GRAPH;
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<ForceGraphInstance | null>(null);
   const selectedIdRef = useRef<string | null>(null);

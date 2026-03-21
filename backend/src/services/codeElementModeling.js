@@ -6,6 +6,8 @@ const ROUTE_PATTERN = /\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)['"`]/
 const MIDDLEWARE_PATTERN = /\.use\s*\(\s*([A-Za-z_$][\w$]*)/g;
 const DB_CALL_PATTERN = /\.(query|execute|raw)\s*\(/g;
 const AUTH_PATTERN = /\b(auth|authorize|permission|rbac|acl)\w*/gi;
+// Captures the last named function argument in route definitions (skips arrow functions)
+const HANDLER_PATTERN = /\.(get|post|put|patch|delete)\s*\(\s*['"`][^'"`]+['"`]\s*,\s*(?:[A-Za-z_$][\w$]*\s*,\s*)*([A-Za-z_$][\w$]*)\s*\)/g;
 
 function lineAt(content, idx) {
   return content.slice(0, idx).split(/\r?\n/).length;
@@ -58,6 +60,24 @@ export function extractCodeElementsFromFile({ filePath, content }) {
       identifier: m[0],
       metadata: { token: m[0] },
     });
+  }
+
+  HANDLER_PATTERN.lastIndex = 0;
+  while ((m = HANDLER_PATTERN.exec(content))) {
+    const handlerName = m[2];
+    // Skip if the handler name matches a known middleware already extracted
+    const isMiddleware = out.some(
+      (el) => el.elementType === 'middleware' && el.identifier === handlerName,
+    );
+    if (!isMiddleware) {
+      out.push({
+        elementType: 'handler',
+        filePath,
+        lineStart: lineAt(content, m.index),
+        identifier: handlerName,
+        metadata: { method: m[1].toUpperCase(), handler: handlerName },
+      });
+    }
   }
 
   return out.slice(0, 400);

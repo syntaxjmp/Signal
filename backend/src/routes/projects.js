@@ -33,9 +33,13 @@ import {
   searchSimilarVulnerablePatterns,
   upsertFindingEmbeddings,
   upsertCodePatternEmbeddings,
+  isVectorEnabled,
 } from '../services/vectorStore.js';
+import axios from 'axios';
+import { reduceToPCA2D } from '../services/vectorReducer.js';
 import { createFixOutcome } from '../services/fixOutcomeTracker.js';
 import { buildDeveloperProfiles } from '../services/developerProfiler.js';
+import { analyzeAttackChains } from '../services/attackChainDetector.js';
 
 export const projectsRouter = Router();
 
@@ -210,6 +214,21 @@ async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiA
       console.warn(
         `[vector] non-fatal embedding upsert failed project=${projectId} scan=${scanId}`,
         vectorErr instanceof Error ? vectorErr.message : String(vectorErr),
+      );
+    }
+
+    // Phase 3b/3c: Attack chain detection and combined finding analysis
+    try {
+      const chainResult = await analyzeAttackChains(pool, projectId, scanId, openAiApiKey, env.openAi.model);
+      if (chainResult.chainsDetected > 0) {
+        console.info(
+          `[attack-chains] project=${projectId} scan=${scanId} chains=${chainResult.chainsDetected} narratives=${chainResult.narrativesGenerated} relationships=${chainResult.relationshipsBuilt} links=${chainResult.linksCreated}`,
+        );
+      }
+    } catch (chainErr) {
+      console.warn(
+        `[attack-chains] non-fatal analysis failed project=${projectId} scan=${scanId}`,
+        chainErr instanceof Error ? chainErr.message : String(chainErr),
       );
     }
 
@@ -1581,6 +1600,658 @@ projectsRouter.get('/projects/:id/accepted-risks', requireUser, async (req, res,
     const risks = await getAcceptedRisks(pool, projectId);
     res.json({ data: risks });
   } catch (e) {
+    next(e);
+  }
+});
+
+// --- Attack Chains ---
+projectsRouter.get('/projects/:id/attack-chains', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId, latest_scan_id AS latestScanId
+       FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const scanId = req.query.scanId ? String(req.query.scanId) : project.latestScanId;
+    if (!scanId) {
+      res.json({ data: [], summary: { total: 0, bySeverity: {}, byType: {} } });
+      return;
+    }
+
+    const [chains] = await pool.query(
+      `SELECT ac.id, ac.chain_type AS chainType, ac.severity,
+              ac.escalated_from AS escalatedFrom, ac.narrative,
+              ac.hop_count AS hopCount, ac.element_ids AS elementIds,
+              ac.finding_ids AS findingIds, ac.metadata,
+              ac.entry_element_id AS entryElementId,
+              ac.created_at AS createdAt,
+              ce.identifier AS entryIdentifier, ce.file_path AS entryFilePath
+       FROM attack_chains ac
+       LEFT JOIN code_elements ce ON ce.id = ac.entry_element_id
+       WHERE ac.project_id = ? AND ac.scan_id = ?
+       ORDER BY FIELD(ac.severity, 'critical', 'high', 'medium', 'low'), ac.created_at DESC`,
+      [projectId, scanId],
+    );
+
+    // Build summary counts
+    const bySeverity = {};
+    const byType = {};
+    for (const c of chains) {
+      bySeverity[c.severity] = (bySeverity[c.severity] || 0) + 1;
+      byType[c.chainType] = (byType[c.chainType] || 0) + 1;
+    }
+
+    res.json({
+      data: chains.map((c) => ({
+        ...c,
+        elementIds: typeof c.elementIds === 'string' ? JSON.parse(c.elementIds) : c.elementIds,
+        findingIds: typeof c.findingIds === 'string' ? JSON.parse(c.findingIds) : c.findingIds,
+        metadata: typeof c.metadata === 'string' ? JSON.parse(c.metadata) : c.metadata,
+      })),
+      summary: { total: chains.length, bySeverity, byType },
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+projectsRouter.get('/projects/:id/attack-chains/:chainId', requireUser, async (req, res, next) => {
+  try {
+    const { id: projectId, chainId } = req.params;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [[chain]] = await pool.query(
+      `SELECT ac.id, ac.chain_type AS chainType, ac.severity,
+              ac.escalated_from AS escalatedFrom, ac.narrative,
+              ac.hop_count AS hopCount, ac.element_ids AS elementIds,
+              ac.finding_ids AS findingIds, ac.metadata,
+              ac.entry_element_id AS entryElementId,
+              ac.created_at AS createdAt
+       FROM attack_chains ac
+       WHERE ac.id = ? AND ac.project_id = ?
+       LIMIT 1`,
+      [chainId, projectId],
+    );
+    if (!chain) { res.status(404).json({ error: 'Attack chain not found' }); return; }
+
+    const elementIds = typeof chain.elementIds === 'string' ? JSON.parse(chain.elementIds) : chain.elementIds || [];
+    const findingIds = typeof chain.findingIds === 'string' ? JSON.parse(chain.findingIds) : chain.findingIds || [];
+
+    // Hydrate elements and findings
+    let elements = [];
+    if (elementIds.length) {
+      const ph = elementIds.map(() => '?').join(',');
+      [elements] = await pool.query(
+        `SELECT id, element_type AS elementType, file_path AS filePath,
+                line_start AS lineStart, identifier, parent_element_id AS parentElementId, metadata
+         FROM code_elements WHERE id IN (${ph})`,
+        elementIds,
+      );
+    }
+
+    let findings = [];
+    if (findingIds.length) {
+      const ph = findingIds.map(() => '?').join(',');
+      [findings] = await pool.query(
+        `SELECT id, severity, category, description, file_path AS filePath,
+                line_number AS lineNumber, snippet, status
+         FROM project_findings WHERE id IN (${ph})`,
+        findingIds,
+      );
+    }
+
+    res.json({
+      ...chain,
+      elementIds,
+      findingIds,
+      metadata: typeof chain.metadata === 'string' ? JSON.parse(chain.metadata) : chain.metadata,
+      elements: elements.map((e) => ({
+        ...e,
+        metadata: typeof e.metadata === 'string' ? JSON.parse(e.metadata) : e.metadata,
+      })),
+      findings,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ─── Memory Page Endpoints ──────────────────────────────────────────────────
+
+// --- Memory Table (unified) ---
+projectsRouter.get('/projects/:id/memory-table', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId, latest_scan_id AS latestScanId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const scanId = project.latestScanId;
+
+    const [
+      [findings],
+      [dismissals],
+      [regressions],
+      risks,
+      fixOutcomesResult,
+      [baselineRows],
+      [profiles],
+    ] = await Promise.all([
+      scanId
+        ? pool.query(
+            `SELECT id, fingerprint, severity, category, file_path AS filePath,
+                    line_number AS lineNumber, status, weighted_score AS weightedScore,
+                    description, created_at AS createdAt
+             FROM project_findings
+             WHERE project_id = ? AND scan_id = ?
+             ORDER BY FIELD(severity, 'critical', 'high', 'medium', 'low'), weighted_score DESC
+             LIMIT 200`,
+            [projectId, scanId],
+          )
+        : [[]],
+      pool.query(
+        `SELECT id, fingerprint, reason_code AS reason, scope, is_active AS isActive, created_at AS createdAt
+         FROM finding_dismissals
+         WHERE project_id = ?
+         ORDER BY created_at DESC
+         LIMIT 200`,
+        [projectId],
+      ),
+      pool.query(
+        `SELECT id, fingerprint, resolved_in_scan_id AS resolvedInScanId,
+                reappeared_in_scan_id AS reappearedInScanId, created_at AS createdAt
+         FROM finding_regressions
+         WHERE project_id = ?
+         ORDER BY created_at DESC
+         LIMIT 200`,
+        [projectId],
+      ),
+      getAcceptedRisks(pool, projectId),
+      (async () => {
+        const [[stats]] = await pool.query(
+          `SELECT COUNT(*) AS total, SUM(pr_status = 'merged') AS merged,
+                  SUM(pr_status = 'closed') AS closed, SUM(pr_status = 'open') AS open
+           FROM fix_outcomes WHERE project_id = ?`,
+          [projectId],
+        );
+        const [data] = await pool.query(
+          `SELECT id, pr_url AS prUrl, pr_status AS prStatus,
+                  fix_category AS fixCategory, files_changed AS filesChanged,
+                  merged_at AS mergedAt, created_at AS createdAt
+           FROM fix_outcomes WHERE project_id = ?
+           ORDER BY created_at DESC LIMIT 100`,
+          [projectId],
+        );
+        const total = Number(stats?.total || 0);
+        const merged = Number(stats?.merged || 0);
+        return {
+          stats: {
+            total,
+            merged,
+            closed: Number(stats?.closed || 0),
+            open: Number(stats?.open || 0),
+            mergeRate: total > 0 ? Math.round((merged / total) * 100) : null,
+          },
+          data,
+        };
+      })(),
+      pool.query(
+        `SELECT baseline_score AS baselineScore, baseline_finding_count AS baselineFindingCount,
+                score_stddev AS scoreStddev, window_size AS windowSize,
+                last_recalculated_at AS lastRecalculatedAt
+         FROM scan_baselines WHERE project_id = ? LIMIT 1`,
+        [projectId],
+      ),
+      pool.query(
+        `SELECT id, author_email AS authorEmail, author_name AS authorName,
+                total_findings_introduced AS totalFindings,
+                critical_count AS criticalCount, high_count AS highCount,
+                medium_count AS mediumCount, low_count AS lowCount,
+                risk_score AS riskScore
+         FROM developer_profiles WHERE project_id = ?
+         ORDER BY risk_score DESC LIMIT 50`,
+        [projectId],
+      ),
+    ]);
+
+    const baseline = baselineRows[0]
+      ? {
+          baselineScore: Number(baselineRows[0].baselineScore || 0),
+          baselineFindingCount: Number(baselineRows[0].baselineFindingCount || 0),
+          scoreStddev: Number(baselineRows[0].scoreStddev || 0),
+          windowSize: Number(baselineRows[0].windowSize || 0),
+          lastRecalculatedAt: baselineRows[0].lastRecalculatedAt,
+        }
+      : null;
+
+    res.json({
+      findings,
+      dismissals: dismissals.map((d) => ({ ...d, isActive: Boolean(d.isActive) })),
+      regressions,
+      acceptedRisks: risks,
+      fixOutcomes: fixOutcomesResult,
+      baseline,
+      developerProfiles: profiles.map((p) => ({ ...p, riskScore: Number(p.riskScore) })),
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Memory Graph (real nodes + links) ---
+projectsRouter.get('/projects/:id/memory-graph', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId, project_name AS projectName, latest_scan_id AS latestScanId
+       FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const nodes = [];
+    const links = [];
+
+    // 1. Project node
+    nodes.push({
+      id: `project-${projectId}`,
+      name: project.projectName || 'Project',
+      group: 'project',
+      summary: `Project root`,
+      meta: [{ label: 'ID', value: projectId }],
+    });
+
+    // 2. Latest scans (up to 5)
+    const [scans] = await pool.query(
+      `SELECT id, status, security_score AS securityScore, findings_count AS findingsCount,
+              created_at AS createdAt
+       FROM project_scans
+       WHERE project_id = ? AND status = 'completed'
+       ORDER BY created_at DESC LIMIT 5`,
+      [projectId],
+    );
+    for (const s of scans) {
+      const nodeId = `scan-${s.id}`;
+      nodes.push({
+        id: nodeId,
+        name: `Scan ${String(s.id).slice(0, 8)}`,
+        group: 'event',
+        summary: `Score: ${s.securityScore ?? '—'} | Findings: ${s.findingsCount ?? 0}`,
+        meta: [
+          { label: 'Status', value: s.status },
+          { label: 'Score', value: String(s.securityScore ?? '—') },
+          { label: 'Findings', value: String(s.findingsCount ?? 0) },
+        ],
+        updatedAt: s.createdAt ? new Date(s.createdAt).toISOString() : undefined,
+      });
+      links.push({ source: `project-${projectId}`, target: nodeId, kind: 'derived' });
+    }
+
+    // 3. Baseline node
+    const [[baseline]] = await pool.query(
+      `SELECT baseline_score AS baselineScore, baseline_finding_count AS baselineFindingCount,
+              score_stddev AS scoreStddev, window_size AS windowSize
+       FROM scan_baselines WHERE project_id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (baseline) {
+      nodes.push({
+        id: `baseline-${projectId}`,
+        name: 'Scan Baseline',
+        group: 'memory',
+        summary: `Score: ${Number(baseline.baselineScore).toFixed(2)} | StdDev: ${Number(baseline.scoreStddev).toFixed(3)}`,
+        meta: [
+          { label: 'Baseline Score', value: String(Number(baseline.baselineScore).toFixed(2)) },
+          { label: 'Finding Count', value: String(baseline.baselineFindingCount) },
+          { label: 'Window', value: `${baseline.windowSize} scans` },
+        ],
+      });
+      links.push({ source: `project-${projectId}`, target: `baseline-${projectId}`, kind: 'derived' });
+    }
+
+    // 4. Active dismissals
+    const [dismissals] = await pool.query(
+      `SELECT fingerprint, reason_code AS reason, created_at AS createdAt
+       FROM finding_dismissals WHERE project_id = ? AND is_active = 1
+       ORDER BY created_at DESC LIMIT 10`,
+      [projectId],
+    );
+    for (const d of dismissals) {
+      const nodeId = `dismissal-${d.fingerprint}`;
+      nodes.push({
+        id: nodeId,
+        name: `Dismissed: ${d.fingerprint.slice(0, 12)}`,
+        group: 'memory',
+        summary: d.reason || 'No reason given',
+        meta: [{ label: 'Fingerprint', value: d.fingerprint }],
+        updatedAt: d.createdAt ? new Date(d.createdAt).toISOString() : undefined,
+      });
+      links.push({ source: `project-${projectId}`, target: nodeId, kind: 'resolved' });
+    }
+
+    // 5. Regressions
+    const [regressions] = await pool.query(
+      `SELECT fingerprint, resolved_in_scan_id AS resolvedScan, reappeared_in_scan_id AS reappearedScan,
+              created_at AS createdAt
+       FROM finding_regressions WHERE project_id = ?
+       ORDER BY created_at DESC LIMIT 10`,
+      [projectId],
+    );
+    for (const r of regressions) {
+      const nodeId = `regression-${r.fingerprint}-${r.reappearedScan}`;
+      nodes.push({
+        id: nodeId,
+        name: `Regression: ${r.fingerprint.slice(0, 12)}`,
+        group: 'finding',
+        summary: `Reappeared in scan ${String(r.reappearedScan).slice(0, 8)}`,
+        meta: [
+          { label: 'Fingerprint', value: r.fingerprint },
+          { label: 'Resolved Scan', value: String(r.resolvedScan).slice(0, 8) },
+          { label: 'Reappeared Scan', value: String(r.reappearedScan).slice(0, 8) },
+        ],
+        updatedAt: r.createdAt ? new Date(r.createdAt).toISOString() : undefined,
+      });
+      links.push({ source: `project-${projectId}`, target: nodeId, kind: 'caused' });
+    }
+
+    // 6. Top findings by score (latest scan)
+    if (project.latestScanId) {
+      const [topFindings] = await pool.query(
+        `SELECT id, fingerprint, severity, category, file_path AS filePath,
+                weighted_score AS weightedScore
+         FROM project_findings
+         WHERE project_id = ? AND scan_id = ?
+         ORDER BY weighted_score DESC LIMIT 10`,
+        [projectId, project.latestScanId],
+      );
+      for (const f of topFindings) {
+        const nodeId = `finding-${f.id}`;
+        nodes.push({
+          id: nodeId,
+          name: `${f.severity}: ${f.category}`,
+          group: 'finding',
+          summary: f.filePath || '',
+          meta: [
+            { label: 'Severity', value: f.severity },
+            { label: 'Category', value: f.category },
+            { label: 'Score', value: String(f.weightedScore) },
+          ],
+        });
+        const scanNodeId = `scan-${project.latestScanId}`;
+        if (nodes.some((n) => n.id === scanNodeId)) {
+          links.push({ source: scanNodeId, target: nodeId, kind: 'derived' });
+        } else {
+          links.push({ source: `project-${projectId}`, target: nodeId, kind: 'derived' });
+        }
+      }
+    }
+
+    // 7. Fix outcomes (merged PRs)
+    const [fixes] = await pool.query(
+      `SELECT id, pr_url AS prUrl, pr_status AS prStatus, fix_category AS fixCategory,
+              merged_at AS mergedAt
+       FROM fix_outcomes WHERE project_id = ? AND pr_status = 'merged'
+       ORDER BY merged_at DESC LIMIT 8`,
+      [projectId],
+    );
+    for (const f of fixes) {
+      const nodeId = `fix-${f.id}`;
+      nodes.push({
+        id: nodeId,
+        name: `Fix: ${f.fixCategory || 'PR'}`,
+        group: 'remediation',
+        summary: f.prUrl || '',
+        meta: [
+          { label: 'Status', value: f.prStatus },
+          { label: 'Category', value: f.fixCategory || '—' },
+        ],
+        updatedAt: f.mergedAt ? new Date(f.mergedAt).toISOString() : undefined,
+      });
+      links.push({ source: `project-${projectId}`, target: nodeId, kind: 'resolved' });
+    }
+
+    // 8. Embedding collection nodes (1 per collection with point count)
+    if (isVectorEnabled()) {
+      const qdrantBase = env.qdrant.url?.replace(/\/+$/, '') || '';
+      const qdrantHdrs = env.qdrant.apiKey ? { 'api-key': env.qdrant.apiKey } : {};
+      const collections = [
+        { name: env.qdrant.findingCollection, label: 'Finding Embeddings' },
+        { name: env.qdrant.fixCollection, label: 'Fix Embeddings' },
+        { name: env.qdrant.codePatternCollection, label: 'Code Pattern Embeddings' },
+      ];
+      for (const col of collections) {
+        try {
+          const resp = await axios.get(
+            `${qdrantBase}/collections/${encodeURIComponent(col.name)}`,
+            { headers: qdrantHdrs, timeout: 5000 },
+          );
+          const info = resp.data?.result;
+          const count = info?.points_count ?? info?.vectors_count ?? 0;
+          const nodeId = `embedding-${col.name}`;
+          nodes.push({
+            id: nodeId,
+            name: col.label,
+            group: 'embedding',
+            summary: `${count} vectors`,
+            meta: [
+              { label: 'Collection', value: col.name },
+              { label: 'Points', value: String(count) },
+              { label: 'Status', value: info?.status || 'unknown' },
+            ],
+          });
+          links.push({ source: `project-${projectId}`, target: nodeId, kind: 'indexed' });
+        } catch {
+          // collection may not exist yet
+        }
+      }
+    }
+
+    res.json({ nodes, links });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Vector Stats ---
+projectsRouter.get('/projects/:id/vector-stats', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    if (!isVectorEnabled()) {
+      res.json({ enabled: false, collections: [] });
+      return;
+    }
+
+    const qdrantBase = env.qdrant.url?.replace(/\/+$/, '') || '';
+    const qdrantHdrs = env.qdrant.apiKey ? { 'api-key': env.qdrant.apiKey } : {};
+    const collectionNames = [
+      env.qdrant.findingCollection,
+      env.qdrant.fixCollection,
+      env.qdrant.codePatternCollection,
+    ];
+
+    const collections = await Promise.all(
+      collectionNames.map(async (name) => {
+        try {
+          const resp = await axios.get(
+            `${qdrantBase}/collections/${encodeURIComponent(name)}`,
+            { headers: qdrantHdrs, timeout: 5000 },
+          );
+          const info = resp.data?.result;
+          return {
+            name,
+            pointsCount: info?.points_count ?? info?.vectors_count ?? 0,
+            status: info?.status || 'unknown',
+          };
+        } catch {
+          return { name, pointsCount: 0, status: 'not_found' };
+        }
+      }),
+    );
+
+    res.json({ enabled: true, collections });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Vector Scroll (paginated point listing) ---
+projectsRouter.get('/projects/:id/vector-scroll', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    if (!isVectorEnabled()) {
+      res.json({ points: [], nextOffset: null });
+      return;
+    }
+
+    const collection = String(req.query.collection || env.qdrant.findingCollection);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const offset = req.query.offset || null;
+
+    const qdrantBase = env.qdrant.url?.replace(/\/+$/, '') || '';
+    const qdrantHdrs = env.qdrant.apiKey ? { 'api-key': env.qdrant.apiKey } : {};
+
+    const body = {
+      limit,
+      with_payload: true,
+      with_vector: false,
+      filter: {
+        must: [{ key: 'project_id', match: { value: projectId } }],
+      },
+    };
+    if (offset) body.offset = offset;
+
+    const resp = await axios.post(
+      `${qdrantBase}/collections/${encodeURIComponent(collection)}/points/scroll`,
+      body,
+      { headers: qdrantHdrs, timeout: 15000 },
+    );
+
+    const result = resp.data?.result || {};
+    res.json({
+      points: (result.points || []).map((p) => ({
+        id: p.id,
+        payload: p.payload || {},
+      })),
+      nextOffset: result.next_page_offset ?? null,
+    });
+  } catch (e) {
+    if (e?.response?.status === 404) {
+      res.json({ points: [], nextOffset: null });
+      return;
+    }
+    next(e);
+  }
+});
+
+// --- Vector Reduce (PCA 2D projection) ---
+projectsRouter.get('/projects/:id/vector-reduce', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    if (!isVectorEnabled()) {
+      res.json({ collection: '', points: [], reductionMethod: 'pca', totalPointsInCollection: 0 });
+      return;
+    }
+
+    const collection = String(req.query.collection || env.qdrant.findingCollection);
+    const maxPoints = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+
+    const qdrantBase = env.qdrant.url?.replace(/\/+$/, '') || '';
+    const qdrantHdrs = env.qdrant.apiKey ? { 'api-key': env.qdrant.apiKey } : {};
+
+    // Get collection info for total count
+    let totalPointsInCollection = 0;
+    try {
+      const infoResp = await axios.get(
+        `${qdrantBase}/collections/${encodeURIComponent(collection)}`,
+        { headers: qdrantHdrs, timeout: 5000 },
+      );
+      totalPointsInCollection = infoResp.data?.result?.points_count ?? 0;
+    } catch {
+      // ignore
+    }
+
+    // Scroll with vectors for reduction
+    const scrollResp = await axios.post(
+      `${qdrantBase}/collections/${encodeURIComponent(collection)}/points/scroll`,
+      {
+        limit: maxPoints,
+        with_payload: true,
+        with_vector: true,
+        filter: {
+          must: [{ key: 'project_id', match: { value: projectId } }],
+        },
+      },
+      { headers: qdrantHdrs, timeout: 30000 },
+    );
+
+    const rawPoints = scrollResp.data?.result?.points || [];
+    if (rawPoints.length === 0) {
+      res.json({ collection, points: [], reductionMethod: 'pca', totalPointsInCollection });
+      return;
+    }
+
+    const vectors = rawPoints.map((p) => p.vector);
+    const coords = reduceToPCA2D(vectors);
+
+    const points = rawPoints.map((p, i) => ({
+      id: p.id,
+      x: coords[i].x,
+      y: coords[i].y,
+      payload: p.payload || {},
+    }));
+
+    res.json({ collection, points, reductionMethod: 'pca', totalPointsInCollection });
+  } catch (e) {
+    if (e?.response?.status === 404) {
+      res.json({
+        collection: String(req.query.collection || ''),
+        points: [],
+        reductionMethod: 'pca',
+        totalPointsInCollection: 0,
+      });
+      return;
+    }
     next(e);
   }
 });

@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import styles from "./page.module.css";
 import MemoryMapPanel from "@/components/memory/MemoryMapPanel";
+import MemoryTablePanel from "@/components/memory/MemoryTablePanel";
+import VectorExplorerPanel from "@/components/memory/VectorExplorerPanel";
 
 type TeamMember = { email: string };
 type TeamRow = { email: string; createdAt: string; updatedAt: string };
@@ -733,6 +735,7 @@ export default function DashboardPage() {
 
   const [auditProjectId, setAuditProjectId] = useState<string | null>(null);
   const [memoryProjectId, setMemoryProjectId] = useState<string | null>(null);
+  const [memoryView, setMemoryView] = useState<"graph" | "table" | "vectors">("graph");
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
@@ -1739,7 +1742,37 @@ export default function DashboardPage() {
           </section>
         ) : activeSection === "memory" ? (
           <section className="dash-teamPanel dash-memoryStage" id="memory">
-            <MemoryMapPanel key={memoryProject?.id ?? "none"} projectId={memoryProject?.id} projectName={memoryProject?.projectName} />
+            <div className="dash-teamTabs" role="tablist" aria-label="Memory view tabs">
+              <button
+                type="button"
+                className={memoryView === "graph" ? "dash-teamTabs__tab dash-teamTabs__tab--active" : "dash-teamTabs__tab"}
+                onClick={() => setMemoryView("graph")}
+              >
+                Knowledge Graph
+              </button>
+              <button
+                type="button"
+                className={memoryView === "table" ? "dash-teamTabs__tab dash-teamTabs__tab--active" : "dash-teamTabs__tab"}
+                onClick={() => setMemoryView("table")}
+              >
+                Table
+              </button>
+              <button
+                type="button"
+                className={memoryView === "vectors" ? "dash-teamTabs__tab dash-teamTabs__tab--active" : "dash-teamTabs__tab"}
+                onClick={() => setMemoryView("vectors")}
+              >
+                Vector DB
+              </button>
+            </div>
+
+            {memoryView === "graph" ? (
+              <MemoryMapPanel key={memoryProject?.id ?? "none"} projectId={memoryProject?.id} projectName={memoryProject?.projectName} />
+            ) : memoryView === "table" ? (
+              <MemoryTablePanel projectId={memoryProject?.id} />
+            ) : (
+              <VectorExplorerPanel projectId={memoryProject?.id} />
+            )}
           </section>
         ) : (
           <section className="dash-teamPanel" id="webhooks">

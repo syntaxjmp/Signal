@@ -402,3 +402,39 @@ CREATE TABLE IF NOT EXISTS `code_elements` (
   CONSTRAINT `fk_code_elements_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_code_elements_scan` FOREIGN KEY (`scan_id`) REFERENCES `project_scans` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Phase 3b: Attack chain detection
+CREATE TABLE IF NOT EXISTS `attack_chains` (
+  `id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `scan_id` CHAR(36) NOT NULL,
+  `chain_type` ENUM('unauth_data_access', 'unauth_injection', 'missing_auth_route', 'privilege_escalation', 'custom') NOT NULL,
+  `entry_element_id` CHAR(36) NULL COMMENT 'Root route element',
+  `severity` ENUM('critical', 'high', 'medium', 'low') NOT NULL,
+  `escalated_from` ENUM('critical', 'high', 'medium', 'low') NULL COMMENT 'Original severity before escalation',
+  `narrative` TEXT NULL,
+  `hop_count` INT UNSIGNED NOT NULL DEFAULT 1,
+  `element_ids` JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  `finding_ids` JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  `metadata` JSON NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_attack_chains_project_scan` (`project_id`, `scan_id`),
+  KEY `idx_attack_chains_type` (`chain_type`),
+  KEY `idx_attack_chains_severity` (`severity`),
+  CONSTRAINT `fk_attack_chains_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_attack_chains_scan` FOREIGN KEY (`scan_id`) REFERENCES `project_scans` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `element_finding_links` (
+  `id` CHAR(36) NOT NULL,
+  `element_id` CHAR(36) NOT NULL,
+  `finding_id` CHAR(36) NOT NULL,
+  `proximity_lines` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Absolute line distance between element and finding',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_element_finding_link` (`element_id`, `finding_id`),
+  KEY `idx_element_finding_links_finding` (`finding_id`),
+  CONSTRAINT `fk_element_finding_links_element` FOREIGN KEY (`element_id`) REFERENCES `code_elements` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_element_finding_links_finding` FOREIGN KEY (`finding_id`) REFERENCES `project_findings` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
