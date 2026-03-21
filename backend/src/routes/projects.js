@@ -23,8 +23,13 @@ import {
   buildScanMemoryContext,
   detectAndStoreRegressions,
   recomputeScanBaseline,
+  acceptRisk,
+  getAcceptedRisks,
+  checkAcceptedRiskValidity,
 } from '../services/statefulMemory.js';
 import { searchSimilarDismissedFindings, upsertFindingEmbeddings } from '../services/vectorStore.js';
+import { createFixOutcome } from '../services/fixOutcomeTracker.js';
+import { buildDeveloperProfiles } from '../services/developerProfiler.js';
 
 export const projectsRouter = Router();
 
@@ -132,7 +137,7 @@ async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiA
       [scanId, result.summary.securityScore, projectId],
     );
 
-    // Stateful memory MVP hooks: regression + baseline.
+    // Stateful memory hooks: regression + baseline + developer profiles + accepted risk checks.
     try {
       await detectAndStoreRegressions(pool, projectId, scanId);
       await recomputeScanBaseline(pool, projectId);
@@ -140,6 +145,36 @@ async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiA
       console.warn(
         `[memory] non-fatal stateful update failed project=${projectId} scan=${scanId}`,
         memoryErr instanceof Error ? memoryErr.message : String(memoryErr),
+      );
+    }
+
+    // Developer profiles: attribute findings to authors via git blame
+    try {
+      const profileResult = await buildDeveloperProfiles(pool, projectId, scanId, githubUrl);
+      if (profileResult.profilesUpdated > 0) {
+        console.info(
+          `[dev-profiler] project=${projectId} scan=${scanId} profiles=${profileResult.profilesUpdated} links=${profileResult.linksCreated}`,
+        );
+      }
+    } catch (profilerErr) {
+      console.warn(
+        `[dev-profiler] non-fatal profiler update failed project=${projectId} scan=${scanId}`,
+        profilerErr instanceof Error ? profilerErr.message : String(profilerErr),
+      );
+    }
+
+    // Check accepted risks for invalidation (file dependency changes)
+    try {
+      const riskResult = await checkAcceptedRiskValidity(pool, projectId, null);
+      if (riskResult.invalidated > 0) {
+        console.info(
+          `[accepted-risks] project=${projectId} invalidated=${riskResult.invalidated} reviewDue=${riskResult.reviewDue}`,
+        );
+      }
+    } catch (riskErr) {
+      console.warn(
+        `[accepted-risks] non-fatal risk check failed project=${projectId}`,
+        riskErr instanceof Error ? riskErr.message : String(riskErr),
       );
     }
 
@@ -1299,6 +1334,173 @@ projectsRouter.get('/projects/:id/resolution-jobs/:jobId', requireUser, async (r
       ...job,
       findingIds: typeof job.findingIds === 'string' ? JSON.parse(job.findingIds) : job.findingIds,
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Fix Outcome Stats ---
+projectsRouter.get('/projects/:id/fix-outcomes', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [[stats]] = await pool.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(pr_status = 'merged') AS merged,
+         SUM(pr_status = 'closed') AS closed,
+         SUM(pr_status = 'open') AS open
+       FROM fix_outcomes
+       WHERE project_id = ?`,
+      [projectId],
+    );
+
+    const [outcomes] = await pool.query(
+      `SELECT fo.id, fo.pr_url AS prUrl, fo.pr_status AS prStatus,
+              fo.fix_category AS fixCategory, fo.files_changed AS filesChanged,
+              fo.review_comments_count AS reviewCommentsCount,
+              fo.merged_at AS mergedAt, fo.closed_at AS closedAt,
+              fo.created_at AS createdAt
+       FROM fix_outcomes fo
+       WHERE fo.project_id = ?
+       ORDER BY fo.created_at DESC
+       LIMIT ?`,
+      [projectId, Math.min(100, Math.max(1, Number(req.query.limit) || 20))],
+    );
+
+    const total = Number(stats?.total || 0);
+    const mergedCount = Number(stats?.merged || 0);
+    res.json({
+      stats: {
+        total,
+        merged: mergedCount,
+        closed: Number(stats?.closed || 0),
+        open: Number(stats?.open || 0),
+        mergeRate: total > 0 ? Math.round((mergedCount / total) * 100) : null,
+      },
+      data: outcomes,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Developer Profiles ---
+projectsRouter.get('/projects/:id/developer-profiles', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [profiles] = await pool.query(
+      `SELECT id, author_email AS authorEmail, author_name AS authorName,
+              total_findings_introduced AS totalFindings,
+              critical_count AS criticalCount, high_count AS highCount,
+              medium_count AS mediumCount, low_count AS lowCount,
+              top_categories AS topCategories,
+              avg_fix_time_hours AS avgFixTimeHours,
+              risk_score AS riskScore,
+              first_seen_at AS firstSeenAt, last_seen_at AS lastSeenAt
+       FROM developer_profiles
+       WHERE project_id = ?
+       ORDER BY risk_score DESC
+       LIMIT ?`,
+      [projectId, Math.min(100, Math.max(1, Number(req.query.limit) || 20))],
+    );
+
+    res.json({
+      data: profiles.map((p) => ({
+        ...p,
+        topCategories: typeof p.topCategories === 'string' ? JSON.parse(p.topCategories) : p.topCategories,
+        riskScore: Number(p.riskScore),
+      })),
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- Accept Risk on a Finding ---
+projectsRouter.post('/projects/:id/findings/:findingId/accept-risk', requireUser, async (req, res, next) => {
+  try {
+    const { id: projectId, findingId } = req.params;
+    const reason = String(req.body?.reason || '').trim();
+    const dependsOnFiles = req.body?.dependsOnFiles || null;
+    const dependsOnChecksums = req.body?.dependsOnChecksums || null;
+    const reviewByDate = req.body?.reviewByDate || null;
+
+    if (!reason) {
+      res.status(400).json({ error: 'reason is required' });
+      return;
+    }
+    if (dependsOnFiles && !Array.isArray(dependsOnFiles)) {
+      res.status(400).json({ error: 'dependsOnFiles must be an array of file paths' });
+      return;
+    }
+
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [[finding]] = await pool.query(
+      `SELECT id, fingerprint FROM project_findings WHERE id = ? AND project_id = ? LIMIT 1`,
+      [findingId, projectId],
+    );
+    if (!finding) { res.status(404).json({ error: 'Finding not found' }); return; }
+
+    await acceptRisk(pool, {
+      fingerprint: finding.fingerprint,
+      projectId,
+      userId: req.userId,
+      reason,
+      dependsOnFiles,
+      dependsOnChecksums,
+      reviewByDate,
+    });
+
+    res.json({
+      ok: true,
+      findingId,
+      fingerprint: finding.fingerprint,
+      reason,
+      dependsOnFiles,
+      reviewByDate,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- List Accepted Risks ---
+projectsRouter.get('/projects/:id/accepted-risks', requireUser, async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const pool = getPool();
+    const [[project]] = await pool.query(
+      `SELECT id, user_id AS userId FROM projects WHERE id = ? LIMIT 1`,
+      [projectId],
+    );
+    if (!project) { res.status(404).json({ error: 'Project not found' }); return; }
+    if (project.userId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const risks = await getAcceptedRisks(pool, projectId);
+    res.json({ data: risks });
   } catch (e) {
     next(e);
   }

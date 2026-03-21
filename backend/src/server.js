@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { getPool } from './config/database.js';
 import { runSlaChecksOnce } from './services/slaAutomation.js';
+import { pollFixOutcomes } from './services/fixOutcomeTracker.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -312,6 +313,106 @@ async function maybeEnsurePolicyAndModelingTables() {
   }
 }
 
+async function maybeEnsurePhase1CompletionTables() {
+  if (env.isProd) return;
+  const conn = await mysql.createConnection({
+    host: env.mysql.host,
+    port: env.mysql.port,
+    user: env.mysql.user,
+    password: env.mysql.password,
+    database: env.mysql.database,
+    multipleStatements: true,
+  });
+  try {
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS fix_outcomes (
+        id CHAR(36) NOT NULL,
+        resolution_job_id CHAR(36) NOT NULL,
+        project_id CHAR(36) NOT NULL,
+        pr_url VARCHAR(1024) NOT NULL,
+        pr_status ENUM('open', 'merged', 'closed') NOT NULL DEFAULT 'open',
+        fix_category VARCHAR(255) NULL,
+        fix_pattern_hash CHAR(64) NULL,
+        files_changed INT UNSIGNED NOT NULL DEFAULT 0,
+        review_comments_count INT UNSIGNED NOT NULL DEFAULT 0,
+        merged_at TIMESTAMP NULL,
+        closed_at TIMESTAMP NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_fix_outcomes_project (project_id),
+        KEY idx_fix_outcomes_status (pr_status),
+        KEY idx_fix_outcomes_category (fix_category),
+        CONSTRAINT fk_fix_outcomes_project FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+        CONSTRAINT fk_fix_outcomes_job FOREIGN KEY (resolution_job_id) REFERENCES resolution_jobs (id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS developer_profiles (
+        id CHAR(36) NOT NULL,
+        project_id CHAR(36) NOT NULL,
+        author_email VARCHAR(255) NOT NULL,
+        author_name VARCHAR(255) NULL,
+        total_findings_introduced INT UNSIGNED NOT NULL DEFAULT 0,
+        critical_count INT UNSIGNED NOT NULL DEFAULT 0,
+        high_count INT UNSIGNED NOT NULL DEFAULT 0,
+        medium_count INT UNSIGNED NOT NULL DEFAULT 0,
+        low_count INT UNSIGNED NOT NULL DEFAULT 0,
+        top_categories JSON NULL,
+        avg_fix_time_hours DECIMAL(10,2) NULL,
+        risk_score DECIMAL(5,2) NOT NULL DEFAULT 0,
+        first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_dev_profiles_project_email (project_id, author_email),
+        KEY idx_dev_profiles_risk (risk_score),
+        CONSTRAINT fk_dev_profiles_project FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS developer_finding_links (
+        id CHAR(36) NOT NULL,
+        finding_id CHAR(36) NOT NULL,
+        developer_profile_id CHAR(36) NOT NULL,
+        commit_sha CHAR(40) NULL,
+        blame_line INT UNSIGNED NULL,
+        introduced_at TIMESTAMP NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_dev_finding_links_finding (finding_id),
+        KEY idx_dev_finding_links_dev (developer_profile_id),
+        CONSTRAINT fk_dev_finding_links_finding FOREIGN KEY (finding_id) REFERENCES project_findings (id) ON DELETE CASCADE,
+        CONSTRAINT fk_dev_finding_links_dev FOREIGN KEY (developer_profile_id) REFERENCES developer_profiles (id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS accepted_risks (
+        id CHAR(36) NOT NULL,
+        fingerprint CHAR(64) NOT NULL,
+        project_id CHAR(36) NOT NULL,
+        accepted_by VARCHAR(191) NOT NULL,
+        reason TEXT NOT NULL,
+        depends_on_files JSON NULL,
+        depends_on_checksums JSON NULL,
+        review_by_date DATE NULL,
+        is_valid TINYINT(1) NOT NULL DEFAULT 1,
+        invalidated_reason TEXT NULL,
+        invalidated_at TIMESTAMP NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_accepted_risks_fingerprint (fingerprint),
+        KEY idx_accepted_risks_project (project_id),
+        KEY idx_accepted_risks_valid (is_valid, project_id),
+        CONSTRAINT fk_accepted_risks_project FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+  } catch (e) {
+    console.warn('[db:migrate] phase1 completion tables migration skipped', e instanceof Error ? e.message : String(e));
+  } finally {
+    await conn.end();
+  }
+}
+
 async function maybeEnsureComplianceFrameworksColumn() {
   const conn = await mysql.createConnection({
     host: env.mysql.host,
@@ -346,6 +447,23 @@ async function maybeEnsureComplianceFrameworksColumn() {
   }
 }
 
+function startFixOutcomePollingLoop() {
+  const intervalMs = Math.max(60_000, Number(process.env.FIX_OUTCOME_INTERVAL_MS) || 30 * 60 * 1000);
+  const run = async () => {
+    try {
+      const pool = getPool();
+      const result = await pollFixOutcomes(pool);
+      if (result.updated > 0) {
+        console.info(`[fix-outcomes] updated ${result.updated} PR(s)`);
+      }
+    } catch (e) {
+      console.warn('[fix-outcomes] polling run failed', e instanceof Error ? e.message : String(e));
+    }
+  };
+  setTimeout(() => { void run(); }, 30_000).unref();
+  setInterval(() => { void run(); }, intervalMs).unref();
+}
+
 function startSlaAutomationLoop() {
   const intervalMs = Math.max(60_000, Number(env.automation.slaIntervalMs) || 60 * 60 * 1000);
   const run = async () => {
@@ -370,6 +488,7 @@ async function main() {
   await maybeEnsureUserWebhookTable();
   await maybeEnsureStatefulMemoryTables();
   await maybeEnsurePolicyAndModelingTables();
+  await maybeEnsurePhase1CompletionTables();
   await maybeEnsureComplianceFrameworksColumn();
 
   const app = createApp();
@@ -377,6 +496,7 @@ async function main() {
     console.log(`Signal API listening on port ${env.port} (${env.nodeEnv})`);
   });
   startSlaAutomationLoop();
+  startFixOutcomePollingLoop();
 
   const shutdown = async (signal) => {
     console.log(`${signal} received, shutting down…`);

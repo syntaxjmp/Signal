@@ -1,8 +1,9 @@
 /**
- * Stateful memory MVP (MySQL-only):
+ * Stateful memory (MySQL-only):
  * - exact dismissal matching
  * - regression detection (resolved finding reappears)
  * - rolling baseline recalculation
+ * - accepted risk management & invalidation
  */
 
 function mean(nums) {
@@ -142,4 +143,124 @@ export async function buildScanMemoryContext(pool, projectId, scanId) {
         }
       : null,
   };
+}
+
+/**
+ * Accept a risk for a finding — stores the acceptance with optional
+ * file dependencies and checksums so we can detect invalidation later.
+ */
+export async function acceptRisk(pool, { fingerprint, projectId, userId, reason, dependsOnFiles, dependsOnChecksums, reviewByDate }) {
+  await pool.execute(
+    `INSERT INTO accepted_risks
+      (id, fingerprint, project_id, accepted_by, reason, depends_on_files, depends_on_checksums, review_by_date, is_valid)
+     VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, 1)
+     ON DUPLICATE KEY UPDATE
+       accepted_by = VALUES(accepted_by),
+       reason = VALUES(reason),
+       depends_on_files = VALUES(depends_on_files),
+       depends_on_checksums = VALUES(depends_on_checksums),
+       review_by_date = VALUES(review_by_date),
+       is_valid = 1,
+       invalidated_reason = NULL,
+       invalidated_at = NULL`,
+    [
+      fingerprint,
+      projectId,
+      userId,
+      reason,
+      dependsOnFiles ? JSON.stringify(dependsOnFiles) : null,
+      dependsOnChecksums ? JSON.stringify(dependsOnChecksums) : null,
+      reviewByDate || null,
+    ],
+  );
+}
+
+/**
+ * Check accepted risks for a project and invalidate any whose
+ * dependency files have changed (checksums differ) or whose
+ * review_by_date has passed.
+ *
+ * @returns {{ invalidated: number, reviewDue: number }}
+ */
+export async function checkAcceptedRiskValidity(pool, projectId, currentFileChecksums) {
+  const [risks] = await pool.query(
+    `SELECT id, fingerprint, depends_on_files AS dependsOnFiles,
+            depends_on_checksums AS dependsOnChecksums,
+            review_by_date AS reviewByDate
+     FROM accepted_risks
+     WHERE project_id = ? AND is_valid = 1`,
+    [projectId],
+  );
+
+  let invalidated = 0;
+  let reviewDue = 0;
+
+  for (const risk of risks) {
+    const checksums = typeof risk.dependsOnChecksums === 'string'
+      ? JSON.parse(risk.dependsOnChecksums)
+      : risk.dependsOnChecksums;
+    const depFiles = typeof risk.dependsOnFiles === 'string'
+      ? JSON.parse(risk.dependsOnFiles)
+      : risk.dependsOnFiles;
+
+    let reason = null;
+
+    // Check if dependency files have changed
+    if (checksums && currentFileChecksums && depFiles?.length) {
+      for (const file of depFiles) {
+        const oldChecksum = checksums[file];
+        const newChecksum = currentFileChecksums[file];
+        if (oldChecksum && newChecksum && oldChecksum !== newChecksum) {
+          reason = `Dependency file "${file}" has been modified since risk was accepted`;
+          break;
+        }
+      }
+    }
+
+    // Check if review date has passed
+    if (!reason && risk.reviewByDate) {
+      const reviewDate = new Date(risk.reviewByDate);
+      if (reviewDate <= new Date()) {
+        reason = `Review-by date (${risk.reviewByDate}) has passed`;
+        reviewDue++;
+      }
+    }
+
+    if (reason) {
+      await pool.execute(
+        `UPDATE accepted_risks
+         SET is_valid = 0, invalidated_reason = ?, invalidated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [reason, risk.id],
+      );
+      invalidated++;
+    }
+  }
+
+  return { invalidated, reviewDue };
+}
+
+/**
+ * Get all accepted risks for a project.
+ */
+export async function getAcceptedRisks(pool, projectId) {
+  const [rows] = await pool.query(
+    `SELECT ar.id, ar.fingerprint, ar.reason,
+            ar.depends_on_files AS dependsOnFiles,
+            ar.review_by_date AS reviewByDate,
+            ar.is_valid AS isValid,
+            ar.invalidated_reason AS invalidatedReason,
+            ar.invalidated_at AS invalidatedAt,
+            ar.created_at AS createdAt,
+            ar.accepted_by AS acceptedBy
+     FROM accepted_risks ar
+     WHERE ar.project_id = ?
+     ORDER BY ar.created_at DESC`,
+    [projectId],
+  );
+  return rows.map((r) => ({
+    ...r,
+    dependsOnFiles: typeof r.dependsOnFiles === 'string' ? JSON.parse(r.dependsOnFiles) : r.dependsOnFiles,
+    isValid: Boolean(r.isValid),
+  }));
 }

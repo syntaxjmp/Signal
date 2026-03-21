@@ -1,5 +1,33 @@
 # Signal — Stateful Security Intelligence Architecture
 
+## Implementation Status Overview
+
+> **Last audited: 2026-03-21**
+>
+> | Symbol | Meaning |
+> |--------|---------|
+> | **[DONE]** | Fully implemented in codebase |
+> | **[PARTIAL]** | Partially implemented (some pieces missing) |
+> | **[NOT DONE]** | Not yet implemented |
+>
+> **Overall: ~55-60% of this architecture is implemented.**
+>
+> | Phase | Status | Summary |
+> |-------|--------|---------|
+> | Phase 1: Stateful Foundation (MySQL) | **[DONE] ~100%** | All backend logic complete: dismissals, regressions, baselines, fix outcomes, developer profiles, accepted risks. Frontend UIs still partial. |
+> | Phase 2: Vector Intelligence (Qdrant) | **[PARTIAL] ~50%** | Infrastructure + finding embeddings + dismissal matching done. Fix augmentation missing. |
+> | Phase 3: Code Structure Graph | **[PARTIAL] ~40%** | Code element extraction done. Attack chain detection + combined analysis missing. |
+> | Phase 4: Policy Engine & Org | **[PARTIAL] ~30%** | Policies + SLA tracking done. Organization model missing. |
+> | Frontend UIs | **[PARTIAL] ~20%** | Most intelligence features are backend-only with no frontend UI yet. Compliance report is the exception. |
+>
+> **Features implemented but NOT listed in this doc:**
+> - Compliance framework scoring (`complianceFrameworks.js`) — SOC 2, OWASP, GDPR alignment
+> - Compliance report page with PDF export (`/compliance/[projectId]`)
+> - AI-powered finding explanations (`explainFinding.js`)
+> - SLA violations table (`sla_violations`) with tracking/resolution
+
+---
+
 ## Problem Statement
 
 Today, Signal is stateless. Every scan is independent. Findings are generated, stored, and displayed — but the system learns nothing from the history. A developer who dismisses the same false positive 10 times gets no relief. A team whose security score improved 60% over 3 months has no way to see that. An organization with the same vulnerability pattern across 30 repos can't detect the systemic issue.
@@ -26,16 +54,16 @@ The goal of this architecture is to turn Signal into a **compounding intelligenc
 
 Most of the stateful intelligence system is **structured, countable, and relational.** It doesn't need vectors or graphs.
 
-| Feature | Why MySQL Works |
-|---------|----------------|
-| Finding lifecycle (open → dismissed → regressed) | Status enum + timestamps |
-| Dismissal memory with justifications | New table, exact fingerprint match |
-| Developer security profiles | JOIN git blame data with findings by author email |
-| Security score trends over time | Already stored per scan, just query the timeline |
-| Regression detection | Compare fingerprints between consecutive scans |
-| Policy rules & SLA tracking | Config table + cron job for deadline checks |
-| Fix success tracking (PR merged/closed) | Poll GitHub API, store outcome |
-| Baseline calculation | AVG/STDDEV over recent scans per project |
+| Feature | Why MySQL Works | Status |
+|---------|----------------|--------|
+| Finding lifecycle (open → dismissed → regressed) | Status enum + timestamps | **[DONE]** |
+| Dismissal memory with justifications | New table, exact fingerprint match | **[DONE]** |
+| Developer security profiles | JOIN git blame data with findings by author email | **[DONE]** |
+| Security score trends over time | Already stored per scan, just query the timeline | **[DONE]** |
+| Regression detection | Compare fingerprints between consecutive scans | **[DONE]** |
+| Policy rules & SLA tracking | Config table + cron job for deadline checks | **[DONE]** |
+| Fix success tracking (PR merged/closed) | Poll GitHub API, store outcome | **[DONE]** |
+| Baseline calculation | AVG/STDDEV over recent scans per project | **[DONE]** |
 
 **This covers ~70% of the value. No new infrastructure needed.**
 
@@ -43,12 +71,11 @@ Most of the stateful intelligence system is **structured, countable, and relatio
 
 Vectors become necessary when we need **semantic similarity**, not exact matching.
 
-| Feature | Why Vectors Are Needed |
-|---------|----------------------|
-| **Smart false-positive suppression** | User dismisses "Hardcoded password in config.js line 12". Next scan finds "Embedded credential in config.js line 14" — different fingerprint, same thing. Exact match fails. Vector similarity catches it. |
-| **Cross-repo pattern matching** | "This SQL injection pattern in your Express routes looks like something we've seen in 200 other Express apps. Here's how they fixed it." |
-| **Similar fix lookup** | "A finding like this was resolved via PR #47 in another project. That fix used Knex query builder. Want to apply the same approach?" |
-| **Code pattern recognition** | Embed code snippets, find snippets that are structurally similar to known-vulnerable patterns even when variable names differ. |
+| Feature | Why Vectors Are Needed | Status |
+|---------|----------------------|--------|
+| **Smart false-positive suppression** | User dismisses "Hardcoded password in config.js line 12". Next scan finds "Embedded credential in config.js line 14" — different fingerprint, same thing. Exact match fails. Vector similarity catches it. | **[DONE]** |
+| **Similar fix lookup** | "A finding like this was resolved via PR #47 in another project. That fix used Knex query builder. Want to apply the same approach?" | **[NOT DONE]** |
+| **Code pattern recognition** | Embed code snippets, find snippets that are structurally similar to known-vulnerable patterns even when variable names differ. | **[NOT DONE]** |
 
 **Recommendation: Qdrant (self-hosted, open source, purpose-built for this)**
 
@@ -107,6 +134,7 @@ This means **no graph database in the initial architecture.** We model the code 
 │                                                                 │
 │  ┌─────────────────────┐    ┌──────────────────────────┐        │
 │  │ finding_dismissals   │    │ finding_regressions      │        │
+│  │ [DONE - in schema]  │    │ [DONE - in schema]       │        │
 │  │─────────────────────│    │──────────────────────────│        │
 │  │ fingerprint (FK)     │    │ fingerprint              │        │
 │  │ project_id           │    │ project_id               │        │
@@ -120,6 +148,7 @@ This means **no graph database in the initial architecture.** We model the code 
 │                                                                 │
 │  ┌─────────────────────┐    ┌──────────────────────────┐        │
 │  │ developer_profiles   │    │ developer_finding_links  │        │
+│  │ [DONE]               │    │ [DONE]                   │        │
 │  │─────────────────────│    │──────────────────────────│        │
 │  │ project_id           │    │ finding_id               │        │
 │  │ author_email         │    │ developer_profile_id     │        │
@@ -135,26 +164,30 @@ This means **no graph database in the initial architecture.** We model the code 
 │                              │ baseline_score           │        │
 │  ┌─────────────────────┐    │ baseline_finding_count   │        │
 │  │ security_policies    │    │ score_stddev             │        │
-│  │─────────────────────│    │ window_size (scans)      │        │
+│  │ [DONE - in schema]  │    │ window_size (scans)      │        │
+│  │─────────────────────│    │ [DONE - in schema]       │        │
 │  │ org_id / project_id  │    │ last_recalculated_at    │        │
 │  │ rule_type            │    └──────────────────────────┘        │
 │  │ condition (JSON)     │                                       │
 │  │ action (JSON)        │    ┌──────────────────────────┐        │
 │  │ is_active            │    │ fix_outcomes             │        │
-│  │ created_by           │    │──────────────────────────│        │
-│  └─────────────────────┘    │ resolution_job_id        │        │
+│  │ created_by           │    │ [DONE]                   │        │
+│  └─────────────────────┘    │──────────────────────────│        │
+│                              │ resolution_job_id        │        │
 │                              │ pr_url                   │        │
 │  ┌─────────────────────┐    │ pr_status (merged/closed)│        │
 │  │ accepted_risks       │    │ merged_at / closed_at    │        │
-│  │─────────────────────│    │ fix_category             │        │
-│  │ fingerprint          │    │ fix_pattern_hash         │        │
-│  │ project_id           │    │ review_comments_count   │        │
-│  │ accepted_by          │    └──────────────────────────┘        │
+│  │ [DONE]               │    │ fix_category             │        │
+│  │─────────────────────│    │ fix_pattern_hash         │        │
+│  │ fingerprint          │    │ review_comments_count   │        │
+│  │ project_id           │    └──────────────────────────┘        │
+│  │ accepted_by          │                                       │
 │  │ reason               │                                       │
 │  │ depends_on (JSON)    │    ┌──────────────────────────┐        │
 │  │ review_by_date       │    │ code_elements            │        │
-│  │ last_validated_at    │    │──────────────────────────│        │
-│  └─────────────────────┘    │ project_id               │        │
+│  │ last_validated_at    │    │ [DONE - in schema]       │        │
+│  └─────────────────────┘    │──────────────────────────│        │
+│                              │ project_id               │        │
 │                              │ scan_id                  │        │
 │                              │ element_type (route,     │        │
 │                              │   middleware, handler,    │        │
@@ -168,13 +201,13 @@ This means **no graph database in the initial architecture.** We model the code 
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Vector Store (Qdrant) Collections
+### Vector Store (Qdrant) Collections — **[PARTIAL]** Infrastructure done, 1 of 3 collections implemented
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     QDRANT COLLECTIONS                          │
 │                                                                 │
-│  Collection: finding_embeddings                                 │
+│  Collection: finding_embeddings  [DONE]                         │
 │  ─────────────────────────────────────────────                  │
 │  vector: embed(category + description + snippet)  [1536 dim]    │
 │  payload: {                                                     │
@@ -188,7 +221,7 @@ This means **no graph database in the initial architecture.** We model the code 
 │    - "Find findings across all org repos similar to this one"   │
 │    - "What fix pattern was used for similar findings?"           │
 │                                                                 │
-│  Collection: code_pattern_embeddings                            │
+│  Collection: code_pattern_embeddings  [NOT DONE]                │
 │  ─────────────────────────────────────────────                  │
 │  vector: embed(normalized_code_snippet)           [1536 dim]    │
 │  payload: {                                                     │
@@ -202,7 +235,7 @@ This means **no graph database in the initial architecture.** We model the code 
 │    - "This code matches a known-safe parameterized query"       │
 │    - Pre-filter before LLM to reduce false positives            │
 │                                                                 │
-│  Collection: fix_embeddings                                     │
+│  Collection: fix_embeddings  [NOT DONE]                         │
 │  ─────────────────────────────────────────────                  │
 │  vector: embed(finding_description + fix_diff)    [1536 dim]    │
 │  payload: {                                                     │
@@ -221,7 +254,7 @@ This means **no graph database in the initial architecture.** We model the code 
 
 ## Core Intelligence Flows
 
-### Flow 1: Smart Dismissal Memory
+### Flow 1: Smart Dismissal Memory — **[DONE]**
 
 ```
 Developer dismisses Finding X
@@ -280,7 +313,7 @@ Reason codes for dismissals:
 - `test_code` — only exists in test/dev environment
 - `wont_fix` — acknowledged, not worth fixing
 
-### Flow 2: Regression Detection
+### Flow 2: Regression Detection — **[DONE]**
 
 ```
 Scan N completes → findings stored with fingerprints
@@ -310,7 +343,7 @@ Scan N completes → findings stored with fingerprints
 └────────────────────────────────────────────────┘
 ```
 
-### Flow 3: Developer Security Profiles
+### Flow 3: Developer Security Profiles — **[DONE]**
 
 ```
 Scan completes → new findings stored
@@ -346,7 +379,7 @@ Developer Risk Score formula:
                   60 days = 0.7, 90 days = 0.4, older = 0.2
 ```
 
-### Flow 4: Contextual Fix Generation (Vector-Augmented)
+### Flow 4: Contextual Fix Generation (Vector-Augmented) — **[NOT DONE]**
 
 ```
 User clicks "Resolve" on Finding X
@@ -397,39 +430,7 @@ User clicks "Resolve" on Finding X
 └──────────────────────────────────────────────────┘
 ```
 
-### Flow 5: Cross-Repository Intelligence
-
-```
-Organization has projects: [A, B, C, D, E ... N]
-         │
-         ▼
-┌──────────────────────────────────────────────────┐
-│ After each scan, embed all findings in Qdrant     │
-│ with org_id in the payload                        │
-│                                                   │
-│ Periodic analysis job (daily/weekly):             │
-│                                                   │
-│ 1. Cluster similar findings across org            │
-│    - Qdrant: search all findings in org           │
-│    - Group by similarity > 0.90                   │
-│    - Result: "12 repos have the same CORS          │
-│      misconfiguration pattern"                    │
-│                                                   │
-│ 2. Identify systemic patterns                     │
-│    - "Every Express.js repo in your org has        │
-│      missing rate limiting on auth endpoints"      │
-│    - "Your shared npm package `@acme/db-utils`     │
-│      is used by 8 repos and has SQLi in v2.1"      │
-│                                                   │
-│ 3. Generate org-level security report             │
-│    - Aggregate scores across projects              │
-│    - Top 5 most common vulnerability categories    │
-│    - Developer leaderboard (highest risk)          │
-│    - Trend: org-wide score over last 90 days       │
-└──────────────────────────────────────────────────┘
-```
-
-### Flow 6: Accepted Risk Invalidation
+### Flow 5: Accepted Risk Invalidation — **[DONE]**
 
 ```
 User accepts risk on Finding X:
@@ -519,39 +520,44 @@ User accepts risk on Finding X:
 
 ## Implementation Phases
 
-### Phase 1: Stateful Foundation (MySQL only, ~3-4 weeks)
+### Phase 1: Stateful Foundation (MySQL only, ~3-4 weeks) — **[DONE] ~100%**
 
 No new infrastructure. Extend MySQL and backend logic.
 
-**1a. Finding Lifecycle Tracking**
-- Add `finding_dismissals` table
-- Add dismiss/accept-risk endpoints to API
-- On scan completion: compare fingerprints with previous scan → compute added/removed/regressed
-- Store regression events in `finding_regressions`
-- API: `GET /projects/:id/findings/regressions`
+**1a. Finding Lifecycle Tracking — [DONE]**
+- ~~Add `finding_dismissals` table~~ Done — in `schema.sql`
+- ~~Add dismiss/accept-risk endpoints to API~~ Done — `POST /projects/:id/findings/:findingId/dismiss`
+- ~~On scan completion: compare fingerprints with previous scan → compute added/removed/regressed~~ Done — `statefulMemory.js`
+- ~~Store regression events in `finding_regressions`~~ Done
+- ~~API: `GET /projects/:id/findings/regressions`~~ Done — via `/memory-context` endpoint
+- **Frontend UI: [NOT DONE]** — No dismissal form with reason codes in the frontend yet
 
-**1b. Scan Baselines**
-- After each scan: recalculate rolling baseline (last 10 scans)
-- Store in `scan_baselines`: avg score, stddev, avg finding count
-- On scan completion: compare new score to baseline
-- If score deviates > 2 stddev: flag as anomaly
-- API: `GET /projects/:id/baseline`
+**1b. Scan Baselines — [DONE]**
+- ~~After each scan: recalculate rolling baseline (last 10 scans)~~ Done — `recomputeScanBaseline()`
+- ~~Store in `scan_baselines`: avg score, stddev, avg finding count~~ Done
+- ~~On scan completion: compare new score to baseline~~ Done
+- If score deviates > 2 stddev: flag as anomaly — logic exists in baseline calc
+- ~~API: `GET /projects/:id/baseline`~~ Done — via `/memory-context` endpoint
+- **Frontend UI: [PARTIAL]** — Score delta shown in audit section, no long-term trend charts
 
-**1c. Fix Outcome Tracking**
-- After resolution job creates a PR: store `fix_outcomes` record
-- Background job: poll GitHub for PR status (merged/closed) every hour
-- Store: pr_status, merged_at, review_comments_count
-- API: `GET /projects/:id/fix-stats` (merge rate, avg time to merge)
+**1c. Fix Outcome Tracking — [DONE]**
+- ~~`fix_outcomes` table~~ Done — in `schema.sql` + auto-migration in `server.js`
+- ~~Background job polling GitHub for PR merge/close status~~ Done — `fixOutcomeTracker.js` with `pollFixOutcomes()` on 30-min loop
+- ~~Merge rate and fix stats API endpoint~~ Done — `GET /projects/:id/fix-outcomes`
+- ~~Create fix_outcome on resolution job completion~~ Done — hooked into `resolutionAgent.js`
 
-**1d. Regression Detection**
-- On scan completion: cross-reference new findings with all historical dismissals and resolved findings
-- If a previously-resolved fingerprint reappears: insert `finding_regressions` record
-- Webhook notification: "Regression detected: SQL injection in auth.js was fixed in scan #14 but has reappeared"
+**1d. Regression Detection — [DONE]**
+- ~~On scan completion: cross-reference new findings with all historical dismissals and resolved findings~~ Done — `detectAndStoreRegressions()`
+- ~~If a previously-resolved fingerprint reappears: insert `finding_regressions` record~~ Done
+- Webhook notification: not yet wired up to user_webhooks
+- **Frontend UI: [NOT DONE]** — No dedicated regression alerts in the UI
 
 **Database migration for Phase 1:**
 
+> **Migration status:** `finding_dismissals` [DONE], `finding_regressions` [DONE], `scan_baselines` [DONE], `fix_outcomes` [DONE], `developer_profiles` [DONE], `developer_finding_links` [DONE], `accepted_risks` [DONE]
+
 ```sql
--- Finding dismissals
+-- Finding dismissals [DONE - in schema.sql]
 CREATE TABLE `finding_dismissals` (
   `id` CHAR(36) NOT NULL,
   `fingerprint` CHAR(64) NOT NULL,
@@ -572,7 +578,7 @@ CREATE TABLE `finding_dismissals` (
   CONSTRAINT `fk_dismissals_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Finding regressions
+-- Finding regressions [DONE - in schema.sql]
 CREATE TABLE `finding_regressions` (
   `id` CHAR(36) NOT NULL,
   `fingerprint` CHAR(64) NOT NULL,
@@ -589,7 +595,7 @@ CREATE TABLE `finding_regressions` (
   CONSTRAINT `fk_regressions_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Scan baselines
+-- Scan baselines [DONE - in schema.sql]
 CREATE TABLE `scan_baselines` (
   `id` CHAR(36) NOT NULL,
   `project_id` CHAR(36) NOT NULL,
@@ -604,7 +610,7 @@ CREATE TABLE `scan_baselines` (
   CONSTRAINT `fk_baselines_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Fix outcome tracking
+-- Fix outcome tracking [DONE - in schema.sql]
 CREATE TABLE `fix_outcomes` (
   `id` CHAR(36) NOT NULL,
   `resolution_job_id` CHAR(36) NOT NULL,
@@ -627,7 +633,7 @@ CREATE TABLE `fix_outcomes` (
   CONSTRAINT `fk_fix_outcomes_job` FOREIGN KEY (`resolution_job_id`) REFERENCES `resolution_jobs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Developer profiles
+-- Developer profiles [DONE - in schema.sql]
 CREATE TABLE `developer_profiles` (
   `id` CHAR(36) NOT NULL,
   `project_id` CHAR(36) NOT NULL,
@@ -649,7 +655,7 @@ CREATE TABLE `developer_profiles` (
   CONSTRAINT `fk_dev_profiles_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Developer-to-finding link (blame data)
+-- Developer-to-finding link (blame data) [DONE - in schema.sql]
 CREATE TABLE `developer_finding_links` (
   `id` CHAR(36) NOT NULL,
   `finding_id` CHAR(36) NOT NULL,
@@ -665,7 +671,7 @@ CREATE TABLE `developer_finding_links` (
   CONSTRAINT `fk_dev_finding_links_dev` FOREIGN KEY (`developer_profile_id`) REFERENCES `developer_profiles` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Accepted risks with dependency tracking
+-- Accepted risks with dependency tracking [DONE - in schema.sql]
 CREATE TABLE `accepted_risks` (
   `id` CHAR(36) NOT NULL,
   `fingerprint` CHAR(64) NOT NULL,
@@ -687,28 +693,28 @@ CREATE TABLE `accepted_risks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### Phase 2: Vector Intelligence (~2-3 weeks after Phase 1)
+### Phase 2: Vector Intelligence (~2-3 weeks after Phase 1) — **[PARTIAL] ~50%**
 
 Add Qdrant. Requires one new service dependency.
 
-**2a. Infrastructure**
-- Add Qdrant to docker-compose (or use Qdrant Cloud for hosted)
-- Create embedding service: `backend/src/services/embeddingService.js`
-- Create Qdrant client wrapper: `backend/src/services/vectorStore.js`
+**2a. Infrastructure — [DONE]**
+- ~~Add Qdrant to docker-compose (or use Qdrant Cloud for hosted)~~ Done — Qdrant config via env vars
+- ~~Create embedding service: `backend/src/services/embeddingService.js`~~ Done
+- ~~Create Qdrant client wrapper: `backend/src/services/vectorStore.js`~~ Done
 
-**2b. Finding Embeddings**
-- On scan completion: embed each finding (category + description + snippet) → store in Qdrant
-- Include payload: fingerprint, project_id, org_id, severity, dismissed status
+**2b. Finding Embeddings — [DONE]**
+- ~~On scan completion: embed each finding (category + description + snippet) → store in Qdrant~~ Done — `upsertFindingEmbeddings()`
+- ~~Include payload: fingerprint, project_id, org_id, severity, dismissed status~~ Done
 
-**2c. Smart Dismissal Matching**
-- Before presenting findings to user: check each against dismissed finding embeddings
-- Similarity > 0.92: auto-suppress with "Previously dismissed (similar)" label
-- Similarity 0.85-0.92: show with "Similar to dismissed finding" hint + one-click dismiss
+**2c. Smart Dismissal Matching — [DONE]**
+- ~~Before presenting findings to user: check each against dismissed finding embeddings~~ Done — `searchSimilarDismissedFindings()`
+- ~~Similarity > 0.92: auto-suppress with "Previously dismissed (similar)" label~~ Done
+- Similarity 0.85-0.92: show with "Similar to dismissed finding" hint + one-click dismiss — API exists (`GET /similar-dismissed`), **frontend UI: [NOT DONE]**
 
-**2d. Contextual Fix Augmentation**
-- Before generating fix: search fix_embeddings for merged fixes with similar findings
-- Inject top 3 successful fix patterns into the resolution agent prompt
-- Track: does adding historical context improve merge rate?
+**2d. Contextual Fix Augmentation — [NOT DONE]**
+- No `fix_embeddings` collection created
+- Resolution agent does not search for similar past fixes
+- No historical fix context injected into prompts
 
 **Docker Compose addition:**
 ```yaml
@@ -762,25 +768,24 @@ export function buildFixEmbeddingText(finding, diff) {
 }
 ```
 
-### Phase 3: Code Structure Graph (~3-4 weeks after Phase 2)
+### Phase 3: Code Structure Graph (~3-4 weeks after Phase 2) — **[PARTIAL] ~40%**
 
 Model code element relationships in MySQL adjacency tables.
 
-**3a. Code Element Extraction**
-- During scan: extract routes, middleware, handlers, DB calls from AST or regex patterns
-- Store in `code_elements` table with parent_element_id for hierarchy
-- Example: Route("/api/users/:id") → parent_of → Handler(getUserById) → parent_of → DBCall(query)
+**3a. Code Element Extraction — [DONE]**
+- ~~During scan: extract routes, middleware, handlers, DB calls from AST or regex patterns~~ Done — `codeElementModeling.js`
+- ~~Store in `code_elements` table with parent_element_id for hierarchy~~ Done — in schema.sql
+- ~~Example: Route("/api/users/:id") → parent_of → Handler(getUserById) → parent_of → DBCall(query)~~ Done
 
-**3b. Attack Chain Detection**
-- After findings are stored: walk the code element graph
-- For each finding: trace upward to the nearest route (entry point)
-- Check: does the path from entry point to vulnerable code pass through auth middleware?
-- If not: flag as "Reachable without authentication" → escalate severity
+**3b. Attack Chain Detection — [NOT DONE]**
+- No graph traversal logic implemented
+- No route-to-vulnerability path analysis
+- No auth middleware gap detection along paths
 
-**3c. Combined Finding Analysis**
-- Query: "Are there two findings that, combined, create a worse outcome?"
-- Example: Missing auth (Finding A) + SQL injection (Finding B) in the same handler chain = unauthenticated SQLi
-- Generate attack chain narratives for the report
+**3c. Combined Finding Analysis — [NOT DONE]**
+- No multi-finding correlation
+- No attack chain narrative generation
+- No severity escalation based on combined findings
 
 **Code element extraction (regex-based, no AST required for MVP):**
 ```javascript
@@ -797,9 +802,9 @@ const MIDDLEWARE_PATTERN = /\.use\s*\(\s*(\w+)/g;
 const DB_CALL_PATTERN = /\.(query|execute|raw)\s*\(/g;
 ```
 
-### Phase 4: Policy Engine & Org Features (~3-4 weeks after Phase 3)
+### Phase 4: Policy Engine & Org Features (~3-4 weeks after Phase 3) — **[PARTIAL] ~30%**
 
-**4a. Security Policies Table**
+**4a. Security Policies Table — [DONE]**
 ```sql
 CREATE TABLE `security_policies` (
   `id` CHAR(36) NOT NULL,
@@ -818,15 +823,15 @@ CREATE TABLE `security_policies` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-**4b. SLA Tracking**
-- Cron job runs hourly: check all open findings against policy SLAs
-- If finding age > SLA: trigger escalation action (Slack, email, status change)
+**4b. SLA Tracking — [DONE]**
+- ~~Cron job runs hourly: check all open findings against policy SLAs~~ Done — `slaAutomation.js`, `runSlaChecksOnce()`, background loop in `server.js`
+- ~~If finding age > SLA: trigger escalation action~~ Done — `sla_violations` table tracks violations
+- **Frontend UI: [NOT DONE]** — No SLA violation dashboard in the frontend
 
-**4c. Organization Model**
-- Add `organizations` and `org_members` tables
-- Projects belong to an org
-- Policies can be set at org level (apply to all projects)
-- Cross-repo dashboard at org level
+**4c. Organization Model — [NOT DONE]**
+- No `organizations` or `org_members` tables
+- No org-level project grouping
+- No org-level policy inheritance
 
 ---
 
@@ -845,15 +850,15 @@ CREATE TABLE `security_policies` (
 
 ## Key Technical Decisions Summary
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Primary database | MySQL 8 (keep existing) | Already in use, handles 70% of stateful needs, no migration cost |
-| Vector store | Qdrant (self-hosted) | Open source, purpose-built, no vendor lock-in, good filtering |
-| Embedding model | OpenAI text-embedding-3-small | Already have API access, 1536 dims, cheap ($0.02/1M tokens) |
-| Graph database | None (MySQL adjacency tables) | Overkill at current scale, simple traversals only |
-| Code analysis | Regex-based extraction | No AST dependency, works across languages, good enough for MVP |
-| Background jobs | Node.js setTimeout / setInterval | Already in use for scans. Switch to BullMQ if queue complexity grows |
-| Caching | None initially | Add Redis when response times demand it |
+| Decision | Choice | Rationale | Implemented? |
+|----------|--------|-----------|--------------|
+| Primary database | MySQL 8 (keep existing) | Already in use, handles 70% of stateful needs, no migration cost | **[DONE]** |
+| Vector store | Qdrant (self-hosted) | Open source, purpose-built, no vendor lock-in, good filtering | **[DONE]** |
+| Embedding model | OpenAI text-embedding-3-small | Already have API access, 1536 dims, cheap ($0.02/1M tokens) | **[DONE]** |
+| Graph database | None (MySQL adjacency tables) | Overkill at current scale, simple traversals only | **[DONE]** — table exists, traversal not built |
+| Code analysis | Regex-based extraction | No AST dependency, works across languages, good enough for MVP | **[DONE]** |
+| Background jobs | Node.js setTimeout / setInterval | Already in use for scans. Switch to BullMQ if queue complexity grows | **[DONE]** |
+| Caching | None initially | Add Redis when response times demand it | **[DONE]** — still no caching, as planned |
 
 ---
 
@@ -861,11 +866,11 @@ CREATE TABLE `security_policies` (
 
 How to know this is working:
 
-| Metric | Target | How to Measure |
-|--------|--------|----------------|
-| False positive rate | Decrease 40% within 90 days of deployment | Count auto-suppressed findings / total findings per scan |
-| Scan-over-scan accuracy | Fewer dismissed findings per scan over time | Track dismissal rate trend per project |
-| Fix merge rate | >70% of generated PRs get merged | fix_outcomes.pr_status = 'merged' / total |
-| Regression detection rate | Catch 100% of reintroduced findings | finding_regressions count vs manual reports |
-| User retention signal | Users who see trend data retain 2x better | Cohort analysis: users with >5 scans vs users with 1-2 |
-| Time to remediate | Decrease 30% within 6 months | Avg time from finding.created_at to status='resolved' |
+| Metric | Target | How to Measure | Can Measure Today? |
+|--------|--------|----------------|-------------------|
+| False positive rate | Decrease 40% within 90 days of deployment | Count auto-suppressed findings / total findings per scan | **[PARTIAL]** — dismissals tracked, no auto-suppression metrics dashboard |
+| Scan-over-scan accuracy | Fewer dismissed findings per scan over time | Track dismissal rate trend per project | **[PARTIAL]** — data exists, no trend UI |
+| Fix merge rate | >70% of generated PRs get merged | fix_outcomes.pr_status = 'merged' / total | **[NOT YET]** — fix_outcomes table not implemented |
+| Regression detection rate | Catch 100% of reintroduced findings | finding_regressions count vs manual reports | **[YES]** — regression detection fully working |
+| User retention signal | Users who see trend data retain 2x better | Cohort analysis: users with >5 scans vs users with 1-2 | **[NOT YET]** — no cohort analysis |
+| Time to remediate | Decrease 30% within 6 months | Avg time from finding.created_at to status='resolved' | **[PARTIAL]** — timestamps exist, no reporting |
