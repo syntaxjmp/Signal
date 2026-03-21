@@ -602,8 +602,10 @@ export default function ComplianceReportPage() {
             className={styles.download}
             disabled={downloadBusy || pending || !session}
             onClick={() => void downloadMarkdown()}
+            aria-busy={downloadBusy}
           >
-            {downloadBusy ? "Preparing…" : "Download PDF report"}
+            <Image src="/icon.png" alt="" width={18} height={18} className={styles.downloadIcon} aria-hidden />
+            <span>{downloadBusy ? "Preparing…" : "Download PDF report"}</span>
           </button>
           <Link href="/dashboard" className={styles.back}>
             Dashboard
