@@ -158,6 +158,25 @@
         .reveal:nth-child(5) { transition-delay: 0.48s; }
         .reveal:nth-child(6) { transition-delay: 0.58s; }
 
+        /* A3 product tour: corporate-style reveals (fade + minimal lift, faster) */
+        .a3-tour.slide:not(.visible) .reveal {
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.34s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .a3-tour.slide.visible .reveal {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.34s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .a3-tour-header > .reveal:nth-child(1) { transition-delay: 0.04s; }
+        .a3-tour-header > .reveal:nth-child(2) { transition-delay: 0.08s; }
+        .a3-tour-header > .reveal:nth-child(3) { transition-delay: 0.12s; }
+        .a3-tour .slide-content > .a3-overview-under-tour.reveal { transition-delay: 0.15s; }
+        .a3-tour .slide-content > .a3-split.reveal { transition-delay: 0.2s; }
+
         /* === PROGRESS BAR === */
         .progress-bar {
             position: fixed;
@@ -405,11 +424,11 @@
         }
 
         /* ======================================================
-           SLIDE 2: PROBLEM
+           SLIDE 2 & 3: PROBLEM
            ====================================================== */
         .problem-slide .slide-content {
-            gap: clamp(0.8rem, 2vw, 1.8rem);
-            max-width: min(90vw, 1000px);
+            gap: clamp(0.6rem, 1.5vw, 1.4rem);
+            max-width: min(92vw, 1050px);
             margin: 0 auto;
         }
         .problem-stats {
@@ -417,6 +436,133 @@
             gap: clamp(1rem, 3vw, 3rem);
             justify-content: center;
             flex-wrap: wrap;
+        }
+
+        /* Bar chart: Human vs AI vulnerability comparison */
+        .vuln-chart {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.4rem, 0.8vh, 0.7rem);
+            width: 100%;
+            max-width: 820px;
+            margin: 0 auto;
+        }
+        .chart-row {
+            display: grid;
+            grid-template-columns: clamp(80px, 12vw, 140px) 1fr;
+            align-items: center;
+            gap: clamp(6px, 1vw, 12px);
+        }
+        .chart-label {
+            font-family: var(--font-display);
+            font-size: var(--small-size);
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-align: right;
+            line-height: 1.2;
+        }
+        .chart-bars {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(2px, 0.3vh, 4px);
+        }
+        .chart-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 8px);
+        }
+        .chart-bar {
+            height: clamp(14px, 2vh, 22px);
+            border-radius: 3px;
+            position: relative;
+            min-width: 4px;
+            transition: width 1.2s var(--ease-out-expo);
+        }
+        .chart-bar.human {
+            background: var(--line);
+        }
+        .chart-bar.ai {
+            background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+            box-shadow: 0 0 12px rgba(255, 90, 52, 0.2);
+        }
+        .chart-bar-val {
+            font-family: var(--font-display);
+            font-size: clamp(0.55rem, 0.85vw, 0.75rem);
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .chart-bar-val.human { color: var(--text-dim); }
+        .chart-bar-val.ai { color: var(--accent); }
+        .chart-legend {
+            display: flex;
+            gap: clamp(10px, 2vw, 20px);
+            justify-content: center;
+            margin-top: clamp(2px, 0.3vh, 4px);
+        }
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.4vw, 6px);
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            color: var(--text-dim);
+        }
+        .chart-legend-swatch {
+            width: clamp(10px, 1.2vw, 14px);
+            height: clamp(6px, 0.8vh, 10px);
+            border-radius: 2px;
+        }
+        .chart-legend-swatch.human { background: var(--line); }
+        .chart-legend-swatch.ai { background: var(--accent); }
+        .chart-source {
+            font-size: clamp(0.5rem, 0.7vw, 0.6rem);
+            color: var(--text-dim);
+            text-align: center;
+            opacity: 0.6;
+            margin-top: clamp(2px, 0.3vh, 4px);
+        }
+
+        /* Cost slide specifics */
+        .cost-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.5rem, 1.2vw, 1rem);
+        }
+        @media (max-width: 600px) { .cost-grid { grid-template-columns: 1fr; } }
+        .cost-card {
+            background: rgba(18, 6, 3, 0.7);
+            border: 1px solid rgba(255, 90, 52, 0.15);
+            border-radius: clamp(6px, 0.8vw, 10px);
+            padding: clamp(0.6rem, 1.5vw, 1.2rem);
+            text-align: center;
+        }
+        .cost-card .stat-value { font-size: clamp(1.3rem, 3.5vw, 2.5rem); }
+        .why-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.3rem, 0.7vh, 0.6rem);
+        }
+        .why-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(6px, 0.8vw, 10px);
+            font-size: var(--body-size);
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        .why-icon {
+            flex-shrink: 0;
+            width: clamp(18px, 2.2vw, 24px);
+            height: clamp(18px, 2.2vw, 24px);
+            border-radius: 4px;
+            background: rgba(255, 90, 52, 0.1);
+            border: 1px solid rgba(255, 90, 52, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            margin-top: 2px;
         }
 
         /* ======================================================
@@ -456,8 +602,219 @@
             color: var(--text-dim);
         }
 
+        /* === A3 multi-slide tour: tight vertical rhythm + corporate transitions === */
+        .a3-tour .slide-content {
+            justify-content: flex-start;
+            padding-top: clamp(0.35rem, 1vh, 0.85rem);
+            gap: clamp(0.2rem, 0.55vh, 0.45rem);
+        }
+        .a3-tour-header {
+            flex-shrink: 0;
+            text-align: center;
+            width: 100%;
+            max-width: min(92vw, 900px);
+            margin: 0 auto;
+        }
+        .a3-tour-header .pipeline {
+            margin-top: clamp(0.12rem, 0.45vh, 0.35rem);
+        }
+        .a3-tour-step {
+            font-family: var(--font-display);
+            font-size: clamp(0.55rem, 0.85vw, 0.7rem);
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent-soft);
+            margin-top: clamp(0.06rem, 0.25vh, 0.2rem);
+            margin-bottom: clamp(0.15rem, 0.45vh, 0.35rem);
+        }
+        /* Overview sits full-width directly under “Product tour · n of 3” */
+        .a3-overview-under-tour {
+            width: 100%;
+            max-width: min(50em, 94vw);
+            margin: 0 auto;
+            text-align: center;
+            padding: 0 clamp(0.5rem, 2vw, 1rem);
+            flex-shrink: 0;
+        }
+        .a3-overview-under-tour p {
+            font-size: clamp(0.92rem, 1.85vw, 1.2rem);
+            line-height: 1.48;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        .a3-overview-under-tour p + p {
+            margin-top: clamp(0.3rem, 0.75vh, 0.5rem);
+        }
+        .a3-intro-slide .a3-split-text .a3-spotlight-title {
+            font-size: clamp(1.05rem, 2.75vw, 1.85rem);
+            margin-top: 0;
+        }
+        .a3-intro-slide .a3-split-text .a3-spotlight-desc {
+            font-size: clamp(0.82rem, 1.45vw, 1.05rem);
+            line-height: 1.5;
+        }
+        .a3-spotlight-title {
+            font-family: var(--font-display);
+            font-size: var(--h3-size);
+            font-weight: 600;
+            color: var(--foreground);
+            text-align: center;
+            margin-bottom: clamp(0.15rem, 0.4vh, 0.35rem);
+        }
+        .a3-spotlight-desc {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 38em;
+            margin: 0 auto clamp(0.25rem, 0.6vh, 0.5rem);
+            line-height: 1.45;
+        }
+        .a3-product-frame {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        .a3-product-frame img {
+            max-width: min(92vw, 1100px);
+            max-height: min(48vh, 520px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: clamp(8px, 1vw, 14px);
+            border: 1px solid rgba(255, 90, 52, 0.22);
+            box-shadow:
+                0 16px 48px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(0, 0, 0, 0.35) inset;
+            display: block;
+        }
+        /* Slide 04: two columns — compact row under full-width overview */
+        .a3-intro-slide .a3-split:not(.a3-split--stack) {
+            min-height: min(30vh, 260px);
+            gap: clamp(0.4rem, 1.1vw, 0.9rem);
+            margin-top: clamp(0.15rem, 0.5vh, 0.4rem);
+        }
+        .a3-split {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+            gap: clamp(0.75rem, 2.5vw, 2rem);
+            align-items: center;
+            width: 100%;
+            max-width: min(1120px, 96vw);
+            margin: 0 auto;
+            flex: 1 1 auto;
+            min-height: min(52vh, 480px);
+        }
+        /* Slides 5–6: text directly above image — no flex growth, no min-height gap */
+        .a3-tour .slide-content > .a3-split--stack {
+            flex: 0 1 auto;
+            min-height: 0;
+            margin-top: 0;
+        }
+        .a3-split--stack {
+            grid-template-columns: 1fr;
+            min-height: 0;
+            align-items: start;
+            gap: clamp(0.2rem, 0.4vh, 0.35rem);
+        }
+        .a3-split--stack .a3-split-text {
+            text-align: center;
+        }
+        .a3-split--stack .a3-split-text .a3-spotlight-title {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: clamp(0.08rem, 0.25vh, 0.2rem);
+        }
+        .a3-split--stack .a3-split-text .a3-spotlight-desc {
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 0;
+        }
+        .a3-split--stack .a3-split-media {
+            align-items: flex-start;
+            justify-content: center;
+        }
+        .a3-split--stack .a3-split-media img {
+            max-height: min(52vh, 560px);
+            margin: 0 auto;
+        }
+        @media (max-width: 820px) {
+            .a3-split:not(.a3-split--stack) {
+                grid-template-columns: 1fr;
+                min-height: 0;
+            }
+            .a3-split:not(.a3-split--stack) .a3-split-media { order: -1; }
+        }
+        .a3-split-text {
+            text-align: left;
+            min-width: 0;
+        }
+        .a3-split-text .a3-spotlight-title {
+            text-align: left;
+            margin-top: clamp(0.25rem, 0.6vh, 0.5rem);
+        }
+        .a3-split-text .a3-spotlight-title:first-child {
+            margin-top: 0;
+        }
+        .a3-split-text .a3-spotlight-desc {
+            text-align: left;
+            margin-left: 0;
+            margin-right: 0;
+            max-width: none;
+        }
+        .a3-split-text .a3-intro-copy {
+            text-align: left;
+            margin: 0;
+            max-width: none;
+        }
+        .a3-split-media {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .a3-split-media img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            max-height: min(52vh, 540px);
+            object-fit: contain;
+            object-position: center top;
+            border-radius: clamp(8px, 1vw, 14px);
+            border: 1px solid rgba(255, 90, 52, 0.22);
+            box-shadow:
+                0 16px 48px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(0, 0, 0, 0.35) inset;
+            display: block;
+        }
+        .a3-intro-copy {
+            text-align: center;
+            max-width: min(42em, 92vw);
+            margin: 0 auto;
+        }
+        .a3-intro-copy p {
+            font-size: var(--body-size);
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .a3-intro-copy p + p {
+            margin-top: clamp(0.35rem, 0.8vh, 0.6rem);
+        }
+        /* Continued A3 slides: header stays static (no re-fade) for seamless scroll */
+        .a3-tour-continued.visible .a3-tour-header .reveal,
+        .a3-tour-continued.visible .a3-tour-header .reveal * {
+            opacity: 1 !important;
+            transform: none !important;
+            transition: none !important;
+        }
+
         /* ======================================================
-           SLIDE 4: ARCHITECTURE
+           SLIDE 8+: ARCHITECTURE
            ====================================================== */
         .arch-slide .slide-content {
             gap: clamp(0.6rem, 1.5vw, 1.5rem);
@@ -692,7 +1049,7 @@
     <section class="slide title-slide bg-radial" aria-label="Introduction">
         <div class="slide-content">
             <div class="title-brand reveal-scale">
-                <img src="assets/signal_logo.png" alt="Signal logo" class="logo-mark">
+                <img src="./assets/signal_logo.png" alt="Signal logo" class="logo-mark">
                 <span class="title-brand-text">Signal</span>
             </div>
             <h1 class="reveal">Ship Faster,<br>Without Stress.</h1>
@@ -708,103 +1065,297 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 2: PROBLEM IDENTIFICATION & ASSESSMENT
-         Rubric ref: A1 (10 pts) + A2 (15 pts)
+         SLIDE 2: THE VIBE CODING PARADOX
+         Rubric ref: A1 (10 pts)
          ====================================================== -->
-    <section class="slide problem-slide bg-subtle" aria-label="Problem">
+    <section class="slide problem-slide bg-subtle" aria-label="Problem — The Vibe Coding Paradox">
         <span class="slide-number">02 / Problem</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1 &middot; Problem Identification</span>
-                <h2>Developers ship <span class="accent">vulnerable code</span>&mdash;<br>because security tools weren&rsquo;t built for them.</h2>
+                <h2>The <span class="accent">Vibe Coding</span> Paradox</h2>
+                <p style="max-width: 42em; margin-top: clamp(0.2rem, 0.4vw, 0.4rem);">LLM-driven development has vertically launched shipping velocity&mdash;but security debt is compounding even faster. Code is being deployed without anyone truly understanding its internal logic.</p>
             </div>
-            <div class="hr-accent reveal"></div>
-            <ul class="bullet-list reveal">
-                <li>Traditional SAST/DAST tools are slow, expensive, and generate noisy false positives</li>
-                <li>Manual security audits add weeks to release cycles</li>
-                <li>60% of breaches involve known, unpatched vulnerabilities in dependencies and source code</li>
-                <li>Developers deprioritize security when tooling creates friction</li>
-            </ul>
+
+            <div class="vuln-chart reveal">
+                <div class="chart-legend">
+                    <div class="chart-legend-item"><span class="chart-legend-swatch human"></span> Human-Written</div>
+                    <div class="chart-legend-item"><span class="chart-legend-swatch ai"></span> AI-Generated</div>
+                </div>
+                <div class="chart-row">
+                    <span class="chart-label">Vulnerability<br>Rate</span>
+                    <div class="chart-bars">
+                        <div class="chart-bar-wrap"><div class="chart-bar human" style="width: 30%;"></div><span class="chart-bar-val human">15&ndash;20%</span></div>
+                        <div class="chart-bar-wrap"><div class="chart-bar ai" style="width: 78%;"></div><span class="chart-bar-val ai">45&ndash;50%</span> <span style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--accent); font-weight: 700;">2.7&times;</span></div>
+                    </div>
+                </div>
+                <div class="chart-row">
+                    <span class="chart-label">Avg Issues<br>per PR</span>
+                    <div class="chart-bars">
+                        <div class="chart-bar-wrap"><div class="chart-bar human" style="width: 42%;"></div><span class="chart-bar-val human">6.45</span></div>
+                        <div class="chart-bar-wrap"><div class="chart-bar ai" style="width: 70%;"></div><span class="chart-bar-val ai">10.83</span> <span style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--accent); font-weight: 700;">1.7&times;</span></div>
+                    </div>
+                </div>
+                <div class="chart-row">
+                    <span class="chart-label">XSS<br>Vulnerabilities</span>
+                    <div class="chart-bars">
+                        <div class="chart-bar-wrap"><div class="chart-bar human" style="width: 22%;"></div><span class="chart-bar-val human">Baseline</span></div>
+                        <div class="chart-bar-wrap"><div class="chart-bar ai" style="width: 82%;"></div><span class="chart-bar-val ai">+174%</span> <span style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--accent); font-weight: 700;">2.74&times;</span></div>
+                    </div>
+                </div>
+                <div class="chart-row">
+                    <span class="chart-label">Secret Leaks<br>(GitHub)</span>
+                    <div class="chart-bars">
+                        <div class="chart-bar-wrap"><div class="chart-bar human" style="width: 25%;"></div><span class="chart-bar-val human">1.6%</span></div>
+                        <div class="chart-bar-wrap"><div class="chart-bar ai" style="width: 50%;"></div><span class="chart-bar-val ai">3.2%</span> <span style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--accent); font-weight: 700;">2&times;</span></div>
+                    </div>
+                </div>
+                <div class="chart-source">Sources: Veracode 2025 GenAI Report &middot; Snyk State of Code Security 2026 &middot; GitGuardian 2025</div>
+            </div>
+
             <div class="problem-stats reveal">
                 <div class="stat">
-                    <div class="stat-value">83%</div>
-                    <div class="stat-label">of codebases have<br>known vulnerabilities</div>
+                    <div class="stat-value">10,000+</div>
+                    <div class="stat-label">new AI-generated security<br>findings per month (mid-2025)</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value">200+</div>
-                    <div class="stat-label">days average time<br>to detect a breach</div>
+                    <div class="stat-value">+37%</div>
+                    <div class="stat-label">critical vulns after 5 rounds<br>of iterative AI &ldquo;fixes&rdquo;</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value">$4.9M</div>
-                    <div class="stat-label">average cost of<br>a data breach (2025)</div>
+                    <div class="stat-value">72%</div>
+                    <div class="stat-label">security failure rate for<br>AI-generated Java code</div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- ======================================================
-         SLIDE 3: UNIQUE SELLING PROPOSITION / SOLUTION
-         Rubric ref: A3 (13 pts)
+         SLIDE 3: THE COST OF SHIPPING BLIND
+         Rubric ref: A1 continued + A2 (15 pts)
          ====================================================== -->
-    <section class="slide usp-slide bg-accent-glow" aria-label="Solution">
-        <span class="slide-number">03 / Solution</span>
+    <section class="slide problem-slide bg-accent-glow" aria-label="Problem — Financial Impact">
+        <span class="slide-number">03 / The Cost</span>
         <div class="slide-content">
             <div class="reveal">
-                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A3 &middot; Unique Selling Proposition</span>
-                <h2>One click. Instant insights.<br><span class="accent">Automated fixes.</span></h2>
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1&ndash;A2 &middot; Why Now?</span>
+                <h2>The Cost of <span class="accent">Shipping Blind</span></h2>
             </div>
-            <div class="pipeline reveal">
-                <div class="pipeline-step">
-                    <div class="icon-circle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-                    </div>
-                    <span>Connect Repo</span>
+
+            <div class="cost-grid reveal">
+                <div class="cost-card">
+                    <div class="stat-value">$4.88M</div>
+                    <div class="stat-label">average data breach<br>cost in 2025</div>
+                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">+25% for high tech-debt orgs</p>
                 </div>
-                <span class="pipeline-arrow">&#8594;</span>
-                <div class="pipeline-step">
-                    <div class="icon-circle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    </div>
-                    <span>AI Scan</span>
+                <div class="cost-card">
+                    <div class="stat-value">67%</div>
+                    <div class="stat-label">of developers spend more time<br><em>debugging</em> AI code than they saved</div>
                 </div>
-                <span class="pipeline-arrow">&#8594;</span>
-                <div class="pipeline-step">
-                    <div class="icon-circle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                    </div>
-                    <span>Report</span>
-                </div>
-                <span class="pipeline-arrow">&#8594;</span>
-                <div class="pipeline-step">
-                    <div class="icon-circle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    </div>
-                    <span>Auto-Fix PR</span>
+                <div class="cost-card">
+                    <div class="stat-value">$8M</div>
+                    <div class="stat-label">annual rework cost per<br>250-developer org</div>
+                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">AI-induced technical debt</p>
                 </div>
             </div>
-            <div class="grid-3 reveal">
-                <div class="card">
-                    <h3>35+ Vuln Types</h3>
-                    <p>SQL injection, XSS, CSRF, RCE, auth bypass, secrets exposure, SSRF, and more&mdash;aligned with OWASP Top 10.</p>
+
+            <div class="reveal" style="margin-top: clamp(0.2rem, 0.4vw, 0.4rem);">
+                <h3 style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem);">Why is this happening?</h3>
+                <ul class="why-list">
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Context Blindness</strong> &mdash; LLMs predict the next likely token but don&rsquo;t understand your business logic or security architecture</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Dependency Sprawl</strong> &mdash; AI tools import 2&times; more external libraries &ldquo;just in case,&rdquo; massively expanding the attack surface</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">The Junior Paradox</strong> &mdash; Senior devs automate chores; junior &ldquo;vibe coders&rdquo; write logic they can&rsquo;t audit, creating unowned code in production</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Comprehension Debt</strong> &mdash; Teams average 7.6 hours to resolve AI-generated incidents vs 6.3 hours for human-written code</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="chart-source reveal">Maintenance costs reach 4&times; traditional levels within 2 years if AI-generated code debt goes unmanaged.</div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         A3: UNIQUE SELLING PROPOSITION — 3-slide tour (split layout: text | screenshot)
+         Rubric ref: A3 (13 pts)
+         ====================================================== -->
+
+    <!-- A3 — Overview + VS Code (merged) -->
+    <section class="slide usp-slide bg-subtle a3-tour a3-intro-slide" aria-label="Solution — overview and IDE">
+        <span class="slide-number">04 / Solution</span>
+        <div class="slide-content">
+            <div class="a3-tour-header">
+                <div class="reveal">
+                    <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A3 &middot; Unique Selling Proposition</span>
+                    <h2>One click. Instant insights.<br><span class="accent">Automated fixes.</span></h2>
                 </div>
-                <div class="card">
-                    <h3>Compliance Reports</h3>
-                    <p>One-click PDF generation for SOC 2, ISO 27001, and OWASP with executive summaries and evidence.</p>
+                <div class="pipeline reveal">
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                        </div>
+                        <span>Connect Repo</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        </div>
+                        <span>AI Scan</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <span>Report</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <span>Auto-Fix PR</span>
+                    </div>
                 </div>
-                <div class="card">
-                    <h3>VS Code Extension</h3>
-                    <p>Scan code snippets and entire workspaces directly from your editor without leaving your flow.</p>
+                <p class="a3-tour-step reveal">Product tour &middot; 1 of 3</p>
+            </div>
+            <div class="a3-overview-under-tour reveal">
+                <p>Every scan surfaces <strong style="color: var(--foreground);">prioritized findings</strong>&mdash;severity, category, file and line context, and remediation-ready descriptions.</p>
+                <p>We check for <strong style="color: var(--foreground);">injection flaws, XSS, CSRF, RCE, secrets exposure, insecure deserialization, misconfiguration</strong>, and other OWASP-aligned patterns.</p>
+            </div>
+            <div class="a3-split reveal">
+                <div class="a3-split-text">
+                    <h3 class="a3-spotlight-title">Findings in the editor</h3>
+                    <p class="a3-spotlight-desc">The VS Code extension lists indexed files and groups issues by severity&mdash;critical, high, medium&mdash;so you triage without leaving the IDE.</p>
+                </div>
+                <div class="a3-split-media">
+                    <img src="./assets/a3-vscode-findings.png" alt="Signal VS Code extension: SIGNAL FINDINGS sidebar with vulnerabilities by severity">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- A3 — Web findings report -->
+    <section class="slide usp-slide bg-subtle a3-tour a3-tour-continued" aria-label="Solution — web findings">
+        <span class="slide-number">05 / Solution</span>
+        <div class="slide-content">
+            <div class="a3-tour-header">
+                <div class="reveal">
+                    <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A3 &middot; Unique Selling Proposition</span>
+                    <h2>One click. Instant insights.<br><span class="accent">Automated fixes.</span></h2>
+                </div>
+                <div class="pipeline reveal">
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                        </div>
+                        <span>Connect Repo</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        </div>
+                        <span>AI Scan</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <span>Report</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <span>Auto-Fix PR</span>
+                    </div>
+                </div>
+                <p class="a3-tour-step reveal">Product tour &middot; 2 of 3</p>
+            </div>
+            <div class="a3-split a3-split--stack reveal">
+                <div class="a3-split-text">
+                    <h3 class="a3-spotlight-title">Project scan results</h3>
+                    <p class="a3-spotlight-desc">Security score, severity breakdown, findings per file, and a full table with per-finding actions&mdash;SQL injection, secrets exposure, RCE, and more.</p>
+                </div>
+                <div class="a3-split-media">
+                    <img src="./assets/a3-web-findings.png" alt="Signal web app: project scan results, score gauge, and vulnerabilities table">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- A3 — Compliance -->
+    <section class="slide usp-slide bg-subtle a3-tour a3-tour-continued" aria-label="Solution — compliance">
+        <span class="slide-number">06 / Solution</span>
+        <div class="slide-content">
+            <div class="a3-tour-header">
+                <div class="reveal">
+                    <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A3 &middot; Unique Selling Proposition</span>
+                    <h2>One click. Instant insights.<br><span class="accent">Automated fixes.</span></h2>
+                </div>
+                <div class="pipeline reveal">
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                        </div>
+                        <span>Connect Repo</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        </div>
+                        <span>AI Scan</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <span>Report</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <span>Auto-Fix PR</span>
+                    </div>
+                </div>
+                <p class="a3-tour-step reveal">Product tour &middot; 3 of 3</p>
+            </div>
+            <div class="a3-split a3-split--stack reveal">
+                <div class="a3-split-text">
+                    <h3 class="a3-spotlight-title">Compliance reporting</h3>
+                    <p class="a3-spotlight-desc">Executive summary, findings by severity, risk-theme heatmap, and framework toggles (SOC 2, OWASP, GDPR, secure coding)&mdash;downloadable as PDF for audits and stakeholders.</p>
+                </div>
+                <div class="a3-split-media">
+                    <img src="./assets/a3-compliance-report.png" alt="Signal compliance report: executive summary, severity chart, framework alignment">
                 </div>
             </div>
         </div>
     </section>
 
     <!-- ======================================================
-         SLIDE 4: ARCHITECTURE
+         SLIDE 7: ARCHITECTURE
          Rubric ref: B1 (10 pts) + B2 (8 pts)
          ====================================================== -->
-    <section class="slide arch-slide bg-subtle" aria-label="Architecture">
-        <span class="slide-number">04 / Architecture</span>
+    <section class="slide arch-slide bg-accent-glow" aria-label="Architecture">
+        <span class="slide-number">07 / Architecture</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">B1 &middot; Implementation</span>
@@ -851,11 +1402,11 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 5: DEFENSIBILITY & FUNCTIONALITY
+         SLIDE 8: DEFENSIBILITY & FUNCTIONALITY
          Rubric ref: A4 (12 pts)
          ====================================================== -->
-    <section class="slide defend-slide bg-accent-glow" aria-label="Defensibility">
-        <span class="slide-number">05 / Defensibility</span>
+    <section class="slide defend-slide bg-subtle" aria-label="Defensibility">
+        <span class="slide-number">08 / Defensibility</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
@@ -925,11 +1476,11 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 6: BUSINESS CASE
+         SLIDE 9: BUSINESS CASE
          Rubric ref: A5 (5 pts) + A6 (5 pts)
          ====================================================== -->
-    <section class="slide biz-slide bg-subtle" aria-label="Business Case">
-        <span class="slide-number">06 / Business Case</span>
+    <section class="slide biz-slide bg-accent-glow" aria-label="Business Case">
+        <span class="slide-number">09 / Business Case</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A5 + A6 &middot; GTM Strategy &amp; Market</span>
@@ -971,11 +1522,11 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 7: OVERVIEW & CLOSING
+         SLIDE 10: OVERVIEW & CLOSING
          Rubric ref: C2 (7 pts) + B2 (8 pts)
          ====================================================== -->
     <section class="slide overview-slide bg-radial" aria-label="Overview and closing">
-        <span class="slide-number">07 / Overview</span>
+        <span class="slide-number">10 / Overview</span>
         <div class="slide-content">
             <div class="reveal">
                 <h2>Everything Maps to the <span class="accent">Rubric</span></h2>
@@ -985,27 +1536,27 @@
                 <div class="rubric-card">
                     <div class="rubric-card-ref">A1&ndash;A2</div>
                     <div class="rubric-card-title">Problem</div>
-                    <div class="rubric-card-weight">25% &middot; Slide 02</div>
+                    <div class="rubric-card-weight">25% &middot; Slides 02&ndash;03</div>
                 </div>
                 <div class="rubric-card">
                     <div class="rubric-card-ref">A3</div>
                     <div class="rubric-card-title">Solution / USP</div>
-                    <div class="rubric-card-weight">13 pts &middot; Slide 03</div>
+                    <div class="rubric-card-weight">13 pts &middot; Slides 04&ndash;06</div>
                 </div>
                 <div class="rubric-card">
                     <div class="rubric-card-ref">B1&ndash;B2</div>
                     <div class="rubric-card-title">Architecture</div>
-                    <div class="rubric-card-weight">18 pts &middot; Slide 04</div>
+                    <div class="rubric-card-weight">18 pts &middot; Slide 07</div>
                 </div>
                 <div class="rubric-card">
                     <div class="rubric-card-ref">A4</div>
                     <div class="rubric-card-title">Defensibility</div>
-                    <div class="rubric-card-weight">12 pts &middot; Slide 05</div>
+                    <div class="rubric-card-weight">12 pts &middot; Slide 08</div>
                 </div>
                 <div class="rubric-card">
                     <div class="rubric-card-ref">A5&ndash;A6</div>
                     <div class="rubric-card-title">Business Case</div>
-                    <div class="rubric-card-weight">10% &middot; Slide 06</div>
+                    <div class="rubric-card-weight">10% &middot; Slide 09</div>
                 </div>
                 <div class="rubric-card">
                     <div class="rubric-card-ref">C1&ndash;C2</div>
@@ -1019,7 +1570,7 @@
                 <a class="btn btn-outline" href="#">Documentation</a>
             </div>
             <div class="title-brand reveal" style="margin-top: clamp(0.3rem, 0.5vw, 0.5rem);">
-                <img src="assets/signal_logo.png" alt="Signal logo" class="logo-mark" style="width: clamp(28px, 4vw, 44px);">
+                <img src="./assets/signal_logo.png" alt="Signal logo" class="logo-mark" style="width: clamp(28px, 4vw, 44px);">
                 <span class="title-brand-text" style="font-size: clamp(0.9rem, 2vw, 1.3rem);">Signal</span>
                 <span style="color: var(--text-dim); font-size: var(--small-size); margin-left: clamp(4px, 0.5vw, 8px);">Ship faster, without stress.</span>
             </div>
@@ -1064,11 +1615,15 @@
             goToSlide(index) {
                 if (index < 0 || index >= this.slides.length || this.isAnimating) return;
                 this.isAnimating = true;
-                this.slides[index].scrollIntoView({ behavior: 'smooth' });
+                const fromEl = this.slides[this.currentSlide];
+                const toEl = this.slides[index];
+                const tourToTour = fromEl.classList.contains('a3-tour') && toEl.classList.contains('a3-tour');
+                /* Snappier advance between the three product surfaces (corporate deck feel) */
+                toEl.scrollIntoView({ behavior: tourToTour ? 'auto' : 'smooth' });
                 this.currentSlide = index;
                 this.updateNavDots();
                 this.updateProgressBar();
-                setTimeout(() => { this.isAnimating = false; }, 700);
+                setTimeout(() => { this.isAnimating = false; }, tourToTour ? 220 : 700);
             }
 
             setupKeyboardNav() {
@@ -1121,7 +1676,7 @@
                     wheelTimeout = setTimeout(() => {
                         if (e.deltaY > 0) this.goToSlide(this.currentSlide + 1);
                         else this.goToSlide(this.currentSlide - 1);
-                    }, 80);
+                    }, 45);
                 }, { passive: false });
             }
 
