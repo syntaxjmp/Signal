@@ -2,6 +2,8 @@
  * Builds structured compliance-report payload from scans, findings, and resolution jobs.
  */
 
+import PDFDocument from 'pdfkit';
+
 function mapCategoryToRiskArea(category) {
   const c = String(category || '').toLowerCase();
   if (/auth|session|jwt|oauth|password|credential|permission|rbac|acl/.test(c)) {
@@ -680,4 +682,255 @@ export function complianceReportFilename(projectName) {
     .slice(0, 80) || 'project';
   const day = new Date().toISOString().slice(0, 10);
   return `Signal-Compliance-${base}-${day}.md`;
+}
+
+function pdfSafe(s) {
+  return String(s ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\u0000/g, '')
+    .trim();
+}
+
+function ensureFooterSpace(doc) {
+  const minBottom = doc.page.height - 56;
+  if (doc.y > minBottom) {
+    doc.addPage();
+  }
+}
+
+function compliancePdfFooterLine(doc) {
+  ensureFooterSpace(doc);
+  const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  doc
+    .fontSize(8)
+    .fillColor('#666666')
+    .text(
+      `Signal · Generated ${isoStamp()} · For authorized use only. Not a certification or legal opinion.`,
+      doc.page.margins.left,
+      doc.page.height - 42,
+      { width: w, align: 'center' },
+    );
+  doc.fillColor('#000000');
+}
+
+/**
+ * Streams a PDF compliance report to the HTTP response.
+ * @param {object} payload — result of buildComplianceReportPayload
+ * @param {import('express').Response} res
+ * @param {string} filename
+ */
+export function pipeComplianceReportPdf(payload, res, filename) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      margin: 50,
+      size: 'LETTER',
+      autoFirstPage: true,
+      info: {
+        Title: payload?.project?.projectName
+          ? `Compliance report — ${payload.project.projectName}`
+          : 'Signal compliance report',
+        Author: 'Signal',
+        Subject: 'Security & compliance documentation',
+      },
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    doc.pipe(res);
+
+    const onFinish = () => resolve();
+    const onErr = (e) => reject(e);
+    res.once('finish', onFinish);
+    res.once('error', onErr);
+    doc.once('error', onErr);
+
+    try {
+      writeCompliancePdf(doc, payload);
+      doc.end();
+    } catch (e) {
+      res.off('finish', onFinish);
+      reject(e);
+    }
+  });
+}
+
+function writeCompliancePdf(doc, payload) {
+  const contentW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const left = doc.page.margins.left;
+  const generated = isoStamp();
+
+  const project = payload?.project;
+  if (!project) {
+    doc.fontSize(18).font('Helvetica-Bold').fillColor('#1a1a1a').text('Compliance report', left, doc.y, {
+      width: contentW,
+    });
+    doc.moveDown(0.5).fontSize(11).font('Helvetica').text('Project data unavailable.');
+    compliancePdfFooterLine(doc);
+    return;
+  }
+
+  doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a1a1a').text('Compliance report', left, doc.y, {
+    width: contentW,
+  });
+  doc.moveDown(0.35).fontSize(11).font('Helvetica').fillColor('#333333').text(pdfSafe(project.projectName), {
+    width: contentW,
+  });
+  if (project.githubUrl) {
+    doc.fontSize(9).fillColor('#0066cc').text(pdfSafe(project.githubUrl), { width: contentW, link: project.githubUrl });
+    doc.fillColor('#333333');
+  }
+  doc.moveDown(0.8);
+
+  if (payload.emptyReason === 'no_completed_scan') {
+    doc.fontSize(12).font('Helvetica-Bold').text('Status', { width: contentW });
+    doc.moveDown(0.35).font('Helvetica').fontSize(10.5).text(
+      'No completed security scan is available for this repository. Run a scan from the Signal dashboard, then download this report again.',
+      { width: contentW, align: 'left' },
+    );
+    doc.moveDown(0.5).fontSize(9).fillColor('#555555').text(`Generated (UTC): ${generated}`, { width: contentW });
+    compliancePdfFooterLine(doc);
+    return;
+  }
+
+  const es = payload.executiveSummary;
+  const scan = payload.scan;
+
+  doc.fontSize(10).font('Helvetica-Bold').text('Document control', { width: contentW });
+  doc.moveDown(0.25).font('Helvetica').fontSize(9.5);
+  doc.text(`Generated (UTC): ${pdfSafe(generated)}`, { width: contentW });
+  doc.text(`Evidence scan ID: ${pdfSafe(scan?.id)}`, { width: contentW });
+  doc.text(`Scan completed: ${pdfSafe(scan?.finishedAt || scan?.createdAt || '—')}`, { width: contentW });
+  doc.text(`Files analyzed: ${scan?.scannedFilesCount ?? '—'}`, { width: contentW });
+  doc.text(`Findings in snapshot: ${scan?.findingsCount ?? '—'}`, { width: contentW });
+  doc.moveDown(0.85);
+
+  doc.fontSize(12).font('Helvetica-Bold').text('1. Executive summary', { width: contentW });
+  doc.moveDown(0.35).font('Helvetica').fontSize(10);
+  if (es) {
+    doc.text(`Overall risk: ${pdfSafe(es.overallRisk)}`, { width: contentW });
+    doc.text(`Critical: ${es.criticalIssues} · High: ${es.highIssues} · Medium: ${es.mediumIssues} · Low: ${es.lowIssues}`, {
+      width: contentW,
+    });
+    doc.text(`Unresolved — Critical: ${es.criticalUnresolved} · High: ${es.highUnresolved}`, { width: contentW });
+    doc.text(`Security score (0–50, lower is better): ${es.securityScore ?? '—'}`, { width: contentW });
+    doc.text(`Status: ${pdfSafe(es.statusLine)}`, { width: contentW });
+  }
+  doc.moveDown(0.75);
+
+  doc.fontSize(12).font('Helvetica-Bold').text('2. High-level risk areas', { width: contentW });
+  doc.moveDown(0.25).font('Helvetica').fontSize(10);
+  const areas = payload.riskAreas || [];
+  if (areas.length === 0) {
+    doc.text('No grouped risk areas.', { width: contentW });
+  } else {
+    for (const r of areas) {
+      doc.text(
+        `• ${pdfSafe(r.label)} — ${r.findingCount} finding(s)${r.exampleCategories?.length ? ` · Examples: ${pdfSafe(r.exampleCategories.slice(0, 3).join(', '))}` : ''}`,
+        { width: contentW },
+      );
+      doc.moveDown(0.15);
+    }
+  }
+  doc.moveDown(0.5);
+
+  const fixes = payload.signalFixes;
+  doc.fontSize(12).font('Helvetica-Bold').text('3. Remediation & Signal workflows', { width: contentW });
+  doc.moveDown(0.25).font('Helvetica').fontSize(10);
+  if (fixes) {
+    doc.text(
+      `Critical resolved: ${fixes.criticalResolvedPct}% (${fixes.criticalResolved}/${fixes.criticalTotal})`,
+      { width: contentW },
+    );
+    doc.text(`High resolved: ${fixes.highResolvedPct}% (${fixes.highResolved}/${fixes.highTotal})`, {
+      width: contentW,
+    });
+    doc.text(
+      `Avg. resolution job duration: ${fixes.avgFixHours != null ? `${fixes.avgFixHours} hours` : 'N/A'}`,
+      { width: contentW },
+    );
+  } else {
+    doc.text('No remediation statistics available.', { width: contentW });
+  }
+  doc.moveDown(0.75);
+
+  doc.fontSize(12).font('Helvetica-Bold').text('4. Security strengths', { width: contentW });
+  doc.moveDown(0.25).font('Helvetica').fontSize(10);
+  const strengths = payload.strengths || [];
+  if (strengths.length === 0) {
+    doc.text('No items listed.', { width: contentW });
+  } else {
+    for (const s of strengths) {
+      doc.text(`• ${pdfSafe(s)}`, { width: contentW });
+      doc.moveDown(0.12);
+    }
+  }
+  doc.moveDown(0.5);
+
+  const verdict = payload.verdict;
+  doc.fontSize(12).font('Helvetica-Bold').text('5. Final verdict', { width: contentW });
+  doc.moveDown(0.25).font('Helvetica').fontSize(10);
+  if (verdict) {
+    doc.font('Helvetica-Bold').text(pdfSafe(verdict.headline), { width: contentW });
+    doc.moveDown(0.2).font('Helvetica').text(pdfSafe(verdict.subtext), { width: contentW });
+  } else {
+    doc.text('No verdict block.', { width: contentW });
+  }
+  doc.moveDown(0.75);
+
+  doc.fontSize(12).font('Helvetica-Bold').text('6. Timeline & evidence', { width: contentW });
+  doc.moveDown(0.25).font('Helvetica').fontSize(9.5);
+  const tl = payload.timeline || [];
+  if (tl.length === 0) {
+    doc.text('No scan or resolution events recorded.', { width: contentW });
+  } else {
+    for (const t of tl) {
+      const line = `${pdfSafe(t.at)} — ${pdfSafe(t.label)}${t.evidence?.prUrl ? ` · ${pdfSafe(t.evidence.prUrl)}` : ''}`;
+      doc.text(line, { width: contentW });
+      doc.moveDown(0.12);
+    }
+  }
+  doc.moveDown(0.5);
+
+  doc.addPage();
+  doc.fontSize(12).font('Helvetica-Bold').text('7. Finding detail', { width: contentW });
+  doc.moveDown(0.25).font('Helvetica').fontSize(9);
+  const ev = payload.evidence || [];
+  if (ev.length === 0) {
+    doc.text('No findings in this snapshot.', { width: contentW });
+  } else {
+    for (let i = 0; i < ev.length; i += 1) {
+      const e = ev[i];
+      const loc = `${e.filePath || ''}${e.lineNumber != null ? `:${e.lineNumber}` : ''}`;
+      doc.font('Helvetica-Bold').fontSize(10).text(`${i + 1}. [${pdfSafe(e.severity)}] ${pdfSafe(e.title)}`, {
+        width: contentW,
+      });
+      doc.moveDown(0.15).font('Helvetica').fontSize(9);
+      doc.text(`Category: ${pdfSafe(e.category)} · Status: ${pdfSafe(e.status)} · ${pdfSafe(loc)}`, {
+        width: contentW,
+      });
+      doc.moveDown(0.15).text(`Impact: ${pdfSafe(e.impact)}`, { width: contentW });
+      doc.moveDown(0.12).text(`Exploit path: ${pdfSafe(e.exploitPath)}`, { width: contentW });
+      doc.moveDown(0.12).text(`Remediation: ${pdfSafe(e.whatWasFixed)}${e.prUrl ? ` ${pdfSafe(e.prUrl)}` : ''}`, {
+        width: contentW,
+      });
+      doc.moveDown(0.45);
+      if (doc.y > doc.page.height - 120) doc.addPage();
+    }
+  }
+
+  compliancePdfFooterLine(doc);
+}
+
+/**
+ * Safe filename for PDF export (ASCII, no path chars).
+ */
+export function complianceReportPdfFilename(projectName) {
+  const base = String(projectName || 'project')
+    .replace(/[^\w\s-]+/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80) || 'project';
+  const day = new Date().toISOString().slice(0, 10);
+  return `Signal-Compliance-${base}-${day}.pdf`;
 }

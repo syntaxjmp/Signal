@@ -15,8 +15,8 @@ import {
 } from '../services/webhookHandler.js';
 import {
   buildComplianceReportPayload,
-  complianceReportFilename,
-  complianceReportToMarkdown,
+  complianceReportPdfFilename,
+  pipeComplianceReportPdf,
 } from '../services/complianceReport.js';
 
 export const projectsRouter = Router();
@@ -477,11 +477,8 @@ projectsRouter.get('/projects/:id/compliance-report/export', requireUser, async 
       res.status(403).json({ error: 'Forbidden' });
       return;
     }
-    const markdown = complianceReportToMarkdown(payload);
-    const filename = complianceReportFilename(payload.project?.projectName);
-    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(markdown);
+    const filename = complianceReportPdfFilename(payload.project?.projectName);
+    await pipeComplianceReportPdf(payload, res, filename);
   } catch (e) {
     next(e);
   }

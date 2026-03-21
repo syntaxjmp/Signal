@@ -1169,7 +1169,7 @@ export default function DashboardPage() {
                               router.push(`/compliance/${p.id}`);
                             }}
                           >
-                            Compliance
+                            Compliance report
                           </button>
                           <button
                             type="button"

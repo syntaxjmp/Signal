@@ -97,6 +97,121 @@ function sevClass(sev: string) {
   return styles.sevLow;
 }
 
+function ExecutiveSummaryVisuals({
+  es,
+  riskAreas,
+}: {
+  es: NonNullable<CompliancePayload["executiveSummary"]>;
+  riskAreas: CompliancePayload["riskAreas"];
+}) {
+  const maxSev = Math.max(1, es.criticalIssues, es.highIssues, es.mediumIssues, es.lowIssues);
+  const rows = [
+    { label: "Critical", n: es.criticalIssues, fill: styles.execBarFillCritical },
+    { label: "High", n: es.highIssues, fill: styles.execBarFillHigh },
+    { label: "Medium", n: es.mediumIssues, fill: styles.execBarFillMedium },
+    { label: "Low", n: es.lowIssues, fill: styles.execBarFillLow },
+  ];
+  const areas = riskAreas ?? [];
+  const maxRisk = Math.max(1, ...areas.map((a) => a.findingCount));
+  const score = es.securityScore;
+  const scorePct =
+    score == null || Number.isNaN(Number(score))
+      ? null
+      : Math.min(100, Math.max(0, (Number(score) / 50) * 100));
+
+  const totalFindings = es.criticalIssues + es.highIssues + es.mediumIssues + es.lowIssues;
+
+  return (
+    <div className={styles.execSummaryLayout}>
+      <div className={styles.execChartBlock}>
+        <div className={styles.execChartTitle}>Findings by severity</div>
+        {rows.map((r) => (
+          <div key={r.label} className={styles.execBarRow}>
+            <span className={styles.execBarLabel}>{r.label}</span>
+            <div className={styles.execBarTrack}>
+              <div
+                className={`${styles.execBarFill} ${r.fill}`}
+                style={{ width: `${(r.n / maxSev) * 100}%` }}
+              />
+            </div>
+            <span className={styles.execBarNum}>{r.n}</span>
+          </div>
+        ))}
+
+        <div className={styles.execScoreBlock}>
+          {totalFindings > 0 ? (
+            <>
+              <div className={styles.execChartTitle} style={{ marginBottom: "0.5rem" }}>
+                Distribution (share of findings)
+              </div>
+              <div
+                className={styles.execDistTrack}
+                role="img"
+                aria-label={`Severity mix: ${es.criticalIssues} critical, ${es.highIssues} high, ${es.mediumIssues} medium, ${es.lowIssues} low`}
+              >
+                {es.criticalIssues > 0 ? (
+                  <div className={styles.execDistSeg} style={{ flex: es.criticalIssues, background: "#ff5b5b" }} />
+                ) : null}
+                {es.highIssues > 0 ? (
+                  <div className={styles.execDistSeg} style={{ flex: es.highIssues, background: "#ff9b4a" }} />
+                ) : null}
+                {es.mediumIssues > 0 ? (
+                  <div className={styles.execDistSeg} style={{ flex: es.mediumIssues, background: "#f5c84f" }} />
+                ) : null}
+                {es.lowIssues > 0 ? (
+                  <div className={styles.execDistSeg} style={{ flex: es.lowIssues, background: "#7ec8ff" }} />
+                ) : null}
+              </div>
+            </>
+          ) : null}
+
+          <div className={styles.execScoreTop} style={{ marginTop: totalFindings > 0 ? "0.85rem" : 0 }}>
+            <span className={styles.execScoreLabel}>Security score (0–50, lower is better)</span>
+            <span className={styles.execScoreValue}>{es.securityScore ?? "—"}</span>
+          </div>
+          <div className={styles.execScoreTrack}>
+            {scorePct != null ? (
+              <span className={styles.execScoreMarker} style={{ left: `${scorePct}%` }} title={`${String(score)} / 50`} />
+            ) : null}
+          </div>
+          <div className={styles.execUnresolved}>
+            <span className={styles.execChip}>Overall risk: {es.overallRisk}</span>
+            <span className={styles.execChip}>Open critical: {es.criticalUnresolved}</span>
+            <span className={styles.execChip}>Open high: {es.highUnresolved}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.execHeatBlock}>
+        <div className={styles.execHeatTitle}>Risk theme heatmap</div>
+        {areas.length === 0 ? (
+          <div className={styles.execHeatEmpty}>No grouped themes in this snapshot.</div>
+        ) : (
+          <div className={styles.execHeatGrid}>
+            {areas.map((a) => {
+              const t = maxRisk > 0 ? a.findingCount / maxRisk : 0;
+              const bg = `rgba(255, 90, 52, ${0.06 + t * 0.55})`;
+              return (
+                <div
+                  key={a.label}
+                  className={styles.execHeatCell}
+                  style={{ backgroundColor: bg }}
+                  title={`${a.label}: ${a.findingCount}`}
+                >
+                  <span className={styles.execHeatLabel}>{a.label}</span>
+                  <span className={styles.execHeatMeta}>
+                    {a.findingCount} finding{a.findingCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ComplianceReportPage() {
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
@@ -121,7 +236,7 @@ export default function ComplianceReportPage() {
       }
       const blob = await r.blob();
       const cd = r.headers.get("Content-Disposition");
-      let filename = `Signal-Compliance-${projectId}.md`;
+      let filename = `Signal-Compliance-${projectId}.pdf`;
       const quoted = cd && /filename="([^"]+)"/.exec(cd);
       const unquoted = cd && /filename=([^;\s]+)/.exec(cd);
       if (quoted?.[1]) filename = quoted[1];
@@ -190,7 +305,7 @@ export default function ComplianceReportPage() {
     return (
       <main className={styles.root}>
         <div className={styles.shell}>
-          <h1 className={styles.title}>Compliance report</h1>
+          <h1 className={styles.title}>Compliance Report</h1>
           <p className={styles.sub}>Please log in to view this report.</p>
           <Link href="/login" className={styles.back}>
             Go to login
@@ -209,21 +324,13 @@ export default function ComplianceReportPage() {
         : styles.verdict;
 
   return (
-    <main
-      className={`${styles.root} ${styles.watermark}`}
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at 50% 0%, rgba(255, 90, 52, 0.14), transparent 46%), linear-gradient(180deg, #130704 0%, #1a0703 52%, #100402 100%)",
-        color: "#f8f0ed",
-      }}
-    >
+    <main className={styles.root}>
       <div className={styles.topnav}>
         <Link href="/" className={styles.brand} aria-label="Signal home">
           <Image src="/signal_evenbigger.png" alt="" width={44} height={44} priority />
           <span>Signal</span>
           <span style={{ opacity: 0.5 }}>/</span>
-          <span style={{ fontWeight: 650 }}>Compliance</span>
+          <span style={{ fontWeight: 650 }}>Compliance Report</span>
         </Link>
         <div className={styles.navActions}>
           <button
@@ -232,7 +339,7 @@ export default function ComplianceReportPage() {
             disabled={downloadBusy || pending || !session}
             onClick={() => void downloadMarkdown()}
           >
-            {downloadBusy ? "Preparing…" : "Download report (.md)"}
+            {downloadBusy ? "Preparing…" : "Download PDF report"}
           </button>
           <Link href="/dashboard" className={styles.back}>
             Dashboard
@@ -241,7 +348,7 @@ export default function ComplianceReportPage() {
       </div>
 
       <div className={styles.shell}>
-        <h1 className={styles.title}>Compliance report</h1>
+        <h1 className={styles.title}>Compliance Report</h1>
         <p className={styles.sub}>
           {data?.project?.projectName ? (
             <>
@@ -277,24 +384,7 @@ export default function ComplianceReportPage() {
               <div id="exec-heading" className={styles.sectionLabel}>
                 1 · Executive summary (~10–15s read)
               </div>
-              <div className={styles.execGrid}>
-                <div className={styles.execCard}>
-                  <div className={styles.execValue}>{es.overallRisk}</div>
-                  <div className={styles.execKey}>Overall risk</div>
-                </div>
-                <div className={styles.execCard}>
-                  <div className={styles.execValue}>{es.criticalIssues}</div>
-                  <div className={styles.execKey}>Critical issues</div>
-                </div>
-                <div className={styles.execCard}>
-                  <div className={styles.execValue}>{es.highIssues}</div>
-                  <div className={styles.execKey}>High issues</div>
-                </div>
-                <div className={styles.execCard}>
-                  <div className={styles.execValue}>{es.securityScore ?? "—"}</div>
-                  <div className={styles.execKey}>Security score / 50</div>
-                </div>
-              </div>
+              <ExecutiveSummaryVisuals es={es} riskAreas={data.riskAreas} />
               <div className={styles.execCardMuted} style={{ marginTop: "0.75rem" }}>
                 <strong>Status:</strong> {es.statusLine}
               </div>
