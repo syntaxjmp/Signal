@@ -126,6 +126,7 @@ export default function FindingsReportPage() {
   const [resolvePrUrl, setResolvePrUrl] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
+  const [showEnterprise, setShowEnterprise] = useState(false);
 
   async function promptResolve(target: "all" | string) {
     setResolveStatus("starting");
@@ -270,10 +271,15 @@ export default function FindingsReportPage() {
     };
   }, [payload]);
 
-  const fileBreakdown = useMemo(() => {
+  const openFindings = useMemo(() => {
     if (!payload?.data?.length) return [];
+    return payload.data.filter((f) => f.status !== "resolved");
+  }, [payload]);
+
+  const fileBreakdown = useMemo(() => {
+    if (!openFindings.length) return [];
     const map: Record<string, { count: number; path: string }> = {};
-    for (const f of payload.data) {
+    for (const f of openFindings) {
       const name = getFileBaseName(f.filePath);
       if (!map[name]) map[name] = { count: 0, path: f.filePath };
       map[name].count += 1;
@@ -281,9 +287,39 @@ export default function FindingsReportPage() {
     const rows = Object.entries(map).map(([file, v]) => ({ file, count: v.count, path: v.path }));
     rows.sort((a, b) => b.count - a.count);
     return rows;
-  }, [payload]);
+  }, [openFindings]);
 
   const fileMax = useMemo(() => Math.max(1, ...fileBreakdown.map((r) => r.count)), [fileBreakdown]);
+
+  const fileHeatmap = useMemo(() => {
+    if (!openFindings.length) return [];
+    const sevs = ["critical", "high", "medium", "low"] as const;
+    const map: Record<string, { path: string; total: number; bySev: Record<string, { count: number; categories: string[] }> }> = {};
+    for (const f of openFindings) {
+      const name = getFileBaseName(f.filePath);
+      if (!map[name]) {
+        map[name] = { path: f.filePath, total: 0, bySev: {} };
+        for (const s of sevs) map[name].bySev[s] = { count: 0, categories: [] };
+      }
+      map[name].total += 1;
+      const cell = map[name].bySev[f.severity];
+      cell.count += 1;
+      if (!cell.categories.includes(f.category)) cell.categories.push(f.category);
+    }
+    const rows = Object.entries(map).map(([file, v]) => ({ file, ...v }));
+    rows.sort((a, b) => b.total - a.total);
+    return rows;
+  }, [openFindings]);
+
+  const heatmapCellMax = useMemo(() => {
+    let max = 1;
+    for (const row of fileHeatmap) {
+      for (const sev of ["critical", "high", "medium", "low"]) {
+        if (row.bySev[sev].count > max) max = row.bySev[sev].count;
+      }
+    }
+    return max;
+  }, [fileHeatmap]);
 
   const securityScoreRaw = payload?.summary?.securityScore ?? payload?.summary?.summary?.securityScore ?? null;
   const findingsPrUrl = payload?.summary?.prUrl ?? resolvePrUrl ?? null;
@@ -503,8 +539,80 @@ export default function FindingsReportPage() {
                     </div>
                   );
                 })()}
+                {fileHeatmap.length > 0 && (
+                  <button
+                    className="report-btn report-btn--enterprise report-enterprise-inline"
+                    onClick={() => setShowEnterprise((v) => !v)}
+                  >
+                    {showEnterprise ? "Hide Enterprise" : "Show Enterprise"}
+                  </button>
+                )}
               </div>
             </section>
+
+            {/* Findings heatmap (standalone, shown when toggled from General Summary) */}
+            {fileHeatmap.length > 0 && showEnterprise && (
+              <section className="report-heatmap report-card report-fadein" style={{ animationDelay: "0.06s" }}>
+                <div className="report-heatmap__header">
+                  <div className="report-heatmap__headerRow">
+                    <div>
+                      <div className="report-card__label">Vulnerability Overview</div>
+                      <p className="report-heatmap__sub">Breakdown of findings by file, severity, and category.</p>
+                    </div>
+                    <button
+                      className="report-btn report-btn--ghost report-btn--sm"
+                      onClick={() => setShowEnterprise(false)}
+                    >
+                      Hide
+                    </button>
+                  </div>
+                </div>
+                <div className="report-heatmap__wrap">
+                  <div className="report-heatmap__grid" style={{ gridTemplateColumns: `minmax(140px, auto) repeat(4, 1fr)` }}>
+                    <div className="report-heatmap__corner" />
+                    {(["Critical", "High", "Medium", "Low"] as const).map((label) => (
+                      <div key={label} className={`report-heatmap__colHead report-heatmap__colHead--${label.toLowerCase()}`}>
+                        {label}
+                      </div>
+                    ))}
+                    {fileHeatmap.map((row) => {
+                      const iconSrc = getFileIconSrc(row.path);
+                      return (
+                        <React.Fragment key={row.file}>
+                          <div className="report-heatmap__rowHead">
+                            {iconSrc && (
+                              <Image src={iconSrc} alt="" width={18} height={18} className="report-heatmap__fileIcon" aria-hidden />
+                            )}
+                            <span className="report-heatmap__fileName">{row.file}</span>
+                            <span className="report-heatmap__fileTotal">{row.total}</span>
+                          </div>
+                          {(["critical", "high", "medium", "low"] as const).map((sev) => {
+                            const cell = row.bySev[sev];
+                            const intensity = cell.count === 0 ? 0 : 0.3 + 0.7 * (cell.count / heatmapCellMax);
+                            return (
+                              <div
+                                key={sev}
+                                className={`report-heatmap__cell report-heatmap__cell--${sev}`}
+                                style={{ opacity: cell.count === 0 ? 0.15 : intensity }}
+                                title={cell.count > 0 ? `${cell.count} ${sev}: ${cell.categories.join(", ")}` : `No ${sev} findings`}
+                              >
+                                <span className="report-heatmap__count">{cell.count}</span>
+                                {cell.count > 0 && cell.categories.length > 0 && (
+                                  <span className="report-heatmap__cats">
+                                    {cell.categories.slice(0, 2).join(", ")}
+                                    {cell.categories.length > 2 && ` +${cell.categories.length - 2}`}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* Resolution status banner */}
             {resolveStatus === "running" || resolveStatus === "starting" ? (
