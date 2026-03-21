@@ -13,6 +13,10 @@ export function getSignalConfig() {
     maxFiles: c.get<number>('maxFiles') ?? 100,
     maxFileBytes: c.get<number>('maxFileBytes') ?? 1024 * 1024,
     scanOnStartup: c.get<boolean>('scanOnStartup') ?? true,
+    /** Workspace-relative path for LLM memory / rules (Markdown). */
+    skillsFile: (c.get<string>('skillsFile') ?? 'skills.md').replace(/^[\\/]+/, ''),
+    /** After each workspace scan, rewrite the auto-generated block in `skillsFile` from findings. */
+    autoUpdateSkillsOnScan: c.get<boolean>('autoUpdateSkillsOnScan') ?? true,
   };
 }
 

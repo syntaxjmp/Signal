@@ -19,6 +19,17 @@ On startup (default), the extension indexes source files (same extensions as `ba
 | `signal.workspaceScanPath` | POST path (default `/api/extension/workspace-scan`) |
 | `signal.snippetScanPath` | POST path (default `/api/extension/snippet-scan`) |
 | `signal.scanOnStartup` | Run workspace scan after VS Code startup |
+| `signal.skillsFile` | Workspace-relative path for **LLM memory** (default `skills.md`). |
+| `signal.autoUpdateSkillsOnScan` | After each workspace scan, rewrite the auto-generated block in `skills.md` with concise rules derived from findings (for Cursor / Copilot / etc.). |
+
+## Project skills (`skills.md`)
+
+The extension ships a Markdown template (`resources/skills.template.md`) with sections for **Common Mistakes**, **Preferred Patterns**, **Architecture / Security**, **Gotchas**, plus a **Scan-derived rules** block delimited by HTML comments.
+
+- **Signal: Open project skills** — creates `skills.md` from the template if missing, then opens it.
+- **Signal: Update skills.md from last scan** — refreshes the scan-derived block from the most recent workspace scan (same merge logic as auto-update).
+
+When **`signal.autoUpdateSkillsOnScan`** is enabled (default), each **Scan workspace** run replaces the `<!-- signal:auto-generated:start -->` … `<!-- signal:auto-generated:end -->` region with grouped, LLM-friendly bullets inferred from current findings (not raw logs). Copy rules you want to keep forever into the manual sections above the markers.
 
 ## API (backend)
 
@@ -81,6 +92,8 @@ Snippet scans return `{ "findings": [ ... ] }` only (no `summary`).
 - **Signal: Explain finding** — natural-language breakdown (junior dev friendly). Right‑click a finding in the tree, or use the Explain button in the report  
 - **Signal: Scan selection** — context menu / palette when text is selected  
 - **Signal: Resolve finding** — right-click a finding (placeholder until project/finding IDs exist)
+- **Signal: Open project skills** — open or create workspace `skills.md` (LLM memory)
+- **Signal: Update skills.md from last scan** — merge last scan into the auto-generated block
 
 ## Repo layout note
 

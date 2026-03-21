@@ -35,6 +35,14 @@
       {
         "command": "signal.explainFinding",
         "title": "Signal: Explain finding"
+      },
+      {
+        "command": "signal.openProjectSkills",
+        "title": "Signal: Open project skills (LLM memory)"
+      },
+      {
+        "command": "signal.updateSkillsFromLastScan",
+        "title": "Signal: Update skills.md from last scan"
       }
     ],
     "menus": {
@@ -49,6 +57,14 @@
         },
         {
           "command": "signal.explainFinding",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "signal.openProjectSkills",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "signal.updateSkillsFromLastScan",
           "when": "workspaceFolderCount > 0"
         },
         {
@@ -142,6 +158,16 @@
           "type": "boolean",
           "default": true,
           "description": "Run a workspace scan when VS Code finishes startup."
+        },
+        "signal.skillsFile": {
+          "type": "string",
+          "default": "skills.md",
+          "description": "Workspace-relative path for LLM memory / project rules (Markdown). Created from template if missing."
+        },
+        "signal.autoUpdateSkillsOnScan": {
+          "type": "boolean",
+          "default": true,
+          "description": "After each workspace scan, rewrite the <!-- signal:auto-generated --> block in skills.md with concise rules derived from findings."
         }
       }
     }
