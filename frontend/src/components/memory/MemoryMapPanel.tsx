@@ -32,17 +32,19 @@ export default function MemoryMapPanel({ graphData }: Props) {
   const data = graphData ?? DUMMY_MEMORY_GRAPH;
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<ForceGraphInstance | null>(null);
-  const [dims, setDims] = useState({ w: 0, h: 420 });
+  const [dims, setDims] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
-      const w = el.clientWidth;
-      if (w > 0) setDims((d) => ({ ...d, w }));
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr) return;
+      const w = Math.floor(cr.width);
+      const h = Math.floor(cr.height);
+      if (w > 0 && h > 0) setDims((d) => (d.w === w && d.h === h ? d : { w, h }));
     });
     ro.observe(el);
-    setDims((d) => ({ ...d, w: el.clientWidth }));
     return () => ro.disconnect();
   }, []);
 
@@ -55,7 +57,7 @@ export default function MemoryMapPanel({ graphData }: Props) {
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || dims.w <= 0) return;
+    if (!el || dims.w <= 0 || dims.h <= 0) return;
 
     let cancelled = false;
 
@@ -68,7 +70,7 @@ export default function MemoryMapPanel({ graphData }: Props) {
 
       const fg = new ForceGraph(containerRef.current)
         .width(dims.w)
-        .height(420)
+        .height(dims.h)
         .backgroundColor("transparent")
         .graphData(fgData)
         .nodeId("id")
@@ -90,13 +92,13 @@ export default function MemoryMapPanel({ graphData }: Props) {
       fgRef.current?._destructor();
       fgRef.current = null;
     };
-  }, [dims.w, fgData]);
+  }, [dims.w, dims.h, fgData]);
 
   return (
     <div className={styles.root} aria-label="Memory map">
       <div className={styles.graphStage}>
         <div ref={containerRef} className={styles.graphInner}>
-          {dims.w <= 0 ? (
+          {dims.w <= 0 || dims.h <= 0 ? (
             <div className={styles.loading} role="status">
               Preparing canvas…
             </div>
