@@ -55,9 +55,31 @@ export default function MemoryMapPanel({ graphData }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<ForceGraphInstance | null>(null);
   const selectedIdRef = useRef<string | null>(null);
+  const detailLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestPanelDismissRef = useRef<() => void>(() => {});
+  const panelExitCleanupPendingRef = useRef(false);
   const [dims, setDims] = useState({ w: 0, h: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [panelExiting, setPanelExiting] = useState(false);
   selectedIdRef.current = selectedId;
+
+  const clearDetailLoadTimer = useCallback(() => {
+    if (detailLoadTimerRef.current) {
+      clearTimeout(detailLoadTimerRef.current);
+      detailLoadTimerRef.current = null;
+    }
+  }, []);
+
+  /** Simulates fetching detail after a node click — swap for real API later. */
+  const beginDetailLoad = useCallback(() => {
+    clearDetailLoadTimer();
+    setDetailLoading(true);
+    detailLoadTimerRef.current = setTimeout(() => {
+      setDetailLoading(false);
+      detailLoadTimerRef.current = null;
+    }, 420);
+  }, [clearDetailLoadTimer]);
 
   const nodeById = useMemo(() => {
     const m = new Map<string, MemoryGraphNode>();
@@ -81,7 +103,13 @@ export default function MemoryMapPanel({ graphData }: Props) {
 
   useEffect(() => {
     setSelectedId(null);
-  }, [data]);
+    setDetailLoading(false);
+    setPanelExiting(false);
+    panelExitCleanupPendingRef.current = false;
+    clearDetailLoadTimer();
+  }, [data, clearDetailLoadTimer]);
+
+  useEffect(() => () => clearDetailLoadTimer(), [clearDetailLoadTimer]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -148,9 +176,32 @@ export default function MemoryMapPanel({ graphData }: Props) {
     applyHighlight(fg, selectedId);
   }, [selectedId, applyHighlight]);
 
+  const requestPanelDismiss = useCallback(() => {
+    if (panelExiting) return;
+    if (selectedId == null && !detailLoading) return;
+    panelExitCleanupPendingRef.current = true;
+    setPanelExiting(true);
+  }, [panelExiting, selectedId, detailLoading]);
+
+  requestPanelDismissRef.current = requestPanelDismiss;
+
+  const handlePanelTransitionEnd = useCallback(
+    (e: React.TransitionEvent<HTMLElement>) => {
+      if (!panelExitCleanupPendingRef.current) return;
+      if (e.target !== e.currentTarget) return;
+      if (e.propertyName !== "transform" && e.propertyName !== "opacity") return;
+      panelExitCleanupPendingRef.current = false;
+      setPanelExiting(false);
+      setSelectedId(null);
+      setDetailLoading(false);
+      clearDetailLoadTimer();
+    },
+    [clearDetailLoadTimer],
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedId(null);
+      if (e.key === "Escape") requestPanelDismissRef.current();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -186,10 +237,14 @@ export default function MemoryMapPanel({ graphData }: Props) {
         .linkWidth(1.2)
         .cooldownTicks(120)
         .onNodeClick((node) => {
-          setSelectedId((node as MemoryGraphNode).id);
+          const id = (node as MemoryGraphNode).id;
+          panelExitCleanupPendingRef.current = false;
+          setPanelExiting(false);
+          setSelectedId(id);
+          beginDetailLoad();
         })
         .onBackgroundClick(() => {
-          setSelectedId(null);
+          requestPanelDismissRef.current();
         });
 
       fgRef.current = fg;
@@ -201,11 +256,13 @@ export default function MemoryMapPanel({ graphData }: Props) {
       fgRef.current?._destructor();
       fgRef.current = null;
     };
-  }, [dims.w, dims.h, fgData, applyHighlight]);
+  }, [dims.w, dims.h, fgData, applyHighlight, beginDetailLoad, clearDetailLoadTimer]);
+
+  const hasDetailPanel = selectedId != null || panelExiting;
 
   return (
     <div className={styles.root} aria-label="Memory map">
-      <div className={styles.graphRow}>
+      <div className={`${styles.graphRow} ${hasDetailPanel ? styles.graphRowWithDetail : ""}`}>
         <div className={styles.graphColumn}>
           <div className={styles.graphStage}>
             <div ref={containerRef} className={styles.graphInner}>
@@ -233,93 +290,131 @@ export default function MemoryMapPanel({ graphData }: Props) {
           </div>
         </div>
 
-        <aside className={styles.detailPanel} aria-live="polite">
-          {selectedNode ? (
-            <div className={styles.detailCard}>
-              <div className={styles.detailHead}>
-                <span
-                  className={styles.detailGroup}
-                  style={{
-                    borderColor: GROUP_COLORS[selectedNode.group],
-                    color: GROUP_COLORS[selectedNode.group],
-                  }}
-                >
-                  {GROUP_LABEL[selectedNode.group]}
-                </span>
-                <button type="button" className={styles.detailClose} onClick={() => setSelectedId(null)} aria-label="Clear selection">
-                  ×
+        {hasDetailPanel ? (
+          <aside
+            className={`${styles.detailPanel} ${panelExiting ? styles.detailPanelExit : ""}`}
+            aria-live="polite"
+            aria-busy={detailLoading}
+            aria-hidden={panelExiting}
+            onTransitionEnd={handlePanelTransitionEnd}
+          >
+            {detailLoading ? (
+              <div className={styles.detailSkeleton} role="status" aria-label="Loading node details">
+                <div className={styles.skeletonHead}>
+                  <span className={styles.skeletonPill} />
+                  <span className={styles.skeletonClose} />
+                </div>
+                <div className={`${styles.skeletonLine} ${styles.skeletonLineLg}`} />
+                <div className={`${styles.skeletonLine} ${styles.skeletonLineMd}`} />
+                <div className={`${styles.skeletonLine} ${styles.skeletonLineSm}`} />
+                <div className={styles.skeletonMeta}>
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLineFull}`} />
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLineFull}`} />
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLine85}`} />
+                </div>
+                <div className={styles.skeletonNeighbors}>
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLine40}`} />
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLine70}`} />
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLine55}`} />
+                </div>
+              </div>
+            ) : selectedNode ? (
+              <div className={styles.detailCard}>
+                <div className={styles.detailHead}>
+                  <span
+                    className={styles.detailGroup}
+                    style={{
+                      borderColor: GROUP_COLORS[selectedNode.group],
+                      color: GROUP_COLORS[selectedNode.group],
+                    }}
+                  >
+                    {GROUP_LABEL[selectedNode.group]}
+                  </span>
+                  <button type="button" className={styles.detailClose} onClick={requestPanelDismiss} aria-label="Clear selection">
+                    ×
+                  </button>
+                </div>
+                <h3 className={styles.detailTitle}>{selectedNode.name}</h3>
+                {selectedNode.summary ? <p className={styles.detailSummary}>{selectedNode.summary}</p> : null}
+                {selectedNode.detail ? <p className={styles.detailBody}>{selectedNode.detail}</p> : null}
+                {selectedNode.meta && selectedNode.meta.length > 0 ? (
+                  <dl className={styles.metaList}>
+                    {selectedNode.meta.map((row) => (
+                      <div key={row.label} className={styles.metaRow}>
+                        <dt>{row.label}</dt>
+                        <dd>{row.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+                {selectedNode.updatedAt ? (
+                  <p className={styles.detailUpdated}>
+                    <span className={styles.detailUpdatedLabel}>Updated</span> {selectedNode.updatedAt}
+                  </p>
+                ) : null}
+                {(neighbors.out.length > 0 || neighbors.in.length > 0) && (
+                  <div className={styles.neighbors}>
+                    {neighbors.out.length > 0 ? (
+                      <div className={styles.neighborBlock}>
+                        <div className={styles.neighborHeading}>Outgoing</div>
+                        <ul className={styles.neighborList}>
+                          {neighbors.out.map(({ otherId, kind }) => (
+                            <li key={`o-${otherId}-${kind}`}>
+                              <button
+                                type="button"
+                                className={styles.neighborBtn}
+                                onClick={() => {
+                                  panelExitCleanupPendingRef.current = false;
+                                  setPanelExiting(false);
+                                  setSelectedId(otherId);
+                                  beginDetailLoad();
+                                }}
+                              >
+                                {nodeById.get(otherId)?.name ?? otherId}
+                              </button>
+                              <span className={styles.neighborKind}>{kind}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {neighbors.in.length > 0 ? (
+                      <div className={styles.neighborBlock}>
+                        <div className={styles.neighborHeading}>Incoming</div>
+                        <ul className={styles.neighborList}>
+                          {neighbors.in.map(({ otherId, kind }) => (
+                            <li key={`i-${otherId}-${kind}`}>
+                              <button
+                                type="button"
+                                className={styles.neighborBtn}
+                                onClick={() => {
+                                  panelExitCleanupPendingRef.current = false;
+                                  setPanelExiting(false);
+                                  setSelectedId(otherId);
+                                  beginDetailLoad();
+                                }}
+                              >
+                                {nodeById.get(otherId)?.name ?? otherId}
+                              </button>
+                              <span className={styles.neighborKind}>{kind}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={styles.detailCard}>
+                <p className={styles.detailBody}>This node has no detail payload.</p>
+                <button type="button" className={styles.detailTextButton} onClick={requestPanelDismiss}>
+                  Dismiss
                 </button>
               </div>
-              <h3 className={styles.detailTitle}>{selectedNode.name}</h3>
-              {selectedNode.summary ? <p className={styles.detailSummary}>{selectedNode.summary}</p> : null}
-              {selectedNode.detail ? <p className={styles.detailBody}>{selectedNode.detail}</p> : null}
-              {selectedNode.meta && selectedNode.meta.length > 0 ? (
-                <dl className={styles.metaList}>
-                  {selectedNode.meta.map((row) => (
-                    <div key={row.label} className={styles.metaRow}>
-                      <dt>{row.label}</dt>
-                      <dd>{row.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : null}
-              {selectedNode.updatedAt ? (
-                <p className={styles.detailUpdated}>
-                  <span className={styles.detailUpdatedLabel}>Updated</span> {selectedNode.updatedAt}
-                </p>
-              ) : null}
-              {(neighbors.out.length > 0 || neighbors.in.length > 0) && (
-                <div className={styles.neighbors}>
-                  {neighbors.out.length > 0 ? (
-                    <div className={styles.neighborBlock}>
-                      <div className={styles.neighborHeading}>Outgoing</div>
-                      <ul className={styles.neighborList}>
-                        {neighbors.out.map(({ otherId, kind }) => (
-                          <li key={`o-${otherId}-${kind}`}>
-                            <button
-                              type="button"
-                              className={styles.neighborBtn}
-                              onClick={() => setSelectedId(otherId)}
-                            >
-                              {nodeById.get(otherId)?.name ?? otherId}
-                            </button>
-                            <span className={styles.neighborKind}>{kind}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {neighbors.in.length > 0 ? (
-                    <div className={styles.neighborBlock}>
-                      <div className={styles.neighborHeading}>Incoming</div>
-                      <ul className={styles.neighborList}>
-                        {neighbors.in.map(({ otherId, kind }) => (
-                          <li key={`i-${otherId}-${kind}`}>
-                            <button
-                              type="button"
-                              className={styles.neighborBtn}
-                              onClick={() => setSelectedId(otherId)}
-                            >
-                              {nodeById.get(otherId)?.name ?? otherId}
-                            </button>
-                            <span className={styles.neighborKind}>{kind}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className={styles.detailEmpty}>
-              <p className={styles.detailEmptyTitle}>Select a node</p>
-              <p className={styles.detailEmptyText}>
-                Click any circle in the graph to see a summary, metadata, and connections. Click the background to clear.
-              </p>
-            </div>
-          )}
-        </aside>
+            )}
+          </aside>
+        ) : null}
       </div>
     </div>
   );
