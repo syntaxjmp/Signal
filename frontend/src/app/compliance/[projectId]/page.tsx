@@ -358,9 +358,28 @@ export default function ComplianceReportPage() {
                   </a>
                 </>
               ) : null}
+              {(data.project.id || projectId) ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className={styles.reportProjectId} title="Project ID">
+                    {data.project.id ?? projectId}
+                  </span>
+                </>
+              ) : null}
             </>
           ) : (
-            "Loading project…"
+            <>
+              {projectId ? (
+                <>
+                  <span className={styles.reportProjectId} title="Project ID">
+                    {projectId}
+                  </span>
+                  {" · "}
+                </>
+              ) : null}
+              Loading project…
+            </>
           )}
         </p>
 
