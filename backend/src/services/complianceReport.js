@@ -3,6 +3,12 @@
  */
 
 import PDFDocument from 'pdfkit';
+import {
+  ALL_FRAMEWORK_IDS,
+  computeFrameworkScores,
+  frameworkCatalogForClient,
+  normalizeFrameworkIds,
+} from './complianceFrameworks.js';
 
 function mapCategoryToRiskArea(category) {
   const c = String(category || '').toLowerCase();
@@ -113,25 +119,49 @@ function buildStrengths({ scanCount, completedResolutions, securityScore, findin
   return out.slice(0, 6);
 }
 
+const FRAMEWORK_DISCLAIMER =
+  'Framework scores map automated findings to common control themes. They support prioritization only—not SOC 2, OWASP, or GDPR attestation.';
+
 /**
  * @param {import('mysql2/promise').Pool} pool
  * @param {string} projectId
  * @param {string} userId
+ * @param {{ frameworkIds?: string[] | null }} [options]
  */
-export async function buildComplianceReportPayload(pool, projectId, userId) {
+export async function buildComplianceReportPayload(pool, projectId, userId, options = {}) {
   const [[project]] = await pool.query(
     `SELECT id,
             user_id AS userId,
             project_name AS projectName,
             github_url AS githubUrl,
             description,
-            created_at AS createdAt
+            created_at AS createdAt,
+            compliance_frameworks AS complianceFrameworksJson
      FROM projects WHERE id = ? LIMIT 1`,
     [projectId],
   );
 
   if (!project) return { error: 'not_found' };
   if (project.userId !== userId) return { error: 'forbidden' };
+
+  let storedFrameworks = null;
+  if (project.complianceFrameworksJson != null) {
+    try {
+      storedFrameworks =
+        typeof project.complianceFrameworksJson === 'string'
+          ? JSON.parse(project.complianceFrameworksJson)
+          : project.complianceFrameworksJson;
+    } catch {
+      storedFrameworks = null;
+    }
+  }
+  /* DB null → default all; DB [] → explicit none. Query override wins when present. */
+  const mergedFrameworkIds =
+    options.frameworkIds != null
+      ? normalizeFrameworkIds(options.frameworkIds)
+      : storedFrameworks != null
+        ? normalizeFrameworkIds(storedFrameworks)
+        : [...ALL_FRAMEWORK_IDS];
 
   const [[latestCompleted]] = await pool.query(
     `SELECT id, status, findings_count AS findingsCount, scanned_files_count AS scannedFilesCount,
@@ -167,6 +197,10 @@ export async function buildComplianceReportPayload(pool, projectId, userId) {
       timeline: [],
       evidence: [],
       emptyReason: 'no_completed_scan',
+      frameworkCatalog: frameworkCatalogForClient(),
+      selectedFrameworkIds: mergedFrameworkIds,
+      frameworkScores: [],
+      frameworkDisclaimer: FRAMEWORK_DISCLAIMER,
     };
   }
 
@@ -375,6 +409,9 @@ export async function buildComplianceReportPayload(pool, projectId, userId) {
     }
   }
 
+  /* Always compute all frameworks; client filters by selection for instant toggles */
+  const frameworkScores = computeFrameworkScores(findings, ALL_FRAMEWORK_IDS);
+
   return {
     ok: true,
     project: {
@@ -400,6 +437,10 @@ export async function buildComplianceReportPayload(pool, projectId, userId) {
     timeline: timeline.slice(0, 25),
     evidence,
     emptyReason: null,
+    frameworkCatalog: frameworkCatalogForClient(),
+    selectedFrameworkIds: mergedFrameworkIds,
+    frameworkScores,
+    frameworkDisclaimer: FRAMEWORK_DISCLAIMER,
   };
 }
 
@@ -824,12 +865,48 @@ function writeCompliancePdf(doc, payload) {
       { width: contentW },
     );
     doc.text(`Unresolved — Critical: ${es.criticalUnresolved} · High: ${es.highUnresolved}`, { width: contentW });
+    doc.text(`Security score (0–50, lower is better): ${es.securityScore ?? '—'}`, { width: contentW });
     doc.text(`Status: ${pdfSafe(es.statusLine)}`, { width: contentW });
   }
   doc.moveDown(1);
   pdfHr(doc, left, contentW);
 
-  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('2. High-level risk areas', { width: contentW });
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('2. Compliance framework alignment', { width: contentW });
+  doc.moveDown(0.35).font('Helvetica').fontSize(8.5).fillColor('#666666');
+  doc.text(pdfSafe(payload.frameworkDisclaimer || FRAMEWORK_DISCLAIMER), {
+    width: contentW,
+    lineGap: 1,
+  });
+  doc.moveDown(0.45).fontSize(10).fillColor('#333333');
+  const selectedFw = new Set(payload.selectedFrameworkIds || []);
+  const fwScores = (payload.frameworkScores || []).filter((fw) => selectedFw.has(fw.frameworkId));
+  if (fwScores.length === 0) {
+    doc.text('No frameworks selected or scores unavailable for this snapshot.', { width: contentW });
+  } else {
+    for (const fw of fwScores) {
+      if (doc.y > bottomSafe - 72) {
+        doc.addPage();
+      }
+      doc.font('Helvetica-Bold').fontSize(10.5).text(`${pdfSafe(fw.shortLabel)} — overall ${fw.overallScore}/100`, {
+        width: contentW,
+      });
+      doc.moveDown(0.18).font('Helvetica').fontSize(9);
+      doc.text(pdfSafe(fw.description), { width: contentW, lineGap: 1 });
+      doc.moveDown(0.22);
+      for (const c of fw.criteria || []) {
+        doc.text(
+          `• ${pdfSafe(c.label)} — ${c.score}/100 (${c.unresolvedCount} open, ${c.matchedFindingCount} matched)`,
+          { width: contentW },
+        );
+        doc.moveDown(0.1);
+      }
+      doc.moveDown(0.32);
+    }
+  }
+  doc.moveDown(0.65);
+  pdfHr(doc, left, contentW);
+
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('3. High-level risk areas', { width: contentW });
   doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   const areas = payload.riskAreas || [];
   if (areas.length === 0) {
@@ -847,7 +924,7 @@ function writeCompliancePdf(doc, payload) {
   pdfHr(doc, left, contentW);
 
   const fixes = payload.signalFixes;
-  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('3. Remediation & Signal workflows', { width: contentW });
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('4. Remediation & Signal workflows', { width: contentW });
   doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   if (fixes) {
     doc.text(
@@ -867,7 +944,7 @@ function writeCompliancePdf(doc, payload) {
   doc.moveDown(1);
   pdfHr(doc, left, contentW);
 
-  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('4. Security strengths', { width: contentW });
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('5. Security strengths', { width: contentW });
   doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   const strengths = payload.strengths || [];
   if (strengths.length === 0) {
@@ -882,7 +959,7 @@ function writeCompliancePdf(doc, payload) {
   pdfHr(doc, left, contentW);
 
   const verdict = payload.verdict;
-  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('5. Final verdict', { width: contentW });
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('6. Final verdict', { width: contentW });
   doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   if (verdict) {
     doc.font('Helvetica-Bold').text(pdfSafe(verdict.headline), { width: contentW });
@@ -893,7 +970,7 @@ function writeCompliancePdf(doc, payload) {
   doc.moveDown(1);
   pdfHr(doc, left, contentW);
 
-  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('6. Timeline & evidence', { width: contentW });
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('7. Timeline & evidence', { width: contentW });
   doc.moveDown(0.4).font('Helvetica').fontSize(9.5).fillColor('#333333').lineGap(2);
   const tl = payload.timeline || [];
   if (tl.length === 0) {
@@ -907,14 +984,14 @@ function writeCompliancePdf(doc, payload) {
   }
   doc.moveDown(0.85);
 
-  /* Only start a new page for section 7 when there is not enough room — avoids a half-empty page gap. */
+  /* Only start a new page for finding detail when there is not enough room — avoids a half-empty page gap. */
   if (doc.y > bottomSafe - 140) {
     doc.addPage();
   } else {
     pdfHr(doc, left, contentW);
   }
 
-  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('7. Finding detail', { width: contentW });
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('8. Finding detail', { width: contentW });
   doc.moveDown(0.45).font('Helvetica').fontSize(9.5).fillColor('#333333').lineGap(2);
   const ev = payload.evidence || [];
   if (ev.length === 0) {

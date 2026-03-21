@@ -737,4 +737,248 @@
   word-break: break-all;
 }
 
+/* —— Compliance frameworks —— */
+.fwDisclaimer {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--foreground) 58%, transparent);
+}
 
+.fwScanHint {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: color-mix(in srgb, var(--foreground) 72%, transparent);
+  line-height: 1.45;
+}
+
+.fwPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+}
+
+.fwPickerLabel {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  font-size: 0.82rem;
+  max-width: 100%;
+}
+
+.fwPickerLabel input {
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+}
+
+.fwPickerText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  line-height: 1.3;
+}
+
+.fwPickerName {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--foreground) 65%, transparent);
+}
+
+.fwSaving {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+  margin-bottom: 0.75rem;
+}
+
+.fwScoreGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-top: 0.25rem;
+}
+
+.fwCard {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem 1.15rem 1.1rem;
+}
+
+.fwCardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.fwCardTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 850;
+  flex: 1;
+  min-width: 200px;
+}
+
+.fwOverall {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  font-variant-numeric: tabular-nums;
+}
+
+.fwOverallLabel {
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+}
+
+.fwOverallVal {
+  font-size: 1.25rem;
+  font-weight: 950;
+}
+
+.fwOverallOf {
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+}
+
+.fwNoneHint {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--foreground) 62%, transparent);
+}
+
+.fwCardDesc {
+  margin: 0 0 0.85rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--foreground) 78%, transparent);
+}
+
+.fwCritList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fwCritItem {
+  padding: 0.65rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.fwCritItem:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.fwCritRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  width: 100%;
+}
+
+.fwCritText {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fwCritLabel {
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.fwCritNums {
+  font-size: 0.72rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--foreground) 52%, transparent);
+}
+
+/* Step-based score (leading box + 10 circles) */
+.stepWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.stepWrapCompact {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.stepBox {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.25rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 850;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.stepRow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.stepWrapCompact .stepBox {
+  min-width: 1.55rem;
+  height: 1.55rem;
+  font-size: 0.78rem;
+  border-radius: 8px;
+}
+
+.stepWrapCompact .stepRow {
+  gap: 0.22rem;
+}
+
+.stepDotFilled,
+.stepDotEmpty {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.stepWrapCompact .stepDotFilled,
+.stepWrapCompact .stepDotEmpty {
+  width: 7px;
+  height: 7px;
+}
+
+.stepDotEmpty {
+  background: transparent;
+}

@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS `projects` (
   `description` TEXT NULL,
   `latest_scan_id` CHAR(36) NULL,
   `security_score` DECIMAL(5,2) NULL,
+  `compliance_frameworks` JSON NULL COMMENT 'Selected framework ids for compliance scoring, e.g. ["soc2","owasp"]',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

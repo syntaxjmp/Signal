@@ -1349,7 +1349,9 @@
   bottom: 18px;
   z-index: 40;
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 5px;
   pointer-events: none;
   /* Single shared container (not split pills per item). */
   padding: 0.4rem 0.45rem;
