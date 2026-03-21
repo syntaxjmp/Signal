@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import styles from "./page.module.css";
+import MemoryMapPanel from "@/components/memory/MemoryMapPanel";
 
 type TeamMember = { email: string };
 type TeamRow = { email: string; createdAt: string; updatedAt: string };
@@ -655,7 +656,7 @@ export default function DashboardPage() {
   const [bootAnimDone, setBootAnimDone] = useState(false);
   const [initialProjectsLoaded, setInitialProjectsLoaded] = useState(false);
   const initialProjectsLoadedRef = useRef(false);
-  const [activeSection, setActiveSection] = useState<"home" | "teams" | "audit" | "webhooks">("home");
+  const [activeSection, setActiveSection] = useState<"home" | "teams" | "audit" | "memory" | "webhooks">("home");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookEnabled, setWebhookEnabled] = useState(false);
   const [webhookBusy, setWebhookBusy] = useState(false);
@@ -709,6 +710,14 @@ export default function DashboardPage() {
       setBooting(false);
     }
     setBootChecked(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.location.hash.replace(/^#/, "");
+    if (raw === "teams" || raw === "audit" || raw === "memory" || raw === "webhooks") {
+      setActiveSection(raw);
+    }
   }, []);
 
   useEffect(() => {
@@ -966,6 +975,8 @@ export default function DashboardPage() {
     );
   }, [displayName, handleLogout, isAuthed, isPending, session, showLogout]);
 
+  const topNavCrumb = activeSection === "memory" ? "Memory" : "Dashboard";
+
   if (booting && bootChecked) {
     return (
       <main
@@ -999,7 +1010,11 @@ export default function DashboardPage() {
   return (
     <div className={`dashboard ${styles.root}`}>
       <div className="dash-topnav">
-        <Link href="/" className="brand" aria-label="Signal Dashboard">
+        <Link
+          href="/"
+          className="brand"
+          aria-label={activeSection === "memory" ? "Memory" : `Signal ${topNavCrumb}`}
+        >
           <Image
             src="/signal_evenbigger.png"
             alt=""
@@ -1010,11 +1025,15 @@ export default function DashboardPage() {
             aria-hidden
           />
           <div className="dash-pageTitle" aria-hidden="true">
-            <span className="dash-pageTitle__signal">Signal</span>
-            <span className="dash-pageTitle__sep">/</span>
-            <span className="dash-pageTitle__item">
-              Dashboard
-            </span>
+            {activeSection === "memory" ? (
+              <span className="dash-pageTitle__signal">Memory</span>
+            ) : (
+              <>
+                <span className="dash-pageTitle__signal">Signal</span>
+                <span className="dash-pageTitle__sep">/</span>
+                <span className="dash-pageTitle__item">{topNavCrumb}</span>
+              </>
+            )}
           </div>
         </Link>
         <div className="dash-topnav__right">{headerRight}</div>
@@ -1585,6 +1604,10 @@ export default function DashboardPage() {
               )}
             </div>
           </section>
+        ) : activeSection === "memory" ? (
+          <section className="dash-teamPanel" id="memory">
+            <MemoryMapPanel />
+          </section>
         ) : (
           <section className="dash-teamPanel" id="webhooks">
             <div className="dash-section">
@@ -1779,6 +1802,24 @@ export default function DashboardPage() {
             </svg>
           </span>
           <span className="dash-bottomnav__label">Audit</span>
+        </Link>
+
+        <Link
+          href="/dashboard#memory"
+          className={activeSection === "memory" ? "dash-bottomnav__item dash-bottomnav__item--active" : "dash-bottomnav__item"}
+          onClick={() => setActiveSection("memory")}
+        >
+          <span className="dash-bottomnav__icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="7" cy="9" r="2.2" />
+              <circle cx="17" cy="7" r="2.2" />
+              <circle cx="15" cy="17" r="2.2" />
+              <path d="M9 10.2 13.5 7.5" />
+              <path d="M13.5 16 15.8 15" />
+              <path d="M9 10.2 13.8 16.2" />
+            </svg>
+          </span>
+          <span className="dash-bottomnav__label">Memory</span>
         </Link>
 
         <Link
