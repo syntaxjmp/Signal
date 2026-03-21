@@ -190,12 +190,19 @@ function ExecutiveSummaryVisuals({
           <div className={styles.execHeatGrid}>
             {areas.map((a) => {
               const t = maxRisk > 0 ? a.findingCount / maxRisk : 0;
-              const bg = `rgba(255, 90, 52, ${0.06 + t * 0.55})`;
+              /* Neutral surface + soft edge; intensity = left accent only (no loud fill) */
+              const bg = `rgba(255, 255, 255, ${0.018 + t * 0.038})`;
+              const edge = `rgba(255, 255, 255, ${0.055 + t * 0.08})`;
+              const accent = `rgba(255, 255, 255, ${0.14 + t * 0.32})`;
               return (
                 <div
                   key={a.label}
                   className={styles.execHeatCell}
-                  style={{ backgroundColor: bg }}
+                  style={{
+                    backgroundColor: bg,
+                    border: `1px solid ${edge}`,
+                    borderLeft: `3px solid ${accent}`,
+                  }}
                   title={`${a.label}: ${a.findingCount}`}
                 >
                   <span className={styles.execHeatLabel}>{a.label}</span>

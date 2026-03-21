@@ -691,26 +691,26 @@ function pdfSafe(s) {
     .trim();
 }
 
-function ensureFooterSpace(doc) {
-  const minBottom = doc.page.height - 56;
-  if (doc.y > minBottom) {
-    doc.addPage();
-  }
+/** Thin rule between major sections (does not consume a full page). */
+function pdfHr(doc, left, contentW) {
+  const y = doc.y + 3;
+  doc.save();
+  doc.strokeColor('#d8d8d8').lineWidth(0.4).moveTo(left, y).lineTo(left + contentW, y).stroke();
+  doc.restore();
+  doc.moveDown(0.9);
 }
 
-function compliancePdfFooterLine(doc) {
-  ensureFooterSpace(doc);
-  const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  doc
-    .fontSize(8)
-    .fillColor('#666666')
-    .text(
-      `Signal · Generated ${isoStamp()} · For authorized use only. Not a certification or legal opinion.`,
-      doc.page.margins.left,
-      doc.page.height - 42,
-      { width: w, align: 'center' },
-    );
-  doc.fillColor('#000000');
+/** Flowing footer after content — avoids a blank trailing page from fixed bottom positioning. */
+function compliancePdfFooter(doc, left, contentW, generated) {
+  doc.moveDown(1.4);
+  doc.font('Helvetica').fontSize(7.5).fillColor('#888888');
+  doc.text(
+    `Signal · Generated ${generated} · For authorized use only. Not a certification or legal opinion.`,
+    left,
+    doc.y,
+    { width: contentW, align: 'center' },
+  );
+  doc.fillColor('#1a1a1a');
 }
 
 /**
@@ -722,7 +722,7 @@ function compliancePdfFooterLine(doc) {
 export function pipeComplianceReportPdf(payload, res, filename) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
-      margin: 50,
+      margin: 64,
       size: 'LETTER',
       autoFirstPage: true,
       info: {
@@ -757,68 +757,76 @@ export function pipeComplianceReportPdf(payload, res, filename) {
 function writeCompliancePdf(doc, payload) {
   const contentW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const left = doc.page.margins.left;
+  const bottomSafe = doc.page.height - doc.page.margins.bottom - 24;
   const generated = isoStamp();
 
   const project = payload?.project;
   if (!project) {
-    doc.fontSize(18).font('Helvetica-Bold').fillColor('#1a1a1a').text('Compliance report', left, doc.y, {
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a1a1a').text('Compliance report', left, doc.y, {
       width: contentW,
     });
-    doc.moveDown(0.5).fontSize(11).font('Helvetica').text('Project data unavailable.');
-    compliancePdfFooterLine(doc);
+    doc.moveDown(0.65).fontSize(11).font('Helvetica').fillColor('#333333').text('Project data unavailable.');
+    compliancePdfFooter(doc, left, contentW, generated);
     return;
   }
 
-  doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a1a1a').text('Compliance report', left, doc.y, {
+  doc.fontSize(22).font('Helvetica-Bold').fillColor('#1a1a1a').text('Compliance report', left, doc.y, {
     width: contentW,
   });
-  doc.moveDown(0.35).fontSize(11).font('Helvetica').fillColor('#333333').text(pdfSafe(project.projectName), {
+  doc.moveDown(0.45).fontSize(12).font('Helvetica').fillColor('#2a2a2a').text(pdfSafe(project.projectName), {
     width: contentW,
   });
   if (project.githubUrl) {
-    doc.fontSize(9).fillColor('#0066cc').text(pdfSafe(project.githubUrl), { width: contentW, link: project.githubUrl });
+    doc.moveDown(0.2).fontSize(9.5).fillColor('#0b57d0').text(pdfSafe(project.githubUrl), {
+      width: contentW,
+      link: project.githubUrl,
+      underline: true,
+    });
     doc.fillColor('#333333');
   }
-  doc.moveDown(0.8);
+  doc.moveDown(1);
 
   if (payload.emptyReason === 'no_completed_scan') {
-    doc.fontSize(12).font('Helvetica-Bold').text('Status', { width: contentW });
-    doc.moveDown(0.35).font('Helvetica').fontSize(10.5).text(
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('Status', { width: contentW });
+    doc.moveDown(0.45).font('Helvetica').fontSize(10.5).fillColor('#333333').text(
       'No completed security scan is available for this repository. Run a scan from the Signal dashboard, then download this report again.',
-      { width: contentW, align: 'left' },
+      { width: contentW, align: 'left', lineGap: 2 },
     );
-    doc.moveDown(0.5).fontSize(9).fillColor('#555555').text(`Generated (UTC): ${generated}`, { width: contentW });
-    compliancePdfFooterLine(doc);
+    doc.moveDown(0.65).fontSize(9).fillColor('#666666').text(`Generated (UTC): ${generated}`, { width: contentW });
+    compliancePdfFooter(doc, left, contentW, generated);
     return;
   }
 
   const es = payload.executiveSummary;
   const scan = payload.scan;
 
-  doc.fontSize(10).font('Helvetica-Bold').text('Document control', { width: contentW });
-  doc.moveDown(0.25).font('Helvetica').fontSize(9.5);
+  doc.fontSize(11).font('Helvetica-Bold').fillColor('#1a1a1a').text('Document control', { width: contentW });
+  doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   doc.text(`Generated (UTC): ${pdfSafe(generated)}`, { width: contentW });
   doc.text(`Evidence scan ID: ${pdfSafe(scan?.id)}`, { width: contentW });
   doc.text(`Scan completed: ${pdfSafe(scan?.finishedAt || scan?.createdAt || '—')}`, { width: contentW });
   doc.text(`Files analyzed: ${scan?.scannedFilesCount ?? '—'}`, { width: contentW });
   doc.text(`Findings in snapshot: ${scan?.findingsCount ?? '—'}`, { width: contentW });
-  doc.moveDown(0.85);
+  doc.moveDown(1);
+  pdfHr(doc, left, contentW);
 
-  doc.fontSize(12).font('Helvetica-Bold').text('1. Executive summary', { width: contentW });
-  doc.moveDown(0.35).font('Helvetica').fontSize(10);
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('1. Executive summary', { width: contentW });
+  doc.moveDown(0.45).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(3);
   if (es) {
     doc.text(`Overall risk: ${pdfSafe(es.overallRisk)}`, { width: contentW });
-    doc.text(`Critical: ${es.criticalIssues} · High: ${es.highIssues} · Medium: ${es.mediumIssues} · Low: ${es.lowIssues}`, {
-      width: contentW,
-    });
+    doc.text(
+      `Critical: ${es.criticalIssues} · High: ${es.highIssues} · Medium: ${es.mediumIssues} · Low: ${es.lowIssues}`,
+      { width: contentW },
+    );
     doc.text(`Unresolved — Critical: ${es.criticalUnresolved} · High: ${es.highUnresolved}`, { width: contentW });
     doc.text(`Security score (0–50, lower is better): ${es.securityScore ?? '—'}`, { width: contentW });
     doc.text(`Status: ${pdfSafe(es.statusLine)}`, { width: contentW });
   }
-  doc.moveDown(0.75);
+  doc.moveDown(1);
+  pdfHr(doc, left, contentW);
 
-  doc.fontSize(12).font('Helvetica-Bold').text('2. High-level risk areas', { width: contentW });
-  doc.moveDown(0.25).font('Helvetica').fontSize(10);
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('2. High-level risk areas', { width: contentW });
+  doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   const areas = payload.riskAreas || [];
   if (areas.length === 0) {
     doc.text('No grouped risk areas.', { width: contentW });
@@ -828,14 +836,15 @@ function writeCompliancePdf(doc, payload) {
         `• ${pdfSafe(r.label)} — ${r.findingCount} finding(s)${r.exampleCategories?.length ? ` · Examples: ${pdfSafe(r.exampleCategories.slice(0, 3).join(', '))}` : ''}`,
         { width: contentW },
       );
-      doc.moveDown(0.15);
+      doc.moveDown(0.22);
     }
   }
-  doc.moveDown(0.5);
+  doc.moveDown(0.85);
+  pdfHr(doc, left, contentW);
 
   const fixes = payload.signalFixes;
-  doc.fontSize(12).font('Helvetica-Bold').text('3. Remediation & Signal workflows', { width: contentW });
-  doc.moveDown(0.25).font('Helvetica').fontSize(10);
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('3. Remediation & Signal workflows', { width: contentW });
+  doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   if (fixes) {
     doc.text(
       `Critical resolved: ${fixes.criticalResolvedPct}% (${fixes.criticalResolved}/${fixes.criticalTotal})`,
@@ -851,34 +860,37 @@ function writeCompliancePdf(doc, payload) {
   } else {
     doc.text('No remediation statistics available.', { width: contentW });
   }
-  doc.moveDown(0.75);
+  doc.moveDown(1);
+  pdfHr(doc, left, contentW);
 
-  doc.fontSize(12).font('Helvetica-Bold').text('4. Security strengths', { width: contentW });
-  doc.moveDown(0.25).font('Helvetica').fontSize(10);
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('4. Security strengths', { width: contentW });
+  doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   const strengths = payload.strengths || [];
   if (strengths.length === 0) {
     doc.text('No items listed.', { width: contentW });
   } else {
     for (const s of strengths) {
       doc.text(`• ${pdfSafe(s)}`, { width: contentW });
-      doc.moveDown(0.12);
+      doc.moveDown(0.18);
     }
   }
-  doc.moveDown(0.5);
+  doc.moveDown(0.85);
+  pdfHr(doc, left, contentW);
 
   const verdict = payload.verdict;
-  doc.fontSize(12).font('Helvetica-Bold').text('5. Final verdict', { width: contentW });
-  doc.moveDown(0.25).font('Helvetica').fontSize(10);
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('5. Final verdict', { width: contentW });
+  doc.moveDown(0.4).font('Helvetica').fontSize(10).fillColor('#333333').lineGap(2);
   if (verdict) {
     doc.font('Helvetica-Bold').text(pdfSafe(verdict.headline), { width: contentW });
-    doc.moveDown(0.2).font('Helvetica').text(pdfSafe(verdict.subtext), { width: contentW });
+    doc.moveDown(0.28).font('Helvetica').text(pdfSafe(verdict.subtext), { width: contentW });
   } else {
     doc.text('No verdict block.', { width: contentW });
   }
-  doc.moveDown(0.75);
+  doc.moveDown(1);
+  pdfHr(doc, left, contentW);
 
-  doc.fontSize(12).font('Helvetica-Bold').text('6. Timeline & evidence', { width: contentW });
-  doc.moveDown(0.25).font('Helvetica').fontSize(9.5);
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('6. Timeline & evidence', { width: contentW });
+  doc.moveDown(0.4).font('Helvetica').fontSize(9.5).fillColor('#333333').lineGap(2);
   const tl = payload.timeline || [];
   if (tl.length === 0) {
     doc.text('No scan or resolution events recorded.', { width: contentW });
@@ -886,14 +898,20 @@ function writeCompliancePdf(doc, payload) {
     for (const t of tl) {
       const line = `${pdfSafe(t.at)} — ${pdfSafe(t.label)}${t.evidence?.prUrl ? ` · ${pdfSafe(t.evidence.prUrl)}` : ''}`;
       doc.text(line, { width: contentW });
-      doc.moveDown(0.12);
+      doc.moveDown(0.18);
     }
   }
-  doc.moveDown(0.5);
+  doc.moveDown(0.85);
 
-  doc.addPage();
-  doc.fontSize(12).font('Helvetica-Bold').text('7. Finding detail', { width: contentW });
-  doc.moveDown(0.25).font('Helvetica').fontSize(9);
+  /* Only start a new page for section 7 when there is not enough room — avoids a half-empty page gap. */
+  if (doc.y > bottomSafe - 140) {
+    doc.addPage();
+  } else {
+    pdfHr(doc, left, contentW);
+  }
+
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#1a1a1a').text('7. Finding detail', { width: contentW });
+  doc.moveDown(0.45).font('Helvetica').fontSize(9.5).fillColor('#333333').lineGap(2);
   const ev = payload.evidence || [];
   if (ev.length === 0) {
     doc.text('No findings in this snapshot.', { width: contentW });
@@ -901,24 +919,26 @@ function writeCompliancePdf(doc, payload) {
     for (let i = 0; i < ev.length; i += 1) {
       const e = ev[i];
       const loc = `${e.filePath || ''}${e.lineNumber != null ? `:${e.lineNumber}` : ''}`;
-      doc.font('Helvetica-Bold').fontSize(10).text(`${i + 1}. [${pdfSafe(e.severity)}] ${pdfSafe(e.title)}`, {
+      if (doc.y > bottomSafe - 100) {
+        doc.addPage();
+      }
+      doc.font('Helvetica-Bold').fontSize(10.5).text(`${i + 1}. [${pdfSafe(e.severity)}] ${pdfSafe(e.title)}`, {
         width: contentW,
       });
-      doc.moveDown(0.15).font('Helvetica').fontSize(9);
+      doc.moveDown(0.22).font('Helvetica').fontSize(9.5);
       doc.text(`Category: ${pdfSafe(e.category)} · Status: ${pdfSafe(e.status)} · ${pdfSafe(loc)}`, {
         width: contentW,
       });
-      doc.moveDown(0.15).text(`Impact: ${pdfSafe(e.impact)}`, { width: contentW });
-      doc.moveDown(0.12).text(`Exploit path: ${pdfSafe(e.exploitPath)}`, { width: contentW });
-      doc.moveDown(0.12).text(`Remediation: ${pdfSafe(e.whatWasFixed)}${e.prUrl ? ` ${pdfSafe(e.prUrl)}` : ''}`, {
+      doc.moveDown(0.18).text(`Impact: ${pdfSafe(e.impact)}`, { width: contentW });
+      doc.moveDown(0.14).text(`Exploit path: ${pdfSafe(e.exploitPath)}`, { width: contentW });
+      doc.moveDown(0.14).text(`Remediation: ${pdfSafe(e.whatWasFixed)}${e.prUrl ? ` ${pdfSafe(e.prUrl)}` : ''}`, {
         width: contentW,
       });
-      doc.moveDown(0.45);
-      if (doc.y > doc.page.height - 120) doc.addPage();
+      doc.moveDown(0.55);
     }
   }
 
-  compliancePdfFooterLine(doc);
+  compliancePdfFooter(doc, left, contentW, generated);
 }
 
 /**
