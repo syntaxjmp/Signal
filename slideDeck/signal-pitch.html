@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal — Ship Faster, Without Stress</title>
+
+    <!-- Fonts: Space Grotesk (headings) + Manrope (body) matching Signal brand -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* === THEME: Signal Brand === */
+        :root {
+            --bg-deep: #0a0503;
+            --bg-primary: #200100;
+            --bg-elevated: #120603;
+            --foreground: #f8f2f1;
+            --accent: #ff5a34;
+            --accent-soft: #ff8f70;
+            --accent-glow: rgba(255, 90, 52, 0.25);
+            --line: #785150;
+            --rust: #8b2510;
+            --rust-soft: rgba(139, 37, 16, 0.55);
+            --text-primary: #f8f2f1;
+            --text-secondary: rgba(255, 215, 205, 0.75);
+            --text-dim: rgba(255, 185, 165, 0.55);
+
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'Manrope', sans-serif;
+
+            --title-size: clamp(2rem, 6vw, 4.5rem);
+            --h2-size: clamp(1.5rem, 4vw, 3rem);
+            --h3-size: clamp(1rem, 2.5vw, 1.6rem);
+            --subtitle-size: clamp(0.85rem, 1.8vw, 1.2rem);
+            --body-size: clamp(0.75rem, 1.4vw, 1.05rem);
+            --small-size: clamp(0.65rem, 1vw, 0.85rem);
+            --slide-padding: clamp(1.5rem, 4vw, 4rem);
+            --content-gap: clamp(0.75rem, 2vw, 2rem);
+            --element-gap: clamp(0.25rem, 1vw, 1rem);
+
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --duration-normal: 0.7s;
+        }
+
+        /* === BASE RESET === */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* === VIEWPORT BASE (from viewport-base.css) === */
+        html, body { height: 100%; overflow-x: hidden; }
+        html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+        }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+            padding: var(--slide-padding);
+        }
+
+        img { max-width: 100%; max-height: min(50vh, 400px); object-fit: contain; }
+
+        /* === RESPONSIVE BREAKPOINTS === */
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(0.75rem, 3vw, 2rem);
+                --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+                --title-size: clamp(1.5rem, 5vw, 3rem);
+                --h2-size: clamp(1.25rem, 3.5vw, 2rem);
+            }
+        }
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+                --title-size: clamp(1.2rem, 4.5vw, 2.2rem);
+                --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+            }
+            .nav-dots, .keyboard-hint, .decorative { display: none; }
+        }
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.4rem, 2vw, 1rem);
+                --title-size: clamp(1rem, 3.5vw, 1.5rem);
+                --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+                --body-size: clamp(0.65rem, 1vw, 0.85rem);
+            }
+        }
+        @media (max-width: 600px) {
+            :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); }
+            .grid-2, .grid-3 { grid-template-columns: 1fr !important; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+
+        /* === ANIMATIONS === */
+        .reveal {
+            opacity: 0;
+            transform: translateY(28px);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-40px);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(40px);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+        .slide.visible .reveal,
+        .slide.visible .reveal-left,
+        .slide.visible .reveal-right,
+        .slide.visible .reveal-scale {
+            opacity: 1;
+            transform: translateY(0) translateX(0) scale(1);
+        }
+        .reveal:nth-child(1) { transition-delay: 0.08s; }
+        .reveal:nth-child(2) { transition-delay: 0.18s; }
+        .reveal:nth-child(3) { transition-delay: 0.28s; }
+        .reveal:nth-child(4) { transition-delay: 0.38s; }
+        .reveal:nth-child(5) { transition-delay: 0.48s; }
+        .reveal:nth-child(6) { transition-delay: 0.58s; }
+
+        /* === PROGRESS BAR === */
+        .progress-bar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+            z-index: 9999;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        /* === NAV DOTS === */
+        .nav-dots {
+            position: fixed;
+            right: clamp(0.75rem, 2vw, 1.5rem);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(6px, 1vh, 10px);
+            z-index: 9998;
+        }
+        .nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--line);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0;
+        }
+        .nav-dot.active {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent-glow);
+            transform: scale(1.3);
+        }
+
+        /* === SLIDE NUMBER === */
+        .slide-number {
+            position: absolute;
+            top: clamp(1rem, 3vh, 2rem);
+            left: clamp(1.5rem, 4vw, 4rem);
+            font-family: var(--font-display);
+            font-size: clamp(0.65rem, 1vw, 0.8rem);
+            font-weight: 600;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            z-index: 2;
+        }
+
+        /* === SHARED BACKGROUNDS === */
+        .bg-radial {
+            background:
+                radial-gradient(circle at 50% 0%, rgba(255, 90, 52, 0.18), transparent 44%),
+                radial-gradient(circle at 12% 18%, rgba(255, 70, 40, 0.11), transparent 42%),
+                linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-primary) 55%, var(--bg-deep) 100%);
+        }
+        .bg-subtle {
+            background:
+                radial-gradient(circle at 80% 90%, rgba(255, 90, 52, 0.08), transparent 50%),
+                radial-gradient(circle at 10% 20%, rgba(139, 37, 16, 0.12), transparent 45%),
+                var(--bg-primary);
+        }
+        .bg-accent-glow {
+            background:
+                radial-gradient(ellipse at 30% 50%, rgba(255, 90, 52, 0.14), transparent 55%),
+                radial-gradient(ellipse at 70% 80%, rgba(139, 37, 16, 0.1), transparent 50%),
+                var(--bg-primary);
+        }
+
+        /* Noise overlay for texture */
+        .slide::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 1;
+        }
+        .slide > * { position: relative; z-index: 2; }
+
+        /* === TYPOGRAPHY === */
+        h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; }
+        h1 { font-size: var(--title-size); font-weight: 700; letter-spacing: -0.02em; }
+        h2 { font-size: var(--h2-size); font-weight: 700; letter-spacing: -0.015em; }
+        h3 { font-size: var(--h3-size); font-weight: 600; }
+        p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+
+        .accent { color: var(--accent); }
+        .accent-soft { color: var(--accent-soft); }
+
+        /* === LAYOUT UTILITIES === */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1rem, 2.5vw, 2rem);
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.75rem, 1.5vw, 1.25rem);
+        }
+
+        /* === CARDS === */
+        .card {
+            background: rgba(18, 6, 3, 0.7);
+            border: 1px solid rgba(255, 90, 52, 0.15);
+            border-radius: clamp(8px, 1vw, 14px);
+            padding: clamp(0.75rem, 2vw, 1.5rem);
+            backdrop-filter: blur(8px);
+            transition: border-color 0.3s ease, transform 0.3s ease;
+        }
+        .card:hover {
+            border-color: rgba(255, 90, 52, 0.35);
+            transform: translateY(-2px);
+        }
+        .card h3 { margin-bottom: clamp(0.25rem, 0.5vw, 0.5rem); color: var(--foreground); }
+        .card p { font-size: var(--small-size); }
+
+        /* === ICON CIRCLES === */
+        .icon-circle {
+            width: clamp(32px, 4vw, 48px);
+            height: clamp(32px, 4vw, 48px);
+            border-radius: 50%;
+            background: rgba(255, 90, 52, 0.12);
+            border: 1px solid rgba(255, 90, 52, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: clamp(0.3rem, 0.8vw, 0.6rem);
+            flex-shrink: 0;
+        }
+        .icon-circle svg { width: clamp(16px, 2vw, 24px); height: clamp(16px, 2vw, 24px); }
+
+        /* === PILL BADGES === */
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 6px);
+            padding: clamp(3px, 0.5vw, 6px) clamp(8px, 1.2vw, 14px);
+            border-radius: 100px;
+            font-size: var(--small-size);
+            font-weight: 600;
+            font-family: var(--font-display);
+        }
+        .pill-accent {
+            background: rgba(255, 90, 52, 0.12);
+            color: var(--accent-soft);
+            border: 1px solid rgba(255, 90, 52, 0.25);
+        }
+        .pill-ghost {
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--line);
+        }
+
+        /* === HORIZONTAL RULE === */
+        .hr-accent {
+            width: clamp(40px, 6vw, 80px);
+            height: 3px;
+            background: var(--accent);
+            border: none;
+            border-radius: 2px;
+            margin: clamp(0.5rem, 1.2vw, 1rem) 0;
+        }
+
+        /* === STAT BLOCKS === */
+        .stat { text-align: center; }
+        .stat-value {
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 4vw, 3rem);
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1.1;
+        }
+        .stat-label {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-top: clamp(2px, 0.3vw, 6px);
+        }
+
+        /* === BULLET LIST WITH ICONS === */
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.35rem, 0.8vh, 0.7rem);
+        }
+        .bullet-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(6px, 0.8vw, 10px);
+        }
+        .bullet-list li::before {
+            content: '';
+            width: clamp(5px, 0.6vw, 7px);
+            height: clamp(5px, 0.6vw, 7px);
+            background: var(--accent);
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: clamp(5px, 0.7vw, 8px);
+        }
+
+        /* ======================================================
+           SLIDE 1: TITLE / INTRODUCTION
+           ====================================================== */
+        .title-slide {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .title-slide .slide-content {
+            align-items: center;
+            max-width: min(90vw, 800px);
+            gap: clamp(0.6rem, 1.5vw, 1.5rem);
+        }
+        .logo-mark {
+            width: clamp(48px, 8vw, 80px);
+            height: auto;
+            filter: drop-shadow(0 4px 20px rgba(255, 90, 52, 0.3));
+        }
+        .title-brand {
+            display: flex;
+            align-items: center;
+            gap: clamp(8px, 1.2vw, 16px);
+        }
+        .title-brand-text {
+            font-family: var(--font-display);
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .title-tagline {
+            font-size: var(--subtitle-size);
+            color: var(--text-secondary);
+            max-width: 36em;
+        }
+        .title-meta {
+            display: flex;
+            gap: clamp(8px, 1.5vw, 16px);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* ======================================================
+           SLIDE 2: PROBLEM
+           ====================================================== */
+        .problem-slide .slide-content {
+            gap: clamp(0.8rem, 2vw, 1.8rem);
+            max-width: min(90vw, 1000px);
+            margin: 0 auto;
+        }
+        .problem-stats {
+            display: flex;
+            gap: clamp(1rem, 3vw, 3rem);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* ======================================================
+           SLIDE 3: USP / SOLUTION
+           ====================================================== */
+        .usp-slide .slide-content {
+            gap: clamp(0.6rem, 1.5vw, 1.5rem);
+            max-width: min(92vw, 1100px);
+            margin: 0 auto;
+        }
+        .pipeline {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(0.3rem, 1vw, 1rem);
+            flex-wrap: wrap;
+        }
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 8px);
+            text-align: center;
+        }
+        .pipeline-step .icon-circle {
+            width: clamp(36px, 5vw, 56px);
+            height: clamp(36px, 5vw, 56px);
+        }
+        .pipeline-step span {
+            font-family: var(--font-display);
+            font-size: var(--small-size);
+            font-weight: 600;
+            color: var(--foreground);
+        }
+        .pipeline-arrow {
+            font-size: clamp(0.8rem, 1.5vw, 1.2rem);
+            color: var(--text-dim);
+        }
+
+        /* ======================================================
+           SLIDE 4: ARCHITECTURE
+           ====================================================== */
+        .arch-slide .slide-content {
+            gap: clamp(0.6rem, 1.5vw, 1.5rem);
+            max-width: min(92vw, 1100px);
+            margin: 0 auto;
+        }
+        .arch-diagram {
+            display: flex;
+            align-items: stretch;
+            gap: clamp(0.5rem, 1vw, 1rem);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .arch-col {
+            flex: 1;
+            min-width: clamp(120px, 15vw, 200px);
+            max-width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.3rem, 0.5vw, 0.5rem);
+        }
+        .arch-col-title {
+            font-family: var(--font-display);
+            font-size: var(--small-size);
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding-bottom: clamp(4px, 0.4vw, 8px);
+            border-bottom: 1px solid rgba(255, 90, 52, 0.2);
+            margin-bottom: clamp(4px, 0.3vw, 6px);
+        }
+        .arch-item {
+            padding: clamp(6px, 0.8vw, 10px) clamp(8px, 1vw, 12px);
+            background: rgba(18, 6, 3, 0.6);
+            border: 1px solid rgba(255, 90, 52, 0.1);
+            border-radius: 6px;
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 8px);
+        }
+        .arch-item-icon {
+            color: var(--accent-soft);
+            font-size: clamp(0.7rem, 1vw, 0.9rem);
+        }
+        .arch-connector {
+            align-self: center;
+            color: var(--text-dim);
+            font-size: clamp(1rem, 2vw, 1.5rem);
+        }
+
+        /* ======================================================
+           SLIDE 5: DEFENSIBILITY
+           ====================================================== */
+        .defend-slide .slide-content {
+            gap: clamp(0.6rem, 1.5vw, 1.5rem);
+            max-width: min(92vw, 1100px);
+            margin: 0 auto;
+        }
+        .vs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--small-size);
+        }
+        .vs-table th {
+            font-family: var(--font-display);
+            font-weight: 600;
+            text-align: left;
+            padding: clamp(4px, 0.6vw, 8px) clamp(6px, 1vw, 12px);
+            border-bottom: 1px solid rgba(255, 90, 52, 0.25);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+        }
+        .vs-table td {
+            padding: clamp(4px, 0.6vw, 8px) clamp(6px, 1vw, 12px);
+            border-bottom: 1px solid rgba(120, 81, 80, 0.2);
+            color: var(--text-secondary);
+            font-size: var(--small-size);
+        }
+        .vs-table .col-signal { color: var(--accent); font-weight: 600; }
+        .check { color: var(--accent); }
+        .cross { color: var(--line); }
+
+        /* ======================================================
+           SLIDE 6: BUSINESS CASE
+           ====================================================== */
+        .biz-slide .slide-content {
+            gap: clamp(0.6rem, 1.5vw, 1.5rem);
+            max-width: min(92vw, 1100px);
+            margin: 0 auto;
+        }
+        .biz-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1rem, 2.5vw, 2.5rem);
+        }
+        @media (max-width: 700px) { .biz-split { grid-template-columns: 1fr; } }
+        .biz-section h3 {
+            margin-bottom: clamp(0.3rem, 0.6vw, 0.6rem);
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 8px);
+        }
+        .biz-section h3::before {
+            content: '';
+            width: clamp(3px, 0.4vw, 4px);
+            height: clamp(14px, 2vw, 22px);
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        /* ======================================================
+           SLIDE 7: OVERVIEW / CLOSING
+           ====================================================== */
+        .overview-slide .slide-content {
+            gap: clamp(0.6rem, 1.5vw, 1.5rem);
+            max-width: min(92vw, 1100px);
+            margin: 0 auto;
+            align-items: center;
+            text-align: center;
+        }
+        .rubric-map {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, clamp(140px, 18vw, 200px)), 1fr));
+            gap: clamp(0.5rem, 1vw, 1rem);
+            width: 100%;
+            max-width: 900px;
+        }
+        .rubric-card {
+            background: rgba(18, 6, 3, 0.7);
+            border: 1px solid rgba(255, 90, 52, 0.12);
+            border-radius: clamp(6px, 0.8vw, 10px);
+            padding: clamp(0.5rem, 1.2vw, 1rem);
+            text-align: left;
+            transition: border-color 0.3s ease;
+        }
+        .rubric-card:hover { border-color: rgba(255, 90, 52, 0.3); }
+        .rubric-card-ref {
+            font-family: var(--font-display);
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            color: var(--accent);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .rubric-card-title {
+            font-family: var(--font-display);
+            font-size: var(--small-size);
+            font-weight: 600;
+            color: var(--foreground);
+            margin-top: clamp(2px, 0.2vw, 4px);
+        }
+        .rubric-card-weight {
+            font-size: clamp(0.55rem, 0.7vw, 0.65rem);
+            color: var(--text-dim);
+            margin-top: clamp(2px, 0.2vw, 3px);
+        }
+        .closing-cta {
+            display: flex;
+            gap: clamp(8px, 1.5vw, 16px);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 8px);
+            padding: clamp(6px, 0.8vw, 10px) clamp(14px, 2vw, 24px);
+            border-radius: 6px;
+            font-family: var(--font-display);
+            font-size: var(--small-size);
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-deep);
+        }
+        .btn-primary:hover {
+            background: var(--accent-soft);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--foreground);
+            border: 1px solid rgba(255, 90, 52, 0.3);
+        }
+        .btn-outline:hover {
+            border-color: var(--accent);
+            background: rgba(255, 90, 52, 0.08);
+        }
+
+        /* ======================================================
+           KEYBOARD HINT (bottom)
+           ====================================================== */
+        .keyboard-hint {
+            position: fixed;
+            bottom: clamp(0.5rem, 1.5vh, 1rem);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            color: var(--text-dim);
+            z-index: 9998;
+            opacity: 0.6;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+        .keyboard-hint.fade-out { opacity: 0; }
+    </style>
+</head>
+<body>
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- Navigation Dots -->
+    <nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+
+    <!-- Keyboard Hint -->
+    <div class="keyboard-hint" id="keyHint">&#8593; &#8595; Arrow keys &middot; Space &middot; Scroll</div>
+
+    <!-- ======================================================
+         SLIDE 1: INTRODUCTION
+         ====================================================== -->
+    <section class="slide title-slide bg-radial" aria-label="Introduction">
+        <div class="slide-content">
+            <div class="title-brand reveal-scale">
+                <img src="assets/signal_logo.png" alt="Signal logo" class="logo-mark">
+                <span class="title-brand-text">Signal</span>
+            </div>
+            <h1 class="reveal">Ship Faster,<br>Without Stress.</h1>
+            <p class="title-tagline reveal">
+                AI-powered security scanning that detects critical vulnerabilities
+                in your codebase instantly&mdash;so your team ships with confidence.
+            </p>
+            <div class="title-meta reveal">
+                <span class="pill pill-accent">FoundersHack 2026</span>
+                <span class="pill pill-ghost">Security &times; Developer Experience</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 2: PROBLEM IDENTIFICATION & ASSESSMENT
+         Rubric ref: A1 (10 pts) + A2 (15 pts)
+         ====================================================== -->
+    <section class="slide problem-slide bg-subtle" aria-label="Problem">
+        <span class="slide-number">02 / Problem</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1 &middot; Problem Identification</span>
+                <h2>Developers ship <span class="accent">vulnerable code</span>&mdash;<br>because security tools weren&rsquo;t built for them.</h2>
+            </div>
+            <div class="hr-accent reveal"></div>
+            <ul class="bullet-list reveal">
+                <li>Traditional SAST/DAST tools are slow, expensive, and generate noisy false positives</li>
+                <li>Manual security audits add weeks to release cycles</li>
+                <li>60% of breaches involve known, unpatched vulnerabilities in dependencies and source code</li>
+                <li>Developers deprioritize security when tooling creates friction</li>
+            </ul>
+            <div class="problem-stats reveal">
+                <div class="stat">
+                    <div class="stat-value">83%</div>
+                    <div class="stat-label">of codebases have<br>known vulnerabilities</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">200+</div>
+                    <div class="stat-label">days average time<br>to detect a breach</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">$4.9M</div>
+                    <div class="stat-label">average cost of<br>a data breach (2025)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 3: UNIQUE SELLING PROPOSITION / SOLUTION
+         Rubric ref: A3 (13 pts)
+         ====================================================== -->
+    <section class="slide usp-slide bg-accent-glow" aria-label="Solution">
+        <span class="slide-number">03 / Solution</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A3 &middot; Unique Selling Proposition</span>
+                <h2>One click. Instant insights.<br><span class="accent">Automated fixes.</span></h2>
+            </div>
+            <div class="pipeline reveal">
+                <div class="pipeline-step">
+                    <div class="icon-circle">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                    </div>
+                    <span>Connect Repo</span>
+                </div>
+                <span class="pipeline-arrow">&#8594;</span>
+                <div class="pipeline-step">
+                    <div class="icon-circle">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </div>
+                    <span>AI Scan</span>
+                </div>
+                <span class="pipeline-arrow">&#8594;</span>
+                <div class="pipeline-step">
+                    <div class="icon-circle">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
+                    <span>Report</span>
+                </div>
+                <span class="pipeline-arrow">&#8594;</span>
+                <div class="pipeline-step">
+                    <div class="icon-circle">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </div>
+                    <span>Auto-Fix PR</span>
+                </div>
+            </div>
+            <div class="grid-3 reveal">
+                <div class="card">
+                    <h3>35+ Vuln Types</h3>
+                    <p>SQL injection, XSS, CSRF, RCE, auth bypass, secrets exposure, SSRF, and more&mdash;aligned with OWASP Top 10.</p>
+                </div>
+                <div class="card">
+                    <h3>Compliance Reports</h3>
+                    <p>One-click PDF generation for SOC 2, ISO 27001, and OWASP with executive summaries and evidence.</p>
+                </div>
+                <div class="card">
+                    <h3>VS Code Extension</h3>
+                    <p>Scan code snippets and entire workspaces directly from your editor without leaving your flow.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 4: ARCHITECTURE
+         Rubric ref: B1 (10 pts) + B2 (8 pts)
+         ====================================================== -->
+    <section class="slide arch-slide bg-subtle" aria-label="Architecture">
+        <span class="slide-number">04 / Architecture</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">B1 &middot; Implementation</span>
+                <h2>Full-Stack, <span class="accent">Production-Ready</span></h2>
+            </div>
+            <div class="arch-diagram reveal">
+                <div class="arch-col">
+                    <div class="arch-col-title">Frontend</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Next.js 16 + React 19</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> TypeScript</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Three.js (3D visuals)</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Better Auth</div>
+                </div>
+                <div class="arch-connector reveal">&#8644;</div>
+                <div class="arch-col">
+                    <div class="arch-col-title">Backend API</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Express + Node.js</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> MySQL 8 Database</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> RESTful Routes</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Discord Webhooks</div>
+                </div>
+                <div class="arch-connector reveal">&#8644;</div>
+                <div class="arch-col">
+                    <div class="arch-col-title">AI Engine</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> OpenAI GPT-4o-mini</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Vuln Analysis Agent</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Resolution Agent</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Qdrant Vector Store</div>
+                </div>
+                <div class="arch-connector reveal">&#8644;</div>
+                <div class="arch-col">
+                    <div class="arch-col-title">Integrations</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> GitHub API</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> VS Code Extension</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> PDF Compliance</div>
+                    <div class="arch-item"><span class="arch-item-icon">&#9670;</span> Webhook Alerts</div>
+                </div>
+            </div>
+            <p class="reveal" style="text-align: center; margin-top: clamp(0.3rem, 0.5vw, 0.6rem);">
+                <span class="accent-soft" style="font-weight: 600;">Scan pipeline:</span>
+                GitHub zipball &rarr; file prioritization &rarr; 60-line chunk windows &rarr; AI analysis &rarr; deduplication &rarr; scoring (0&ndash;50)
+            </p>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 5: DEFENSIBILITY & FUNCTIONALITY
+         Rubric ref: A4 (12 pts)
+         ====================================================== -->
+    <section class="slide defend-slide bg-accent-glow" aria-label="Defensibility">
+        <span class="slide-number">05 / Defensibility</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
+                <h2>How we&rsquo;re <span class="accent">different</span></h2>
+            </div>
+            <table class="vs-table reveal">
+                <thead>
+                    <tr>
+                        <th>Capability</th>
+                        <th class="col-signal">Signal</th>
+                        <th>Snyk</th>
+                        <th>SonarQube</th>
+                        <th>CodeQL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>AI Semantic Analysis</td>
+                        <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>Automated Fix PRs</td>
+                        <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>One-Click Setup</td>
+                        <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>Compliance PDFs (SOC 2, ISO)</td>
+                        <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td>Paid</td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>Audit Trail + Diff Tracking</td>
+                        <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td>Partial</td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>Free &amp; Open Setup</td>
+                        <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td>Freemium</td>
+                        <td>Community</td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            <ul class="bullet-list reveal" style="max-width: 700px; margin: 0 auto;">
+                <li><strong style="color: var(--foreground);">LLM-powered semantic analysis</strong> catches logic-level vulnerabilities that rule-based tools miss</li>
+                <li><strong style="color: var(--foreground);">Resolution agent</strong> forks the repo, applies AI-generated fixes, and opens a ready-to-merge PR</li>
+                <li><strong style="color: var(--foreground);">Stateful memory</strong> tracks dismissals, regressions, and baselines across scans</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 6: BUSINESS CASE
+         Rubric ref: A5 (5 pts) + A6 (5 pts)
+         ====================================================== -->
+    <section class="slide biz-slide bg-subtle" aria-label="Business Case">
+        <span class="slide-number">06 / Business Case</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A5 + A6 &middot; GTM Strategy &amp; Market</span>
+                <h2>The Market <span class="accent">Opportunity</span></h2>
+            </div>
+            <div class="biz-split reveal">
+                <div class="biz-section">
+                    <h3>Go-To-Market Strategy</h3>
+                    <ul class="bullet-list">
+                        <li><strong style="color: var(--foreground);">Developer-first PLG:</strong> Free tier for open-source projects, upgrade for private repos and teams</li>
+                        <li><strong style="color: var(--foreground);">Distribution channels:</strong> GitHub Marketplace, VS Code Extension Store, dev communities (Reddit, HN, Discord)</li>
+                        <li><strong style="color: var(--foreground);">Acquisition loop:</strong> Auto-fix PRs include &ldquo;Secured by Signal&rdquo; badge&mdash;organic virality through every PR</li>
+                    </ul>
+                </div>
+                <div class="biz-section">
+                    <h3>Market Trends &amp; Risks</h3>
+                    <ul class="bullet-list">
+                        <li><strong style="color: var(--foreground);">$33B AppSec market by 2028</strong>&mdash;shift-left security is the fastest-growing segment</li>
+                        <li><strong style="color: var(--foreground);">AI adoption wave:</strong> developers are actively seeking AI-native tools</li>
+                        <li><strong style="color: var(--foreground);">Key risk:</strong> LLM accuracy&mdash;mitigated via prompt engineering, false-positive rules, and human-in-the-loop review</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="grid-3 reveal" style="max-width: 700px; margin: 0 auto;">
+                <div class="stat">
+                    <div class="stat-value">$33B</div>
+                    <div class="stat-label">AppSec market<br>by 2028</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">28M+</div>
+                    <div class="stat-label">developers on<br>GitHub</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">40%</div>
+                    <div class="stat-label">YoY growth in<br>AI security tools</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 7: OVERVIEW & CLOSING
+         Rubric ref: C2 (7 pts) + B2 (8 pts)
+         ====================================================== -->
+    <section class="slide overview-slide bg-radial" aria-label="Overview and closing">
+        <span class="slide-number">07 / Overview</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <h2>Everything Maps to the <span class="accent">Rubric</span></h2>
+                <p style="max-width: 30em; margin: 0 auto;">Signal delivers across every evaluation criterion&mdash;from problem to prototype to presentation.</p>
+            </div>
+            <div class="rubric-map reveal">
+                <div class="rubric-card">
+                    <div class="rubric-card-ref">A1&ndash;A2</div>
+                    <div class="rubric-card-title">Problem</div>
+                    <div class="rubric-card-weight">25% &middot; Slide 02</div>
+                </div>
+                <div class="rubric-card">
+                    <div class="rubric-card-ref">A3</div>
+                    <div class="rubric-card-title">Solution / USP</div>
+                    <div class="rubric-card-weight">13 pts &middot; Slide 03</div>
+                </div>
+                <div class="rubric-card">
+                    <div class="rubric-card-ref">B1&ndash;B2</div>
+                    <div class="rubric-card-title">Architecture</div>
+                    <div class="rubric-card-weight">18 pts &middot; Slide 04</div>
+                </div>
+                <div class="rubric-card">
+                    <div class="rubric-card-ref">A4</div>
+                    <div class="rubric-card-title">Defensibility</div>
+                    <div class="rubric-card-weight">12 pts &middot; Slide 05</div>
+                </div>
+                <div class="rubric-card">
+                    <div class="rubric-card-ref">A5&ndash;A6</div>
+                    <div class="rubric-card-title">Business Case</div>
+                    <div class="rubric-card-weight">10% &middot; Slide 06</div>
+                </div>
+                <div class="rubric-card">
+                    <div class="rubric-card-ref">C1&ndash;C2</div>
+                    <div class="rubric-card-title">Presentation</div>
+                    <div class="rubric-card-weight">20% &middot; This deck</div>
+                </div>
+            </div>
+            <div class="closing-cta reveal">
+                <a class="btn btn-primary" href="#">Live Demo &rarr;</a>
+                <a class="btn btn-outline" href="#">GitHub Repo</a>
+                <a class="btn btn-outline" href="#">Documentation</a>
+            </div>
+            <div class="title-brand reveal" style="margin-top: clamp(0.3rem, 0.5vw, 0.5rem);">
+                <img src="assets/signal_logo.png" alt="Signal logo" class="logo-mark" style="width: clamp(28px, 4vw, 44px);">
+                <span class="title-brand-text" style="font-size: clamp(0.9rem, 2vw, 1.3rem);">Signal</span>
+                <span style="color: var(--text-dim); font-size: var(--small-size); margin-left: clamp(4px, 0.5vw, 8px);">Ship faster, without stress.</span>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        /* === SLIDE PRESENTATION CONTROLLER === */
+        class SlidePresentation {
+            constructor() {
+                this.slides = document.querySelectorAll('.slide');
+                this.currentSlide = 0;
+                this.isAnimating = false;
+                this.touchStartY = 0;
+                this.touchStartX = 0;
+                this.setupIntersectionObserver();
+                this.setupKeyboardNav();
+                this.setupTouchNav();
+                this.setupWheelNav();
+                this.setupProgressBar();
+                this.setupNavDots();
+                this.hideKeyboardHint();
+            }
+
+            setupIntersectionObserver() {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            const idx = Array.from(this.slides).indexOf(entry.target);
+                            if (idx !== -1) {
+                                this.currentSlide = idx;
+                                this.updateNavDots();
+                                this.updateProgressBar();
+                            }
+                        }
+                    });
+                }, { threshold: 0.4 });
+                this.slides.forEach(slide => observer.observe(slide));
+            }
+
+            goToSlide(index) {
+                if (index < 0 || index >= this.slides.length || this.isAnimating) return;
+                this.isAnimating = true;
+                this.slides[index].scrollIntoView({ behavior: 'smooth' });
+                this.currentSlide = index;
+                this.updateNavDots();
+                this.updateProgressBar();
+                setTimeout(() => { this.isAnimating = false; }, 700);
+            }
+
+            setupKeyboardNav() {
+                document.addEventListener('keydown', (e) => {
+                    switch (e.key) {
+                        case 'ArrowDown':
+                        case 'ArrowRight':
+                        case ' ':
+                        case 'PageDown':
+                            e.preventDefault();
+                            this.goToSlide(this.currentSlide + 1);
+                            break;
+                        case 'ArrowUp':
+                        case 'ArrowLeft':
+                        case 'PageUp':
+                            e.preventDefault();
+                            this.goToSlide(this.currentSlide - 1);
+                            break;
+                        case 'Home':
+                            e.preventDefault();
+                            this.goToSlide(0);
+                            break;
+                        case 'End':
+                            e.preventDefault();
+                            this.goToSlide(this.slides.length - 1);
+                            break;
+                    }
+                });
+            }
+
+            setupTouchNav() {
+                document.addEventListener('touchstart', (e) => {
+                    this.touchStartY = e.changedTouches[0].screenY;
+                    this.touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+                document.addEventListener('touchend', (e) => {
+                    const dy = e.changedTouches[0].screenY - this.touchStartY;
+                    const dx = e.changedTouches[0].screenX - this.touchStartX;
+                    if (Math.abs(dy) < 50 || Math.abs(dx) > Math.abs(dy)) return;
+                    if (dy < 0) this.goToSlide(this.currentSlide + 1);
+                    else this.goToSlide(this.currentSlide - 1);
+                }, { passive: true });
+            }
+
+            setupWheelNav() {
+                let wheelTimeout;
+                document.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    clearTimeout(wheelTimeout);
+                    wheelTimeout = setTimeout(() => {
+                        if (e.deltaY > 0) this.goToSlide(this.currentSlide + 1);
+                        else this.goToSlide(this.currentSlide - 1);
+                    }, 80);
+                }, { passive: false });
+            }
+
+            setupProgressBar() {
+                this.progressBar = document.getElementById('progressBar');
+                this.updateProgressBar();
+            }
+
+            updateProgressBar() {
+                if (!this.progressBar) return;
+                const pct = ((this.currentSlide + 1) / this.slides.length) * 100;
+                this.progressBar.style.width = pct + '%';
+            }
+
+            setupNavDots() {
+                const nav = document.getElementById('navDots');
+                if (!nav) return;
+                this.slides.forEach((_, i) => {
+                    const dot = document.createElement('button');
+                    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+                    dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+                    dot.addEventListener('click', () => this.goToSlide(i));
+                    nav.appendChild(dot);
+                });
+                this.dots = nav.querySelectorAll('.nav-dot');
+            }
+
+            updateNavDots() {
+                if (!this.dots) return;
+                this.dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === this.currentSlide);
+                });
+            }
+
+            hideKeyboardHint() {
+                const hint = document.getElementById('keyHint');
+                if (!hint) return;
+                setTimeout(() => hint.classList.add('fade-out'), 4000);
+                setTimeout(() => hint.style.display = 'none', 5000);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => new SlidePresentation());
+    </script>
+</body>
+</html>
