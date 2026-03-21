@@ -1,6 +1,7 @@
 "use client";
 
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -356,6 +357,12 @@ function DeleteConfirmModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const [confirmInput, setConfirmInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const expected = projectName.trim();
+  const canDelete = expected.length > 0 && confirmInput.trim() === expected;
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -365,14 +372,35 @@ function DeleteConfirmModal({
     };
   }, [open]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) {
+      setConfirmInput("");
+      return;
+    }
+    setConfirmInput("");
+    const t = window.setTimeout(() => inputRef.current?.focus(), 50);
+    return () => window.clearTimeout(t);
+  }, [open, projectName]);
 
-  return (
+  useEffect(() => {
+    if (!open || deleting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, deleting, onClose]);
+
+  if (!open) return null;
+  if (typeof window === "undefined") return null;
+
+  return createPortal(
     <div
       className="dash-modal-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label="Delete project"
+      aria-labelledby="dash-delete-title"
+      aria-describedby="dash-delete-desc"
       onMouseDown={(e) => {
         if (!deleting && e.target === e.currentTarget) onClose();
       }}
@@ -389,9 +417,26 @@ function DeleteConfirmModal({
         </div>
 
         <div className="dash-delete__body">
-          <div className="dash-delete__title">Delete project</div>
-          <div className="dash-delete__desc">
+          <div id="dash-delete-title" className="dash-delete__title">
+            Delete project
+          </div>
+          <div id="dash-delete-desc" className="dash-delete__desc">
             Are you sure you want to delete <strong>{projectName}</strong>? This will permanently remove the project along with all its scans and findings. This action cannot be undone.
+          </div>
+          <div className="dash-delete__confirm">
+            <label htmlFor="dash-delete-confirm-input">Type the project name to confirm</label>
+            <input
+              id="dash-delete-confirm-input"
+              ref={inputRef}
+              type="text"
+              className="dash-delete__confirmInput"
+              value={confirmInput}
+              onChange={(e) => setConfirmInput(e.target.value)}
+              disabled={deleting}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={expected || "Project name"}
+            />
           </div>
         </div>
 
@@ -415,13 +460,15 @@ function DeleteConfirmModal({
             className="dash-btn dash-btn--danger"
             type="button"
             onClick={onConfirm}
-            disabled={deleting}
+            disabled={deleting || !canDelete}
+            title={!canDelete ? "Enter the exact project name above to enable" : undefined}
           >
             {deleting ? "Deleting…" : "Delete project"}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

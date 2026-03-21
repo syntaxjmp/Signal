@@ -1149,7 +1149,7 @@
 :global(.dash-modal-backdrop) {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 10050;
   background: rgba(0, 0, 0, 0.62);
   display: flex;
   align-items: center;
@@ -1759,6 +1759,41 @@
 :global(.dash-delete__desc strong) {
   color: #fff0ea;
   font-weight: 800;
+}
+
+:global(.dash-delete__confirm) {
+  margin-top: 1.1rem;
+  text-align: left;
+}
+
+:global(.dash-delete__confirm label) {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: rgba(255, 220, 210, 0.88);
+  margin-bottom: 0.45rem;
+}
+
+:global(.dash-delete__confirmInput) {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 90, 52, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff0ea;
+  font-size: 0.95rem;
+  font-weight: 650;
+  outline: none;
+}
+
+:global(.dash-delete__confirmInput:focus) {
+  border-color: rgba(255, 120, 90, 0.55);
+  box-shadow: 0 0 0 2px rgba(255, 90, 52, 0.18);
+}
+
+:global(.dash-delete__confirmInput:disabled) {
+  opacity: 0.65;
 }
 
 :global(.dash-delete__progress) {
