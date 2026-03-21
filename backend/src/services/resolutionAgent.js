@@ -5,6 +5,7 @@ import { getPool } from '../config/database.js';
 import { env } from '../config/env.js';
 import { resolveAgentPrompt } from '../ai/resolveAgentPrompt.js';
 import { sendWebhookForUser } from './webhookHandler.js';
+import { createFixOutcome } from './fixOutcomeTracker.js';
 
 /**
  * Build common GitHub API headers.
@@ -412,6 +413,13 @@ export async function runResolutionJob({ jobId, projectId, findingIds, githubUrl
       `UPDATE resolution_jobs SET status = 'completed', pr_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [prUrl, jobId],
     );
+
+    // Track fix outcome for PR status monitoring
+    try {
+      await createFixOutcome(pool, { jobId, projectId, prUrl, findingIds: resolvedIds });
+    } catch (fixErr) {
+      console.warn('[fix-outcomes] non-fatal: failed to create fix outcome', fixErr instanceof Error ? fixErr.message : String(fixErr));
+    }
 
     if (jobUserId) {
       void sendWebhookForUser(jobUserId, {

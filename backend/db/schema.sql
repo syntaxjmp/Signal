@@ -303,6 +303,85 @@ CREATE TABLE IF NOT EXISTS `sla_violations` (
   CONSTRAINT `fk_sla_violations_finding` FOREIGN KEY (`finding_id`) REFERENCES `project_findings` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Phase 1 completion: fix outcomes, developer profiles, accepted risks
+CREATE TABLE IF NOT EXISTS `fix_outcomes` (
+  `id` CHAR(36) NOT NULL,
+  `resolution_job_id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `pr_url` VARCHAR(1024) NOT NULL,
+  `pr_status` ENUM('open', 'merged', 'closed') NOT NULL DEFAULT 'open',
+  `fix_category` VARCHAR(255) NULL COMMENT 'Primary vulnerability category fixed',
+  `fix_pattern_hash` CHAR(64) NULL COMMENT 'Hash of the diff for pattern matching',
+  `files_changed` INT UNSIGNED NOT NULL DEFAULT 0,
+  `review_comments_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `merged_at` TIMESTAMP NULL,
+  `closed_at` TIMESTAMP NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_fix_outcomes_project` (`project_id`),
+  KEY `idx_fix_outcomes_status` (`pr_status`),
+  KEY `idx_fix_outcomes_category` (`fix_category`),
+  CONSTRAINT `fk_fix_outcomes_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_fix_outcomes_job` FOREIGN KEY (`resolution_job_id`) REFERENCES `resolution_jobs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `developer_profiles` (
+  `id` CHAR(36) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `author_email` VARCHAR(255) NOT NULL,
+  `author_name` VARCHAR(255) NULL,
+  `total_findings_introduced` INT UNSIGNED NOT NULL DEFAULT 0,
+  `critical_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `high_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `medium_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `low_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `top_categories` JSON NULL COMMENT 'Array of {category, count} sorted desc',
+  `avg_fix_time_hours` DECIMAL(10,2) NULL,
+  `risk_score` DECIMAL(5,2) NOT NULL DEFAULT 0,
+  `first_seen_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_seen_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_dev_profiles_project_email` (`project_id`, `author_email`),
+  KEY `idx_dev_profiles_risk` (`risk_score`),
+  CONSTRAINT `fk_dev_profiles_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `developer_finding_links` (
+  `id` CHAR(36) NOT NULL,
+  `finding_id` CHAR(36) NOT NULL,
+  `developer_profile_id` CHAR(36) NOT NULL,
+  `commit_sha` CHAR(40) NULL,
+  `blame_line` INT UNSIGNED NULL,
+  `introduced_at` TIMESTAMP NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_dev_finding_links_finding` (`finding_id`),
+  KEY `idx_dev_finding_links_dev` (`developer_profile_id`),
+  CONSTRAINT `fk_dev_finding_links_finding` FOREIGN KEY (`finding_id`) REFERENCES `project_findings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_dev_finding_links_dev` FOREIGN KEY (`developer_profile_id`) REFERENCES `developer_profiles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `accepted_risks` (
+  `id` CHAR(36) NOT NULL,
+  `fingerprint` CHAR(64) NOT NULL,
+  `project_id` CHAR(36) NOT NULL,
+  `accepted_by` VARCHAR(191) NOT NULL,
+  `reason` TEXT NOT NULL,
+  `depends_on_files` JSON NULL COMMENT '["sanitizer.js", "middleware/auth.js"]',
+  `depends_on_checksums` JSON NULL COMMENT '{"sanitizer.js": "abc123..."} - checksums at time of acceptance',
+  `review_by_date` DATE NULL,
+  `is_valid` TINYINT(1) NOT NULL DEFAULT 1,
+  `invalidated_reason` TEXT NULL,
+  `invalidated_at` TIMESTAMP NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_accepted_risks_fingerprint` (`fingerprint`),
+  KEY `idx_accepted_risks_project` (`project_id`),
+  KEY `idx_accepted_risks_valid` (`is_valid`, `project_id`),
+  CONSTRAINT `fk_accepted_risks_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `code_elements` (
   `id` CHAR(36) NOT NULL,
   `project_id` CHAR(36) NOT NULL,
