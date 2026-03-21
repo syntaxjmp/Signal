@@ -1166,9 +1166,9 @@ export default function DashboardPage() {
                             No description yet.
                           </div>
                         )}
-                        <div className="dash-team">
+                        <div className="dash-project-card__btnRow">
                           <span className="dash-team__pill">
-                            Scan: {p.latestScanStatus ?? "not started"}
+                            Scan:{" "}<span className={`dash-scanStatus dash-scanStatus--${p.latestScanStatus ?? "not_started"}`}>{p.latestScanStatus ?? "not started"}</span>
                           </span>
                           <button
                             type="button"
@@ -1232,14 +1232,8 @@ export default function DashboardPage() {
                             ) : "Delete"}
                           </button>
                         </div>
-
                         <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            marginTop: "0.95rem",
-                            marginRight: "0.9rem",
-                          }}
+                          className="dash-project-card__gauge"
                           aria-label={`Latest scan score ${p.securityScore ?? "N/A"}`}
                         >
                           {(() => {
@@ -1257,17 +1251,18 @@ export default function DashboardPage() {
                                     ? "#ff5b5b"
                                     : "rgba(255, 230, 220, 0.55)";
                             const trackColor = "rgba(255, 255, 255, 0.09)";
-                            const r = 34;
-                            const stroke = 7;
+                            const r = 47;
+                            const stroke = 9;
+                            const cx = 55;
                             const circumference = 2 * Math.PI * r;
                             const dashOffset = circumference * (1 - percent / 100);
 
                             return (
-                              <svg width="78" height="78" viewBox="0 0 78 78" aria-hidden>
-                                <circle cx="39" cy="39" r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
+                              <svg width="110" height="110" viewBox="0 0 110 110" aria-hidden>
+                                <circle cx={cx} cy={cx} r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
                                 <circle
-                                  cx="39"
-                                  cy="39"
+                                  cx={cx}
+                                  cy={cx}
                                   r={r}
                                   fill="none"
                                   stroke={toneColor}
@@ -1275,20 +1270,20 @@ export default function DashboardPage() {
                                   strokeLinecap="round"
                                   strokeDasharray={`${circumference} ${circumference}`}
                                   strokeDashoffset={dashOffset}
-                                  transform="rotate(-90 39 39)"
+                                  transform={`rotate(-90 ${cx} ${cx})`}
                                 />
                                 <circle
-                                  cx="39"
-                                  cy="39"
+                                  cx={cx}
+                                  cy={cx}
                                   r={r - stroke / 2 - 2}
                                   fill="rgba(14, 8, 8, 0.95)"
                                   stroke="rgba(255, 255, 255, 0.08)"
                                   strokeWidth="1"
                                 />
-                                <text x="39" y="38" textAnchor="middle" dominantBaseline="middle" fill="#fef8f6" fontSize="28" fontWeight="900">
+                                <text x={cx} y="52" textAnchor="middle" dominantBaseline="middle" fill="#fef8f6" fontSize="34" fontWeight="900">
                                   {scoreInt == null ? "--" : scoreInt}
                                 </text>
-                                <text x="39" y="54" textAnchor="middle" dominantBaseline="middle" fill="rgba(255, 220, 210, 0.78)" fontSize="12" fontWeight="850">
+                                <text x={cx} y="72" textAnchor="middle" dominantBaseline="middle" fill="rgba(255, 220, 210, 0.78)" fontSize="14" fontWeight="850">
                                   / 50
                                 </text>
                               </svg>
