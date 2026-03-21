@@ -1166,6 +1166,7 @@ export default function DashboardPage() {
                             No description yet.
                           </div>
                         )}
+                        <div className="dash-project-card__layout">
                         <div className="dash-project-card__btnRow">
                           <span className="dash-team__pill">
                             Scan:{" "}<span className={`dash-scanStatus dash-scanStatus--${p.latestScanStatus ?? "not_started"}`}>{p.latestScanStatus ?? "not started"}</span>
@@ -1289,6 +1290,7 @@ export default function DashboardPage() {
                               </svg>
                             );
                           })()}
+                        </div>
                         </div>
                       </div>
                     ))}

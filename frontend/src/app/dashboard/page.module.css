@@ -368,18 +368,26 @@
   color: rgba(255, 215, 205, 0.6);
 }
 
-:global(.dash-project-card__btnRow) {
-  margin-top: 0.7rem;
+:global(.dash-project-card__layout) {
+  margin-top: 0.6rem;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+:global(.dash-project-card__btnRow) {
+  display: flex;
+  flex-wrap: nowrap;
   gap: 0.4rem;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 :global(.dash-project-card__gauge) {
-  margin-top: 0.8rem;
+  flex-shrink: 0;
   display: flex;
-  justify-content: center;
+  margin-top: -0.9rem;
 }
 
 /* ── Projects enter animation ── */
@@ -1164,6 +1172,7 @@
   background: rgba(0, 0, 0, 0.1);
   border-color: rgba(255, 90, 52, 0.25);
   color: #f2e3de;
+  white-space: nowrap;
 }
 
 :global(.dash-btn:hover) {
