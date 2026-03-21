@@ -25,6 +25,8 @@ function fileBreakdown(findings: Finding[]): { file: string; path: string; count
 }
 
 export interface WorkspaceReportOptions {
+  /** Pass `context.extensionUri` to show the bundled logo (media/signal_evenbigger.png). */
+  extensionUri?: vscode.Uri;
   onExplainFinding?: (finding: Finding) => void;
 }
 
@@ -33,10 +35,11 @@ export function openWorkspaceReportPanel(
   result: WorkspaceScanResult,
   options?: WorkspaceReportOptions,
 ): void {
-  const { onExplainFinding } = options ?? {};
+  const { onExplainFinding, extensionUri } = options ?? {};
   const summary =
     result.summary ?? deriveWorkspaceSummaryFromFindings(result.findings, result.indexedFileCount);
   const nonce = getNonce();
+  const mediaRoot = extensionUri ? vscode.Uri.joinPath(extensionUri, 'media') : undefined;
   const panel = vscode.window.createWebviewPanel(
     'signal.workspaceReport',
     `Signal — ${workspaceFolderName}`,
@@ -44,9 +47,13 @@ export function openWorkspaceReportPanel(
     {
       enableScripts: true,
       retainContextWhenHidden: true,
-      localResourceRoots: [],
+      localResourceRoots: mediaRoot ? [mediaRoot] : [],
     },
   );
+
+  const logoUri =
+    mediaRoot &&
+    panel.webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, 'signal_evenbigger.png')).toString();
 
   const payload = {
     workspaceName: workspaceFolderName,
@@ -62,6 +69,7 @@ export function openWorkspaceReportPanel(
   const csp = [
     `default-src 'none'`,
     `style-src 'unsafe-inline'`,
+    `img-src ${panel.webview.cspSource} https: data:`,
     `script-src 'nonce-${nonce}'`,
   ].join('; ');
 
@@ -95,10 +103,17 @@ export function openWorkspaceReportPanel(
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.65rem;
       font-weight: 800;
       font-size: 1.35rem;
       margin-bottom: 0.25rem;
+    }
+    .brand__logo {
+      width: 2.2rem;
+      height: 2.2rem;
+      object-fit: contain;
+      flex-shrink: 0;
+      filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
     }
     .brand span.sig { color: var(--accent); }
     .brand span.sep { color: var(--accent); opacity: 0.9; font-weight: 900; }
@@ -130,21 +145,85 @@ export function openWorkspaceReportPanel(
       box-shadow: 0 0 0 1px rgba(0,0,0,0.25) inset;
     }
     .card__label {
-      color: rgba(255, 190, 170, 0.95);
+      color: #e8a87c;
       font-size: 0.8rem;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-    .gauge {
-      margin-top: 0.5rem;
-      display: flex;
-      align-items: baseline;
-      gap: 0.25rem;
+    /* Matches web findings report circular gauge (conic-gradient ring) */
+    .score-gauge {
+      --gauge-fill: 0%;
+      --gauge-color: #52d6a2;
+      width: 126px;
+      height: 126px;
+      margin: 0.65rem auto 0;
+      border-radius: 999px;
+      position: relative;
+      background: conic-gradient(
+        var(--gauge-color) var(--gauge-fill),
+        rgba(255, 255, 255, 0.09) var(--gauge-fill)
+      );
+      display: grid;
+      place-items: center;
     }
-    .gauge__val { font-size: 2rem; font-weight: 900; line-height: 1; }
-    .gauge__den { opacity: 0.65; font-weight: 700; }
-    .meta { margin-top: 0.35rem; color: var(--muted); font-size: 0.9rem; }
+    .score-gauge::after {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 999px;
+      background: rgba(14, 8, 8, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .score-gauge__inner {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+    .score-gauge__value {
+      font-size: 2rem;
+      font-weight: 1000;
+      line-height: 1;
+      color: #fef8f6;
+    }
+    .score-gauge__denom {
+      margin-top: 0.16rem;
+      font-size: 0.9rem;
+      color: rgba(255, 220, 210, 0.78);
+      font-weight: 600;
+    }
+    .score-meta-row {
+      margin-top: 0.55rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.7rem;
+    }
+    .score-label {
+      color: rgba(255, 220, 210, 0.88);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .score-delta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 3.25rem;
+      padding: 0.3rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 900;
+    }
+    .score-delta--risk {
+      color: #ff8f8f;
+      background: rgba(255, 83, 83, 0.12);
+      border: 1px solid rgba(255, 83, 83, 0.35);
+    }
+    .score-delta--ok {
+      color: #7ee0b0;
+      background: rgba(65, 211, 138, 0.12);
+      border: 1px solid rgba(65, 211, 138, 0.35);
+    }
     .bars { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem; }
     .bar {
       padding: 0.35rem 0.5rem;
@@ -211,15 +290,22 @@ export function openWorkspaceReportPanel(
   </style>
 </head>
 <body>
-  <div class="brand"><span class="sig">Signal</span><span class="sep">/</span><span>Workspace report</span></div>
+  <div class="brand">${logoUri ? `<img class="brand__logo" src="${logoUri}" alt="" width="35" height="35" />` : ''}<span class="sig">Signal</span><span class="sep">/</span><span>Workspace report</span></div>
   <h1 id="title"></h1>
-  <p class="subtitle">Same style metrics as the web findings report — scoped to this VS Code workspace folder.</p>
   <div id="banner" class="banner" style="display:none"></div>
   <section class="topgrid">
-    <div class="card">
+    <div class="card score-card">
       <div class="card__label">Security score</div>
-      <div class="gauge" id="gauge"></div>
-      <div class="meta" id="scoreMeta"></div>
+      <div class="score-gauge" id="gaugeRing">
+        <div class="score-gauge__inner">
+          <div class="score-gauge__value" id="gaugeVal">0</div>
+          <div class="score-gauge__denom">/ 50</div>
+        </div>
+      </div>
+      <div class="score-meta-row">
+        <span class="score-label" id="scoreMeta"></span>
+        <span class="score-delta score-delta--ok" id="scoreDelta">0</span>
+      </div>
     </div>
     <div class="card">
       <div class="card__label">Score breakdown</div>
@@ -247,18 +333,25 @@ export function openWorkspaceReportPanel(
       b.textContent = PAYLOAD.message;
     }
 
-    const sc = PAYLOAD.securityScore;
-    const gaugeColor = (function (score) {
-      const clamped = Math.max(0, Math.min(50, score));
-      const hue = 150 * (1 - clamped / 50);
-      return 'hsl(' + Math.round(hue) + ', 65%, 58%)';
-    })(sc);
-
-    const gaugeEl = document.getElementById('gauge');
-    gaugeEl.innerHTML = '<span class="gauge__val" style="color:' + gaugeColor + '">' + sc + '</span><span class="gauge__den">/ 50</span>';
-
-    const label = sc <= 10 ? 'Strong' : sc <= 25 ? 'Moderate' : 'At risk';
+    var sc = PAYLOAD.securityScore;
+    var scoreNum = typeof sc === 'number' && !isNaN(sc) ? Math.max(0, Math.min(50, sc)) : 0;
+    var fillPct = (scoreNum / 50) * 100;
+    var hue = 150 * (1 - scoreNum / 50);
+    var gaugeColor = 'hsl(' + Math.round(hue) + ', 65%, 58%)';
+    var ring = document.getElementById('gaugeRing');
+    ring.style.setProperty('--gauge-fill', fillPct + '%');
+    ring.style.setProperty('--gauge-color', gaugeColor);
+    document.getElementById('gaugeVal').textContent = String(Math.round(scoreNum));
+    var label = scoreNum <= 10 ? 'Strong' : scoreNum <= 25 ? 'Moderate' : 'At risk';
     document.getElementById('scoreMeta').textContent = label;
+    var deltaEl = document.getElementById('scoreDelta');
+    if (scoreNum > 0) {
+      deltaEl.textContent = '+' + Math.round(scoreNum);
+      deltaEl.className = 'score-delta score-delta--risk';
+    } else {
+      deltaEl.textContent = '0';
+      deltaEl.className = 'score-delta score-delta--ok';
+    }
 
     const sev = PAYLOAD.severityCounts;
     const barHtml = [

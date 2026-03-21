@@ -127,7 +127,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const folderName = getWorkspaceFolderDisplayName();
     lastWorkspaceScan = { folderName, result };
-    openWorkspaceReportPanel(folderName, result, { onExplainFinding: runExplainFinding });
+    openWorkspaceReportPanel(folderName, result, {
+      extensionUri: context.extensionUri,
+      onExplainFinding: runExplainFinding,
+    });
 
     if (result.findings.length > 0) {
       vscode.window.showInformationMessage(formatSignalFoundMessage(result.findings, 'workspace'));
@@ -210,6 +213,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       openWorkspaceReportPanel(lastWorkspaceScan.folderName, lastWorkspaceScan.result, {
+        extensionUri: context.extensionUri,
         onExplainFinding: runExplainFinding,
       });
     }),
