@@ -328,7 +328,7 @@ export default function ComplianceReportPage() {
       <div className={styles.topnav}>
         <Link href="/" className={styles.brand} aria-label="Signal home">
           <Image src="/signal_evenbigger.png" alt="" width={44} height={44} priority />
-          <span>Signal</span>
+          <span className={styles.brandSignal}>Signal</span>
           <span style={{ opacity: 0.5 }}>/</span>
           <span style={{ fontWeight: 650 }}>Compliance Report</span>
         </Link>
@@ -535,3 +535,4 @@ export default function ComplianceReportPage() {
     </main>
   );
 }
+
