@@ -1204,6 +1204,13 @@
   color: #ffd3c7;
 }
 
+:global(a.dash-btn) {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 :global(.dash-btn--primary) {
   background: linear-gradient(180deg, rgba(255, 99, 70, 0.18), rgba(255, 99, 70, 0.05));
   border-color: rgba(255, 90, 52, 0.45);
