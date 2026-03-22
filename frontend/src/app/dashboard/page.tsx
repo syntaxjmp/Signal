@@ -179,12 +179,19 @@ function ProjectCreateModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onCreate: (p: { githubUrl: string; projectName: string; description: string; teamMembers: TeamMember[] }) => Promise<void>;
+  onCreate: (p: {
+    githubUrl: string;
+    projectName: string;
+    description: string;
+    teamMembers: TeamMember[];
+    scanOnCreate: boolean;
+  }) => Promise<void>;
 }) {
   const [githubUrl, setGithubUrl] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [teamMembersRaw, setTeamMembersRaw] = useState("");
+  const [scanInstantly, setScanInstantly] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -192,6 +199,10 @@ function ProjectCreateModal({
     if (!open) return;
     const t = window.setTimeout(() => setError(null), 0);
     return () => window.clearTimeout(t);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setScanInstantly(true);
   }, [open]);
 
   useEffect(() => {
@@ -253,6 +264,7 @@ function ProjectCreateModal({
                 projectName: nameTrimmed,
                 description: description.trim(),
                 teamMembers: parseTeamMembers(teamMembersRaw),
+                scanOnCreate: scanInstantly,
               });
               onClose();
             } catch (err) {
@@ -308,12 +320,32 @@ function ProjectCreateModal({
                 placeholder="alice@company.com, bob@company.com"
               />
             </label>
+
+            <label
+              className="dash-label"
+              style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: "0.55rem", cursor: "pointer" }}
+            >
+              <input
+                type="checkbox"
+                checked={scanInstantly}
+                onChange={(e) => setScanInstantly(e.target.checked)}
+                style={{ marginTop: "0.2rem", width: "1rem", height: "1rem", flexShrink: 0, accentColor: "var(--dash-accent, #ff5a34)" }}
+              />
+              <span>
+                <span className="dash-label__text" style={{ display: "block", marginBottom: "0.15rem" }}>
+                  Scan instantly when added
+                </span>
+                <span style={{ fontSize: "0.85em", color: "var(--dash-muted, rgba(255,220,210,0.72))", lineHeight: 1.45 }}>
+                  Runs the first scan in the background right after the project is created (recommended). Turn off to add the repo only and run a scan manually later.
+                </span>
+              </span>
+            </label>
           </fieldset>
 
           {creating && (
             <div className="dash-create__progress">
               <div className="dash-create__progress-bar" />
-              <span>Setting up your project&hellip;</span>
+              <span>{scanInstantly ? "Adding project and starting scan…" : "Setting up your project…"}</span>
             </div>
           )}
 
@@ -336,7 +368,7 @@ function ProjectCreateModal({
               {creating ? (
                 <>
                   <span className="dash-delete__spinner dash-delete__spinner--inline" aria-hidden="true" />
-                  Adding&hellip;
+                  Adding…
                 </>
               ) : (
                 "Add project"
@@ -448,7 +480,7 @@ function DeleteConfirmModal({
         {deleting && (
           <div className="dash-delete__progress">
             <div className="dash-delete__spinner" aria-hidden="true" />
-            <span>Deleting project and all associated data&hellip;</span>
+            <span>Deleting project and all associated data…</span>
           </div>
         )}
 
@@ -900,6 +932,8 @@ export default function DashboardPage() {
     if (!isAuthed) return;
     if (activeSection !== "audit") return;
     if (!auditProjectId) return;
+    // Avoid 404s when project list has not synced yet (stale id before sync effect runs).
+    if (!projects.some((p) => p.id === auditProjectId)) return;
 
     let cancelled = false;
     async function loadAudit() {
@@ -924,9 +958,10 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSection, auditProjectId, isAuthed]);
+  }, [activeSection, auditProjectId, isAuthed, projects]);
 
-  const loadProjects = useCallback(async () => {
+  const loadProjects = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
     if (!isAuthed) {
       setProjects([]);
       if (!initialProjectsLoadedRef.current) {
@@ -935,7 +970,7 @@ export default function DashboardPage() {
       }
       return;
     }
-    setLoadingProjects(true);
+    if (!silent) setLoadingProjects(true);
     try {
       const r = await fetch("/api/projects", { credentials: "include", cache: "no-store" });
       const json = await readApiResponse(r);
@@ -943,9 +978,9 @@ export default function DashboardPage() {
       setProjects(Array.isArray(json?.data) ? json.data : []);
     } catch (e) {
       console.error("Failed to load projects", e);
-      setProjects([]);
+      if (!silent) setProjects([]);
     } finally {
-      setLoadingProjects(false);
+      if (!silent) setLoadingProjects(false);
       if (!initialProjectsLoadedRef.current) {
         initialProjectsLoadedRef.current = true;
         setInitialProjectsLoaded(true);
@@ -961,11 +996,28 @@ export default function DashboardPage() {
     void loadProjects();
   }, [isAuthed, loadProjects]);
 
+  const hasActiveDashboardScans = useMemo(() => {
+    if (Object.values(scanBusy).some(Boolean)) return true;
+    return projects.some((p) => p.latestScanStatus === "running");
+  }, [projects, scanBusy]);
+
+  useEffect(() => {
+    if (!isAuthed || !hasActiveDashboardScans) return;
+    void loadProjects({ silent: true });
+    const id = window.setInterval(() => {
+      void loadProjects({ silent: true });
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, [isAuthed, hasActiveDashboardScans, loadProjects]);
+
   const projectsCount = projects.length;
   const ownerEmail = normalizeEmail(String((session as any)?.user?.email ?? ""));
   const currentUserId = String((session as any)?.user?.id ?? "");
   const auditProject = auditProjectId ? projects.find((p) => p.id === auditProjectId) ?? null : null;
   const memoryProject = memoryProjectId ? projects.find((p) => p.id === memoryProjectId) ?? null : null;
+  /** Only pass IDs to memory APIs after the project exists in the loaded list (avoids 404 while syncing). */
+  const memoryApiProjectId =
+    memoryProjectId && projects.some((p) => p.id === memoryProjectId) ? memoryProjectId : undefined;
   const teamCount = teamMembers.length;
 
   const displayName =
@@ -1303,8 +1355,10 @@ export default function DashboardPage() {
                                   });
                                   const json = await readApiResponse(r);
                                   if (!r.ok) throw new Error(json?.error || "Scan failed");
+                                  await loadProjects({ silent: true });
                                   if (json?.scanId) {
                                     await waitForScanCompletion(p.id, String(json.scanId));
+                                    await loadProjects({ silent: true });
                                     router.push(`/findingsreport/${p.id}?scanId=${encodeURIComponent(String(json.scanId))}`);
                                   }
                                 } catch (err) {
@@ -1767,11 +1821,15 @@ export default function DashboardPage() {
             </div>
 
             {memoryView === "graph" ? (
-              <MemoryMapPanel key={memoryProject?.id ?? "none"} projectId={memoryProject?.id} projectName={memoryProject?.projectName} />
+              <MemoryMapPanel
+                key={memoryApiProjectId ?? "none"}
+                projectId={memoryApiProjectId}
+                projectName={memoryProject?.projectName}
+              />
             ) : memoryView === "table" ? (
-              <MemoryTablePanel projectId={memoryProject?.id} />
+              <MemoryTablePanel projectId={memoryApiProjectId} />
             ) : (
-              <VectorExplorerPanel projectId={memoryProject?.id} />
+              <VectorExplorerPanel projectId={memoryApiProjectId} />
             )}
           </section>
         ) : (
@@ -1885,13 +1943,18 @@ export default function DashboardPage() {
               githubUrl: p.githubUrl,
               projectName: p.projectName,
               description: p.description,
+              scanOnCreate: p.scanOnCreate,
             }),
           });
           const json = await readApiResponse(r);
           if (!r.ok) {
             throw new Error(json?.error || "Could not create project");
           }
-          await loadProjects();
+          await loadProjects({ silent: true });
+          const initial = json?.initialScan as { status?: string; error?: string; skipped?: boolean } | undefined;
+          if (initial?.status === "failed" && initial?.error) {
+            window.alert(`Project created, but the scan could not start: ${initial.error}`);
+          }
         }}
       />
 
