@@ -535,8 +535,28 @@
             border-radius: clamp(6px, 0.8vw, 10px);
             padding: clamp(0.6rem, 1.5vw, 1.2rem);
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100%;
         }
         .cost-card .stat-value { font-size: clamp(1.3rem, 3.5vw, 2.5rem); }
+        .cost-card-src {
+            margin-top: auto;
+            padding-top: clamp(0.4rem, 1vw, 0.65rem);
+            font-size: clamp(0.48rem, 0.65vw, 0.58rem);
+            color: var(--text-dim);
+            line-height: 1.35;
+            max-width: 16em;
+            opacity: 0.75;
+        }
+        .cost-card-src strong {
+            font-weight: 700;
+            color: rgba(255, 200, 185, 0.55);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-size: 0.92em;
+        }
         .why-list {
             list-style: none;
             display: flex;
@@ -1227,7 +1247,7 @@
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1 &middot; Problem Identification</span>
                 <h2>The <span class="accent">Vibe Coding</span> Paradox</h2>
-                <p style="max-width: 42em; margin-top: clamp(0.2rem, 0.4vw, 0.4rem);">LLM-driven development has vertically launched shipping velocity&mdash;but security debt is compounding even faster. Code is being deployed without anyone truly understanding its internal logic.</p>
+                <p style="max-width: 42em; margin-top: clamp(0.2rem, 0.4vw, 0.4rem);">LLM driven development has vertically launched shipping velocity, but security debt is compounding even faster. Code is being deployed without anyone truly understanding its internal logic.</p>
             </div>
 
             <div class="vuln-chart reveal">
@@ -1280,6 +1300,64 @@
                     <div class="stat-label">security failure rate for<br>AI-generated Java code</div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 3: THE COST OF SHIPPING BLIND
+         Rubric ref: A1 continued + A2 (15 pts)
+         ====================================================== -->
+    <section class="slide problem-slide bg-accent-glow" aria-label="Problem — Financial Impact">
+        <span class="slide-number">03 / The Cost</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1&ndash;A2 &middot; Why Now?</span>
+                <h2>The Cost of <span class="accent">Shipping Blind</span></h2>
+            </div>
+
+            <div class="cost-grid reveal">
+                <div class="cost-card">
+                    <div class="stat-value">$4.88M</div>
+                    <div class="stat-label">average data breach<br>cost in 2025</div>
+                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">+25% for high tech-debt orgs</p>
+                    <p class="cost-card-src"><strong>Src</strong> IBM / Ponemon, <em>Cost of a Data Breach</em> 2024 (global avg.)</p>
+                </div>
+                <div class="cost-card">
+                    <div class="stat-value">70%</div>
+                    <div class="stat-label">of developers spend more time<br><em>debugging</em> AI code than they saved</div>
+                    <p class="cost-card-src"><strong>Src</strong> Industry surveys on AI-assisted coding (e.g. tooling &amp; productivity polls, 2024&ndash;25)</p>
+                </div>
+                <div class="cost-card">
+                    <div class="stat-value">$8M</div>
+                    <div class="stat-label">annual rework cost per<br>250-developer org</div>
+                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">AI-induced technical debt</p>
+                    <p class="cost-card-src"><strong>Src</strong> Analyst / org-scale rework estimates (AI tech-debt modeling)</p>
+                </div>
+            </div>
+
+            <div class="reveal" style="margin-top: clamp(0.2rem, 0.4vw, 0.4rem);">
+                <h3 style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem);">Why is this happening?</h3>
+                <ul class="why-list">
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Context Blindness</strong> &mdash; LLMs are optimised for plausible code generation, not for preserving the security invariants of a production system and its requirements.</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Dependency Sprawl</strong> &mdash; AI tools import 2&times; more external libraries &ldquo;just in case,&rdquo; massively expanding the attack surface</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">The Junior Paradox</strong> &mdash; Code is generated, without it being deeply understood and critical security nuances get skipped.</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Comprehension Debt</strong> &mdash; Teams average 7.6 hours to resolve AI-generated incidents vs 6.3 hours for human-written code</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="chart-source reveal">Maintenance costs reach 4&times; traditional levels within 2 years if AI-generated code debt goes unmanaged.</div>
         </div>
     </section>
 
@@ -1510,7 +1588,7 @@
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
                 <h2 style="font-size: clamp(1.45rem, 4.2vw, 2.85rem);">How we&rsquo;re <span class="accent">different</span> &mdash; <span style="color: var(--text-secondary); font-weight: 600;">vs traditional AppSec</span></h2>
             </div>
-            <p class="defend-kicker reveal">Snyk, SonarQube, and CodeQL excel at rules and static analysis&mdash;Signal adds <strong style="color: var(--foreground);">AI-native semantics</strong>, <strong style="color: var(--foreground);">fix PRs</strong>, and <strong style="color: var(--foreground);">compliance-ready reporting</strong> in one product surface.</p>
+            <p class="defend-kicker reveal">Snyk, SonarQube, and CodeQL excel at rules and static analysis&mdash;Signal adds <strong style="color: var(--foreground);">AI-native semantics</strong>, <strong style="color: var(--foreground);">fix PRs</strong>, <strong style="color: var(--foreground);">compliance-ready reporting</strong>, and a <strong style="color: var(--foreground);">Memory Map</strong> to explore vectors &amp; findings in one product surface.</p>
             <table class="vs-table vs-table--xl reveal">
                 <thead>
                     <tr>
@@ -1557,6 +1635,13 @@
                         <td><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
+                    <tr>
+                        <td>Memory Map view (vectors, scans &amp; relationships)</td>
+                        <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -1571,7 +1656,7 @@
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
-                <h2 style="font-size: clamp(1.45rem, 4vw, 2.65rem);">Not a <span class="accent">chatbot</span> &mdash; a <span class="accent">grounded</span> security brain</h2>
+                <h2 style="font-size: clamp(1.45rem, 4vw, 2.65rem);">Not a <span class="accent">chatbot</span> &mdash; an <span class="accent">intelligent</span>, repo-aware security brain</h2>
             </div>
             <div class="llm-compare reveal">
                 <div class="llm-compare-col">
