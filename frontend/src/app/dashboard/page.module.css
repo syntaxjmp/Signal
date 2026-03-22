@@ -1011,6 +1011,133 @@
   }
 }
 
+/* —— Audit: View Findings panel —— */
+
+:global(.dash-auditFindingsToggle) {
+  padding: 0.5rem 1rem 0.65rem;
+  border-top: 1px solid rgba(255, 90, 52, 0.10);
+}
+
+:global(.dash-auditViewFindingsBtn) {
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+}
+
+:global(.dash-auditFindingsPanel) {
+  padding: 0 1rem 1rem;
+}
+
+:global(.dash-auditFindingsTableWrap) {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 90, 52, 0.16);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+:global(.dash-auditFindingsTable) {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 780px;
+}
+
+:global(.dash-auditFindingsTable th),
+:global(.dash-auditFindingsTable td) {
+  border-bottom: 1px solid rgba(255, 90, 52, 0.12);
+  text-align: left;
+  padding: 0.55rem 0.45rem;
+  vertical-align: top;
+  font-size: 0.88rem;
+}
+
+:global(.dash-auditFindingsTable th) {
+  color: rgba(255, 190, 170, 0.95);
+  font-weight: 950;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+:global(.dash-auditFindingsTable tbody tr:last-child td) {
+  border-bottom: none;
+}
+
+:global(.dash-auditFindingsDesc) {
+  max-width: 280px;
+  color: rgba(255, 240, 234, 0.88);
+  font-weight: 850;
+}
+
+:global(.dash-auditFindingsFileCell) {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+:global(.dash-auditFindingsFileIcon) {
+  border-radius: 6px;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.3));
+  flex-shrink: 0;
+}
+
+:global(.dash-auditFindingsFileName) {
+  color: rgba(255, 240, 234, 0.96);
+  font-weight: 950;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:global(.dash-auditFindingsFileLine) {
+  color: rgba(255, 220, 210, 0.82);
+  font-weight: 850;
+}
+
+:global(.dash-auditFindingsStatus) {
+  display: inline-block;
+  padding: 0.16rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+:global(.dash-auditFindingsStatus--open) {
+  color: rgba(255, 220, 210, 0.85);
+  border-color: rgba(255, 220, 210, 0.25);
+  background: rgba(255, 220, 210, 0.08);
+}
+
+:global(.dash-auditFindingsStatus--in_progress) {
+  color: #ffd089;
+  border-color: rgba(244, 184, 79, 0.35);
+  background: rgba(244, 184, 79, 0.1);
+}
+
+:global(.dash-auditFindingsStatus--resolved) {
+  color: #79ddaa;
+  border-color: rgba(62, 203, 122, 0.35);
+  background: rgba(62, 203, 122, 0.1);
+}
+
+:global(.dash-auditFindingsRow--resolved td) {
+  opacity: 0.55;
+}
+
+:global(.dash-auditFindingsPagination) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+:global(.dash-auditFindingsPageLabel) {
+  color: rgba(255, 215, 205, 0.86);
+  font-weight: 850;
+  font-size: 0.84rem;
+}
+
 :global(.dash-teamTabs) {
   margin-top: 0.85rem;
   display: inline-flex;

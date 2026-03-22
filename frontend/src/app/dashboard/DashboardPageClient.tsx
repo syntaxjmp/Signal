@@ -14,6 +14,18 @@ import VectorExplorerPanel from "@/components/memory/VectorExplorerPanel";
 type TeamMember = { email: string };
 type TeamRow = { email: string; createdAt: string; updatedAt: string };
 
+type AuditScanFinding = {
+  id: string;
+  severity: "critical" | "high" | "medium" | "low";
+  category: string;
+  description: string;
+  lineNumber?: number | null;
+  weightedScore: number;
+  filePath: string;
+  snippet?: string | null;
+  status?: "open" | "in_progress" | "resolved";
+};
+
 type AuditFindingChange = {
   fingerprint: string;
   severity: "critical" | "high" | "medium" | "low";
@@ -121,6 +133,20 @@ function shortUrl(url: string) {
   } catch {
     return url;
   }
+}
+
+function getFileBaseName(filePath: string) {
+  const normalized = String(filePath).replace(/\\/g, "/");
+  return normalized.split("/").filter(Boolean).pop() || normalized;
+}
+
+function getFileIconSrc(filePath: string) {
+  const base = getFileBaseName(filePath).toLowerCase();
+  if (base.endsWith(".py")) return "/python.png";
+  if (base.endsWith(".rs") || base === "cargo.toml") return "/rust.png";
+  if (base.endsWith(".js") || base.endsWith(".ts") || base.endsWith(".tsx") || base.endsWith(".jsx")) return "/js.png";
+  if (base === "dockerfile" || base.endsWith("/dockerfile")) return "/docker.png";
+  return null;
 }
 
 function normalizeEmail(value: string) {
@@ -776,6 +802,13 @@ export default function DashboardPage() {
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [auditFindingsOpen, setAuditFindingsOpen] = useState<string | null>(null);
+  const [auditFindings, setAuditFindings] = useState<AuditScanFinding[]>([]);
+  const [auditFindingsLoading, setAuditFindingsLoading] = useState(false);
+  const [auditFindingsPage, setAuditFindingsPage] = useState(1);
+  const [auditFindingsPagination, setAuditFindingsPagination] = useState<{
+    page: number; pageSize: number; total: number; totalPages: number;
+  } | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const BOOT_ANIM_MS = 3200; // 2s logo pulse + loading bar
 
@@ -964,6 +997,39 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [activeSection, auditProjectId, isAuthed, projects]);
+
+  const toggleAuditFindings = useCallback(
+    async (scanId: string, page?: number) => {
+      // If no page is given and this scan is already open, close it
+      if (auditFindingsOpen === scanId && page == null) {
+        setAuditFindingsOpen(null);
+        setAuditFindings([]);
+        setAuditFindingsPagination(null);
+        return;
+      }
+      const targetPage = page ?? 1;
+      if (!auditProjectId) return;
+      setAuditFindingsOpen(scanId);
+      setAuditFindingsLoading(true);
+      setAuditFindingsPage(targetPage);
+      try {
+        const r = await fetch(
+          `/api/projects/${auditProjectId}/findings?scanId=${encodeURIComponent(scanId)}&page=${targetPage}&pageSize=25`,
+          { credentials: "include", cache: "no-store" },
+        );
+        const json = await readApiResponse(r);
+        if (!r.ok) throw new Error(json?.error || "Failed to load findings");
+        setAuditFindings(json.data ?? []);
+        setAuditFindingsPagination(json.pagination ?? null);
+      } catch {
+        setAuditFindings([]);
+        setAuditFindingsPagination(null);
+      } finally {
+        setAuditFindingsLoading(false);
+      }
+    },
+    [auditFindingsOpen, auditProjectId],
+  );
 
   const loadProjects = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true;
@@ -1799,6 +1865,114 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         ) : null}
+
+                        {/* View Findings toggle */}
+                        <div className="dash-auditFindingsToggle">
+                          <button
+                            type="button"
+                            className="dash-btn dash-btn--secondary dash-auditViewFindingsBtn"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleAuditFindings(entry.scanId);
+                            }}
+                          >
+                            {auditFindingsOpen === entry.scanId ? "Hide Findings" : "View Findings"}
+                          </button>
+                        </div>
+
+                        {auditFindingsOpen === entry.scanId && (
+                          <div className="dash-auditFindingsPanel">
+                            {auditFindingsLoading ? (
+                              <div className="dash-auditLoading">Loading findings…</div>
+                            ) : auditFindings.length === 0 ? (
+                              <div className="dash-auditNone" style={{ margin: "0.5rem 0" }}>
+                                No findings for this scan.
+                              </div>
+                            ) : (
+                              <>
+                                <div className="dash-auditFindingsTableWrap">
+                                  <table className="dash-auditFindingsTable">
+                                    <thead>
+                                      <tr>
+                                        <th>Severity</th>
+                                        <th>Category</th>
+                                        <th>Description</th>
+                                        <th>File</th>
+                                        <th>Score</th>
+                                        <th>Status</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {auditFindings.map((f) => {
+                                        const fStatus = f.status || "open";
+                                        const fileBaseName = getFileBaseName(f.filePath);
+                                        const iconSrc = getFileIconSrc(f.filePath);
+                                        return (
+                                          <tr
+                                            key={f.id}
+                                            className={fStatus === "resolved" ? "dash-auditFindingsRow--resolved" : ""}
+                                          >
+                                            <td>
+                                              <span className={`sev sev--${f.severity}`}>{f.severity}</span>
+                                            </td>
+                                            <td>{f.category}</td>
+                                            <td className="dash-auditFindingsDesc">{f.description}</td>
+                                            <td className="dash-auditMono">
+                                              <div className="dash-auditFindingsFileCell" title={f.filePath}>
+                                                {iconSrc ? (
+                                                  <Image
+                                                    src={iconSrc}
+                                                    alt=""
+                                                    width={18}
+                                                    height={18}
+                                                    className="dash-auditFindingsFileIcon"
+                                                    aria-hidden
+                                                  />
+                                                ) : null}
+                                                <span className="dash-auditFindingsFileName">{fileBaseName}</span>
+                                                {f.lineNumber != null ? (
+                                                  <span className="dash-auditFindingsFileLine">{`:${f.lineNumber}`}</span>
+                                                ) : null}
+                                              </div>
+                                            </td>
+                                            <td>{f.weightedScore}</td>
+                                            <td>
+                                              <span className={`dash-auditFindingsStatus dash-auditFindingsStatus--${fStatus}`}>
+                                                {fStatus === "in_progress" ? "in progress" : fStatus}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                {auditFindingsPagination && auditFindingsPagination.totalPages > 1 && (
+                                  <div className="dash-auditFindingsPagination">
+                                    <button
+                                      className="dash-btn dash-btn--secondary"
+                                      onClick={() => toggleAuditFindings(entry.scanId, auditFindingsPage - 1)}
+                                      disabled={auditFindingsPage <= 1}
+                                    >
+                                      Previous
+                                    </button>
+                                    <span className="dash-auditFindingsPageLabel">
+                                      Page {auditFindingsPagination.page} / {auditFindingsPagination.totalPages}
+                                    </span>
+                                    <button
+                                      className="dash-btn dash-btn--secondary"
+                                      onClick={() => toggleAuditFindings(entry.scanId, auditFindingsPage + 1)}
+                                      disabled={auditFindingsPage >= auditFindingsPagination.totalPages}
+                                    >
+                                      Next
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </details>
                     );
                   })}

@@ -402,8 +402,8 @@ export default function FindingsReportPage() {
             <span className="report-brand__item">Findings</span>
           </div>
         </Link>
-        <Link href="/" className="report-btn report-btn--ghost">
-          Back to landing
+        <Link href="/dashboard" className="report-btn report-btn--ghost">
+          Back To Dashboard
         </Link>
       </div>
 
