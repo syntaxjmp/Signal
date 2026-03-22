@@ -932,6 +932,8 @@ export default function DashboardPage() {
     if (!isAuthed) return;
     if (activeSection !== "audit") return;
     if (!auditProjectId) return;
+    // Avoid 404s when project list has not synced yet (stale id before sync effect runs).
+    if (!projects.some((p) => p.id === auditProjectId)) return;
 
     let cancelled = false;
     async function loadAudit() {
@@ -956,7 +958,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSection, auditProjectId, isAuthed]);
+  }, [activeSection, auditProjectId, isAuthed, projects]);
 
   const loadProjects = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true;
@@ -1013,6 +1015,9 @@ export default function DashboardPage() {
   const currentUserId = String((session as any)?.user?.id ?? "");
   const auditProject = auditProjectId ? projects.find((p) => p.id === auditProjectId) ?? null : null;
   const memoryProject = memoryProjectId ? projects.find((p) => p.id === memoryProjectId) ?? null : null;
+  /** Only pass IDs to memory APIs after the project exists in the loaded list (avoids 404 while syncing). */
+  const memoryApiProjectId =
+    memoryProjectId && projects.some((p) => p.id === memoryProjectId) ? memoryProjectId : undefined;
   const teamCount = teamMembers.length;
 
   const displayName =
@@ -1816,11 +1821,15 @@ export default function DashboardPage() {
             </div>
 
             {memoryView === "graph" ? (
-              <MemoryMapPanel key={memoryProject?.id ?? "none"} projectId={memoryProject?.id} projectName={memoryProject?.projectName} />
+              <MemoryMapPanel
+                key={memoryApiProjectId ?? "none"}
+                projectId={memoryApiProjectId}
+                projectName={memoryProject?.projectName}
+              />
             ) : memoryView === "table" ? (
-              <MemoryTablePanel projectId={memoryProject?.id} />
+              <MemoryTablePanel projectId={memoryApiProjectId} />
             ) : (
-              <VectorExplorerPanel projectId={memoryProject?.id} />
+              <VectorExplorerPanel projectId={memoryApiProjectId} />
             )}
           </section>
         ) : (

@@ -76,8 +76,10 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
   }, [projectId]);
 
   const data = graphData ?? fetchedData;
-  const hasMemories = data != null && data.nodes.length > 1;
-  const showEmpty = !fetching && !hasMemories;
+  /** One node (project root) is valid — show graph; empty is no nodes or failed fetch. */
+  const hasGraph = data != null && data.nodes.length > 0;
+  const showError = !fetching && fetchError;
+  const showEmpty = !fetching && !fetchError && !hasGraph;
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<ForceGraphInstance | null>(null);
   const selectedIdRef = useRef<string | null>(null);
@@ -158,7 +160,7 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
     const h0 = Math.floor(el.clientHeight);
     if (w0 > 0 && h0 > 0) setDims({ w: w0, h: h0 });
     return () => ro.disconnect();
-  }, [fetching, hasMemories]);
+  }, [fetching, hasGraph]);
 
   const fgData = useMemo(() => {
     if (!data) return { nodes: [], links: [] };
@@ -300,6 +302,19 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
           <div className={styles.spinner} />
           <p className={styles.emptyTitle}>Loading memory graph…</p>
         </div>
+      ) : showError ? (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon} aria-hidden>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+          </div>
+          <p className={styles.emptyTitle}>Could not load the memory graph</p>
+          <p className={styles.emptyDesc}>
+            Check your connection and try again. If the problem continues, confirm this project still exists.
+          </p>
+        </div>
       ) : showEmpty ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon} aria-hidden>
@@ -310,11 +325,9 @@ export default function MemoryMapPanel({ graphData, projectId }: Props) {
           </div>
           <p className={styles.emptyTitle}>No memories yet</p>
           <p className={styles.emptyDesc}>
-            {fetchError
-              ? "Could not load the memory graph. Try again later."
-              : projectId
-                ? "Run a scan on this project to start building its memory graph."
-                : "Select a project to view its memory graph."}
+            {projectId
+              ? "Run a scan on this project to start building its memory graph."
+              : "Select a project to view its memory graph."}
           </p>
         </div>
       ) : (
