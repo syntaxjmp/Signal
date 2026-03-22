@@ -896,6 +896,9 @@
             max-width: min(92vw, 1100px);
             margin: 0 auto;
         }
+        .defend-slide .slide-content:has(.vs-table--6col) {
+            max-width: min(96vw, 1220px);
+        }
         .vs-table {
             width: 100%;
             border-collapse: collapse;
@@ -937,6 +940,25 @@
         .vs-table--xl .check,
         .vs-table--xl .cross {
             font-size: clamp(1rem, 1.6vw, 1.35rem);
+        }
+        .vs-table--6col.vs-table--xl {
+            font-size: clamp(0.68rem, 1.05vw, 0.98rem);
+        }
+        .vs-table--6col.vs-table--xl th {
+            font-size: clamp(0.52rem, 0.82vw, 0.72rem);
+            padding: clamp(5px, 0.7vw, 10px) clamp(4px, 0.75vw, 8px);
+            letter-spacing: 0.03em;
+        }
+        .vs-table--6col.vs-table--xl td {
+            font-size: clamp(0.68rem, 1.05vw, 0.98rem);
+            padding: clamp(5px, 0.65vw, 10px) clamp(4px, 0.75vw, 8px);
+        }
+        .vs-table--6col.vs-table--xl td:first-child {
+            font-size: clamp(0.62rem, 0.95vw, 0.88rem);
+        }
+        .vs-table--6col.vs-table--xl .check,
+        .vs-table--6col.vs-table--xl .cross {
+            font-size: clamp(0.85rem, 1.25vw, 1.12rem);
         }
 
         /* A4 slide 2: General LLM vs Signal */
@@ -1588,8 +1610,8 @@
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
                 <h2 style="font-size: clamp(1.45rem, 4.2vw, 2.85rem);">How we&rsquo;re <span class="accent">different</span> &mdash; <span style="color: var(--text-secondary); font-weight: 600;">vs traditional AppSec</span></h2>
             </div>
-            <p class="defend-kicker reveal">Snyk, SonarQube, and CodeQL excel at rules and static analysis&mdash;Signal adds <strong style="color: var(--foreground);">AI-native semantics</strong>, <strong style="color: var(--foreground);">fix PRs</strong>, <strong style="color: var(--foreground);">compliance-ready reporting</strong>, and a <strong style="color: var(--foreground);">Memory Map</strong> to explore vectors &amp; findings in one product surface.</p>
-            <table class="vs-table vs-table--xl reveal">
+            <p class="defend-kicker reveal">Snyk, SonarQube, CodeQL, and CodeRabbit cover rules, static analysis, or PR-time AI&mdash;Signal adds <strong style="color: var(--foreground);">AI-native semantics</strong>, <strong style="color: var(--foreground);">fix PRs</strong>, <strong style="color: var(--foreground);">compliance-ready reporting</strong>, and a <strong style="color: var(--foreground);">Memory Map</strong> to explore vectors &amp; findings in one product surface.</p>
+            <table class="vs-table vs-table--xl vs-table--6col reveal">
                 <thead>
                     <tr>
                         <th>Capability</th>
@@ -1597,6 +1619,7 @@
                         <th>Snyk</th>
                         <th>SonarQube</th>
                         <th>CodeQL</th>
+                        <th>CodeRabbit</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1606,10 +1629,12 @@
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
+                        <td>Partial</td>
                     </tr>
                     <tr>
                         <td>Automated fix PRs</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
@@ -1620,11 +1645,13 @@
                         <td><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
                     </tr>
                     <tr>
                         <td>Compliance PDFs (e.g. SOC 2 themes)</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
                         <td>Paid</td>
+                        <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
@@ -1634,10 +1661,12 @@
                         <td>Partial</td>
                         <td><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
+                        <td>Partial</td>
                     </tr>
                     <tr>
                         <td>Memory Map view (vectors, scans &amp; relationships)</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
