@@ -250,6 +250,69 @@ async function runScanInBackground({ pool, projectId, scanId, githubUrl, openAiA
   }
 }
 
+/**
+ * Create a running scan row, point project at it, and enqueue background work.
+ * @returns {{ ok: true, scanId: string, status: string } | { ok: false, scanId: string, error: string, httpStatus: number }}
+ */
+async function beginProjectScan(pool, { projectId, userId, githubUrl, notifyUserId, openAiApiKey }) {
+  const scanId = uuidv4();
+  const key = openAiApiKey || env.openAi.apiKey;
+
+  await pool.execute(
+    `INSERT INTO project_scans (id, project_id, user_id, status, created_at)
+     VALUES (?, ?, ?, 'running', CURRENT_TIMESTAMP)`,
+    [scanId, projectId, userId],
+  );
+
+  await pool.execute(
+    `UPDATE projects SET latest_scan_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    [scanId, projectId],
+  );
+
+  if (!key) {
+    await pool.execute(
+      `UPDATE project_scans
+       SET status = 'failed', error_message = ?, finished_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      ['Missing OPENAI_API_KEY (or openAiApiKey in request body)', scanId],
+    );
+    return {
+      ok: false,
+      scanId,
+      error: 'Missing OpenAI API key',
+      httpStatus: 400,
+    };
+  }
+
+  console.info(`[scan] started project=${projectId} scan=${scanId}`);
+
+  if (notifyUserId) {
+    void sendWebhookForUser(notifyUserId, {
+      title: 'New Scan Started',
+      description: 'Signal started scanning your repository.',
+      fields: [
+        { name: 'Project ID', value: projectId, inline: true },
+        { name: 'Scan ID', value: scanId, inline: true },
+        { name: 'Repository', value: repoPathFromUrl(githubUrl), inline: false },
+      ],
+    });
+  }
+
+  setImmediate(() => {
+    runScanInBackground({
+      pool,
+      projectId,
+      scanId,
+      githubUrl,
+      openAiApiKey: key,
+    }).catch((e) => {
+      console.error(`[scan] background runner crashed project=${projectId} scan=${scanId}`, e);
+    });
+  });
+
+  return { ok: true, scanId, status: 'running', httpStatus: 202 };
+}
+
 async function requireUser(req, res, next) {
   try {
     const session = await auth.api.getSession({
@@ -271,6 +334,7 @@ projectsRouter.post('/projects', requireUser, async (req, res, next) => {
   try {
     const { githubUrl, description = '' } = req.body ?? {};
     const projectName = req.body?.projectName ?? req.body?.name;
+    const scanOnCreate = req.body?.scanOnCreate !== false;
     if (!githubUrl || !projectName) {
       res.status(400).json({ error: 'githubUrl and projectName are required' });
       return;
@@ -282,16 +346,39 @@ projectsRouter.post('/projects', requireUser, async (req, res, next) => {
 
     const id = uuidv4();
     const pool = getPool();
+    const urlTrimmed = String(githubUrl).trim();
     await pool.execute(
       `INSERT INTO projects (id, user_id, project_name, github_url, description)
        VALUES (?, ?, ?, ?, ?)`,
-      [id, req.userId, String(projectName).trim(), String(githubUrl).trim(), String(description)],
+      [id, req.userId, String(projectName).trim(), urlTrimmed, String(description)],
     );
+
+    let initialScan = { skipped: true };
+    if (scanOnCreate) {
+      const scanResult = await beginProjectScan(pool, {
+        projectId: id,
+        userId: req.userId,
+        githubUrl: urlTrimmed,
+        notifyUserId: req.userId,
+        openAiApiKey: env.openAi.apiKey,
+      });
+      if (scanResult.ok) {
+        initialScan = { scanId: scanResult.scanId, status: scanResult.status };
+      } else {
+        initialScan = {
+          scanId: scanResult.scanId,
+          status: 'failed',
+          error: scanResult.error,
+        };
+      }
+    }
+
     res.status(201).json({
       id,
       projectName: String(projectName).trim(),
-      githubUrl: String(githubUrl).trim(),
+      githubUrl: urlTrimmed,
       description: String(description),
+      initialScan,
     });
 
     void sendWebhookForUser(req.userId, {
@@ -299,7 +386,10 @@ projectsRouter.post('/projects', requireUser, async (req, res, next) => {
       description: `A new project was added to Signal.`,
       fields: [
         { name: 'Project', value: String(projectName).trim(), inline: true },
-        { name: 'Repository', value: repoPathFromUrl(String(githubUrl).trim()), inline: true },
+        { name: 'Repository', value: repoPathFromUrl(urlTrimmed), inline: true },
+        ...(scanOnCreate && initialScan.scanId
+          ? [{ name: 'Scan', value: initialScan.status === 'failed' ? 'Failed to start (check API key)' : 'Started', inline: true }]
+          : []),
       ],
     });
   } catch (e) {
@@ -398,8 +488,8 @@ projectsRouter.get('/projects/:id/scans/:scanId/status', requireUser, async (req
 
 projectsRouter.post('/projects/:id/scan', requireUser, async (req, res, next) => {
   const projectId = req.params.id;
-  const scanId = uuidv4();
   const pool = getPool();
+  let scanIdForError = null;
   try {
     const [[project]] = await pool.query(
       `SELECT id, user_id AS userId, github_url AS githubUrl
@@ -415,64 +505,39 @@ projectsRouter.post('/projects/:id/scan', requireUser, async (req, res, next) =>
       return;
     }
 
-    await pool.execute(
-      `INSERT INTO project_scans (id, project_id, user_id, status, created_at)
-       VALUES (?, ?, ?, 'running', CURRENT_TIMESTAMP)`,
-      [scanId, projectId, req.userId],
-    );
-    console.info(`[scan] started project=${projectId} scan=${scanId}`);
-
     const openAiApiKey = req.body?.openAiApiKey || env.openAi.apiKey;
-    if (!openAiApiKey) {
-      await pool.execute(
-        `UPDATE project_scans
-         SET status = 'failed', error_message = ?, finished_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        ['Missing OPENAI_API_KEY (or openAiApiKey in request body)', scanId],
-      );
-      res.status(400).json({ error: 'Missing OpenAI API key' });
+    const result = await beginProjectScan(pool, {
+      projectId,
+      userId: req.userId,
+      githubUrl: project.githubUrl,
+      notifyUserId: req.userId,
+      openAiApiKey,
+    });
+    scanIdForError = result.scanId;
+
+    if (!result.ok) {
+      res.status(result.httpStatus).json({ error: result.error });
       return;
     }
 
     res.status(202).json({
-      scanId,
-      status: 'running',
-    });
-
-    void sendWebhookForUser(req.userId, {
-      title: 'New Scan Started',
-      description: 'Signal started scanning your repository.',
-      fields: [
-        { name: 'Project ID', value: projectId, inline: true },
-        { name: 'Scan ID', value: scanId, inline: true },
-        { name: 'Repository', value: repoPathFromUrl(project.githubUrl), inline: false },
-      ],
-    });
-
-    // Continue scanning after response returns to avoid frontend/proxy timeouts.
-    setImmediate(() => {
-      runScanInBackground({
-        pool,
-        projectId,
-        scanId,
-        githubUrl: project.githubUrl,
-        openAiApiKey,
-      }).catch((e) => {
-        console.error(`[scan] background runner crashed project=${projectId} scan=${scanId}`, e);
-      });
+      scanId: result.scanId,
+      status: result.status,
     });
   } catch (e) {
-    try {
-      await pool.execute(
-        `UPDATE project_scans
-         SET status = 'failed', error_message = ?, finished_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [String(e?.message || e), scanId],
-      );
-    } catch {
-      // no-op
+    if (scanIdForError) {
+      try {
+        await pool.execute(
+          `UPDATE project_scans
+           SET status = 'failed', error_message = ?, finished_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [String(e?.message || e), scanIdForError],
+        );
+      } catch {
+        // no-op
+      }
     }
-    console.error(`[scan] failed project=${projectId} scan=${scanId}`, e);
+    console.error(`[scan] failed project=${projectId} scan=${scanIdForError}`, e);
     next(e);
   }
 });
