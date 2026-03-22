@@ -1214,7 +1214,7 @@
         }
 
         /* ======================================================
-           SLIDE 12: OVERVIEW / CLOSING
+           OVERVIEW / CONCLUSION (closing slides)
            ====================================================== */
         .overview-slide .slide-content {
             gap: clamp(0.6rem, 1.5vw, 1.5rem);
@@ -1222,6 +1222,30 @@
             margin: 0 auto;
             align-items: center;
             text-align: center;
+        }
+        .conclusion-slide .conclusion-lead {
+            max-width: 38em;
+            margin: 0 auto;
+            margin-top: clamp(0.25rem, 0.6vw, 0.5rem);
+            font-size: clamp(0.88rem, 1.65vw, 1.15rem);
+            line-height: 1.45;
+            color: var(--text-secondary);
+        }
+        .conclusion-points {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            max-width: 36em;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.35rem, 1vw, 0.65rem);
+        }
+        .conclusion-points li {
+            font-size: clamp(0.82rem, 1.45vw, 1.05rem);
+            line-height: 1.42;
+            color: var(--text-secondary);
         }
         .rubric-map {
             display: grid;
@@ -1347,7 +1371,7 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 2: THE COST OF SHIPPING BLIND
+         SLIDE 2: THE COST OF SHIPPING BLIND (stats first)
          Rubric ref: A1 continued + A2 (15 pts)
          ====================================================== -->
     <section class="slide problem-slide bg-accent-glow" aria-label="Problem — Financial Impact">
@@ -1363,15 +1387,18 @@
                     <div class="stat-value">$4.88M</div>
                     <div class="stat-label">average data breach<br>cost in 2025</div>
                     <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">+25% for high tech-debt orgs</p>
+                    <p class="cost-card-src"><strong>Src</strong> IBM / Ponemon, <em>Cost of a Data Breach</em> 2024 (global avg.)</p>
                 </div>
                 <div class="cost-card">
-                    <div class="stat-value">67%</div>
+                    <div class="stat-value">70%</div>
                     <div class="stat-label">of developers spend more time<br><em>debugging</em> AI code than they saved</div>
+                    <p class="cost-card-src"><strong>Src</strong> Industry surveys on AI-assisted coding (e.g. tooling &amp; productivity polls, 2024&ndash;25)</p>
                 </div>
                 <div class="cost-card">
                     <div class="stat-value">$8M</div>
                     <div class="stat-label">annual rework cost per<br>250-developer org</div>
                     <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">AI-induced technical debt</p>
+                    <p class="cost-card-src"><strong>Src</strong> Analyst / org-scale rework estimates (AI tech-debt modeling)</p>
                 </div>
             </div>
 
@@ -1380,7 +1407,7 @@
                 <ul class="why-list">
                     <li>
                         <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">Context Blindness</strong> &mdash; LLMs predict the next most likely token but does not understand your business logic or security architecture</span>
+                        <span><strong style="color: var(--foreground);">Context Blindness</strong> &mdash; LLMs are optimised for plausible code generation, not for preserving the security invariants of a production system and its requirements.</span>
                     </li>
                     <li>
                         <span class="why-icon">&#9671;</span>
@@ -1388,7 +1415,7 @@
                     </li>
                     <li>
                         <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">The Junior Paradox</strong> &mdash; Senior devs automate chores; junior &ldquo;vibe coders&rdquo; write logic they can&rsquo;t audit, creating unowned code in production</span>
+                        <span><strong style="color: var(--foreground);">The Junior Paradox</strong> &mdash; Code is generated, without it being deeply understood and critical security nuances get skipped.</span>
                     </li>
                     <li>
                         <span class="why-icon">&#9671;</span>
@@ -1464,64 +1491,6 @@
                     <div class="stat-label">security failure rate for<br>AI-generated Java code</div>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <!-- ======================================================
-         SLIDE 3: THE COST OF SHIPPING BLIND
-         Rubric ref: A1 continued + A2 (15 pts)
-         ====================================================== -->
-    <section class="slide problem-slide bg-accent-glow" aria-label="Problem — Financial Impact">
-        <span class="slide-number">03 / The Cost</span>
-        <div class="slide-content">
-            <div class="reveal">
-                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1&ndash;A2 &middot; Why Now?</span>
-                <h2>The Cost of <span class="accent">Shipping Blind</span></h2>
-            </div>
-
-            <div class="cost-grid reveal">
-                <div class="cost-card">
-                    <div class="stat-value">$4.88M</div>
-                    <div class="stat-label">average data breach<br>cost in 2025</div>
-                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">+25% for high tech-debt orgs</p>
-                    <p class="cost-card-src"><strong>Src</strong> IBM / Ponemon, <em>Cost of a Data Breach</em> 2024 (global avg.)</p>
-                </div>
-                <div class="cost-card">
-                    <div class="stat-value">70%</div>
-                    <div class="stat-label">of developers spend more time<br><em>debugging</em> AI code than they saved</div>
-                    <p class="cost-card-src"><strong>Src</strong> Industry surveys on AI-assisted coding (e.g. tooling &amp; productivity polls, 2024&ndash;25)</p>
-                </div>
-                <div class="cost-card">
-                    <div class="stat-value">$8M</div>
-                    <div class="stat-label">annual rework cost per<br>250-developer org</div>
-                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">AI-induced technical debt</p>
-                    <p class="cost-card-src"><strong>Src</strong> Analyst / org-scale rework estimates (AI tech-debt modeling)</p>
-                </div>
-            </div>
-
-            <div class="reveal" style="margin-top: clamp(0.2rem, 0.4vw, 0.4rem);">
-                <h3 style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem);">Why is this happening?</h3>
-                <ul class="why-list">
-                    <li>
-                        <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">Context Blindness</strong> &mdash; LLMs are optimised for plausible code generation, not for preserving the security invariants of a production system and its requirements.</span>
-                    </li>
-                    <li>
-                        <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">Dependency Sprawl</strong> &mdash; AI tools import 2&times; more external libraries &ldquo;just in case,&rdquo; massively expanding the attack surface</span>
-                    </li>
-                    <li>
-                        <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">The Junior Paradox</strong> &mdash; Code is generated, without it being deeply understood and critical security nuances get skipped.</span>
-                    </li>
-                    <li>
-                        <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">Comprehension Debt</strong> &mdash; Teams average 7.6 hours to resolve AI-generated incidents vs 6.3 hours for human-written code</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="chart-source reveal">Maintenance costs reach 4&times; traditional levels within 2 years if AI-generated code debt goes unmanaged.</div>
         </div>
     </section>
 
@@ -2039,62 +2008,31 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 13: OVERVIEW & CLOSING
+         SLIDE 13: CONCLUSION
          Rubric ref: C2 (7 pts) + B2 (8 pts)
          ====================================================== -->
-    <section class="slide overview-slide bg-radial" aria-label="Overview and closing">
-        <span class="slide-number">13 / Overview</span>
+    <section class="slide overview-slide conclusion-slide bg-radial" aria-label="Conclusion">
+        <span class="slide-number">13 / Conclusion</span>
         <div class="slide-content">
             <div class="reveal">
-                <h2>Everything Maps to the <span class="accent">Rubric</span></h2>
-                <p style="max-width: 30em; margin: 0 auto;">Signal delivers across every evaluation criterion&mdash;from problem to prototype to presentation.</p>
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.35rem, 0.8vw, 0.6rem); display: inline-flex;">FoundersHack 2026</span>
+                <h2 style="max-width: 14ch; margin-left: auto; margin-right: auto;">Ship fast&mdash;<span class="accent">without blind spots</span></h2>
+                <p class="conclusion-lead">Signal closes the gap between AI-accelerated delivery and real AppSec: <strong style="color: var(--foreground);">deep scans</strong>, <strong style="color: var(--foreground);">stateful memory</strong>, <strong style="color: var(--foreground);">fix PRs</strong>, and <strong style="color: var(--foreground);">workspace + compliance</strong> in one loop.</p>
             </div>
-            <div class="rubric-map reveal">
-                <div class="rubric-card">
-                    <div class="rubric-card-ref">A1&ndash;A2</div>
-                    <div class="rubric-card-title">Problem</div>
-                    <div class="rubric-card-weight">25% &middot; Slides 02&ndash;03</div>
-                </div>
-                <div class="rubric-card">
-                    <div class="rubric-card-ref">A3</div>
-                    <div class="rubric-card-title">Solution / USP</div>
-                    <div class="rubric-card-weight">13 pts &middot; Slides 04&ndash;06</div>
-                </div>
-                <div class="rubric-card">
-                    <div class="rubric-card-ref">B1&ndash;B2</div>
-                    <div class="rubric-card-title">Architecture</div>
-                    <div class="rubric-card-weight">18 pts &middot; Slide 07</div>
-                </div>
-                <div class="rubric-card">
-                    <div class="rubric-card-ref">A4</div>
-                    <div class="rubric-card-title">Defensibility</div>
-                    <div class="rubric-card-weight">12 pts &middot; Slides 08&ndash;09</div>
-                </div>
-                <div class="rubric-card">
-                    <div class="rubric-card-ref">A5&ndash;A6</div>
-                    <div class="rubric-card-title">Business Case</div>
-                    <div class="rubric-card-weight">10% &middot; Slide 11</div>
-                </div>
-                <div class="rubric-card">
-                    <div class="rubric-card-ref">Future</div>
-                    <div class="rubric-card-title">Scalability &amp; Platform</div>
-                    <div class="rubric-card-weight">Slide 12</div>
-                </div>
-                <div class="rubric-card">
-                    <div class="rubric-card-ref">C1&ndash;C2</div>
-                    <div class="rubric-card-title">Presentation</div>
-                    <div class="rubric-card-weight">20% &middot; This deck</div>
-                </div>
-            </div>
+            <ul class="conclusion-points reveal">
+                <li><span class="accent-soft">Problem &rarr;</span> Vibe coding compounds risk faster than teams can review.</li>
+                <li><span class="accent-soft">Product &rarr;</span> From repo to IDE to audit-ready reports&mdash;grounded in your code, not generic chat.</li>
+                <li><span class="accent-soft">Next &rarr;</span> Own the knowledge base, extend via MCP, meet agents where they already work.</li>
+            </ul>
             <div class="closing-cta reveal">
                 <a class="btn btn-primary" href="#">Live Demo &rarr;</a>
                 <a class="btn btn-outline" href="#">GitHub Repo</a>
                 <a class="btn btn-outline" href="#">Documentation</a>
             </div>
-            <div class="title-brand reveal" style="margin-top: clamp(0.3rem, 0.5vw, 0.5rem);">
+            <div class="title-brand reveal" style="margin-top: clamp(0.35rem, 0.8vw, 0.65rem);">
                 <img src="./assets/signal_logo.png" alt="Signal logo" class="logo-mark" style="width: clamp(28px, 4vw, 44px);">
                 <span class="title-brand-text" style="font-size: clamp(0.9rem, 2vw, 1.3rem);">Signal</span>
-                <span style="color: var(--text-dim); font-size: var(--small-size); margin-left: clamp(4px, 0.5vw, 8px);">Ship faster, without stress.</span>
+                <span style="color: var(--text-dim); font-size: var(--small-size); margin-left: clamp(4px, 0.5vw, 8px);">Thank you.</span>
             </div>
         </div>
     </section>
