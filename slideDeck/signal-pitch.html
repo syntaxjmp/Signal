@@ -1133,10 +1133,11 @@
         }
         .future-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: clamp(0.6rem, 1.2vw, 1rem);
+            grid-template-columns: repeat(4, 1fr);
+            gap: clamp(0.5rem, 1vw, 0.85rem);
         }
-        @media (max-width: 700px) { .future-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) { .future-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 500px) { .future-grid { grid-template-columns: 1fr; } }
         .future-card {
             background: rgba(18, 6, 3, 0.7);
             border: 1px solid rgba(255, 90, 52, 0.15);
@@ -1956,37 +1957,48 @@
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">Future &middot; Scalability &amp; Platform</span>
-                <h2>Your Security Knowledge&mdash;<span class="accent">Owned</span>, <span class="accent">Portable</span>, <span class="accent">Extensible</span></h2>
-                <p style="max-width: 42em; margin: 0 auto; margin-top: clamp(0.1rem, 0.3vw, 0.25rem);">Unlike AI assistants where your data lives on someone else&rsquo;s infrastructure, Signal builds a <strong style="color: var(--foreground);">persistent knowledge base you control</strong>&mdash;and can extend in any direction.</p>
+                <h2>Built to <span class="accent">Scale</span>, Built to <span class="accent">Last</span></h2>
+                <p style="max-width: 44em; margin: 0 auto; margin-top: clamp(0.1rem, 0.3vw, 0.25rem);">Signal won&rsquo;t stay a point-in-time scanner&mdash;we&rsquo;re building an <strong style="color: var(--foreground);">adaptive security platform</strong> that will grow smarter with every scan, extend across entire organizations, and keep you in full control of your data.</p>
             </div>
 
             <div class="future-grid reveal">
                 <div class="future-card">
                     <span class="future-card-number">01 &mdash; Own Your Data</span>
-                    <h3>Portable Knowledge Base</h3>
-                    <p>When companies use integrated model providers like Claude or ChatGPT for security reviews, all that institutional knowledge lives on the provider&rsquo;s servers&mdash;hard to export, impossible to query, lost when you switch tools.</p>
-                    <p><strong style="color: var(--foreground);">Signal stores everything locally:</strong> every finding, fix, pattern, and developer profile stays in <em>your</em> database. Switch AI models anytime&mdash;your security history stays with you.</p>
+                    <h3>Portable Knowledge Base &amp; MCP</h3>
+                    <p>Every finding, fix, pattern, and developer profile will live in <strong style="color: var(--foreground);">your database</strong>&mdash;never locked in a vendor&rsquo;s cloud. You&rsquo;ll be able to switch AI models anytime; your security history will stay with you.</p>
+                    <p>Our <strong style="color: var(--foreground);">MCP server</strong> will expose this knowledge to any compatible tool&mdash;enabling teams to build custom integrations, internal dashboards, onboarding apps, and developer coaching tools on top of their own security data.</p>
                 </div>
 
                 <div class="future-card">
-                    <span class="future-card-number">02 &mdash; MCP Server</span>
-                    <h3>Custom Integrations via MCP</h3>
-                    <p>We&rsquo;re building an <strong style="color: var(--foreground);">MCP (Model Context Protocol) server</strong> that exposes your codebase&rsquo;s security knowledge to any compatible tool&mdash;unlocking custom applications on top of your data.</p>
+                    <span class="future-card-number">02 &mdash; Living Memory</span>
+                    <h3>Adaptive Security Intelligence</h3>
+                    <p>Signal&rsquo;s memory won&rsquo;t be static. Teams will be able to <strong style="color: var(--foreground);">refine and adjust</strong> what the system remembers&mdash;dismissing false positives, accepting known risks, and updating baselines as their codebase evolves.</p>
                     <ul class="use-cases">
-                        <li>Developer onboarding apps that teach new hires the team&rsquo;s real vulnerability patterns</li>
-                        <li>Personalized coaching for developers who repeatedly introduce specific bug classes</li>
-                        <li>Custom dashboards and internal tools built on your actual security history</li>
+                        <li>Tune dismissal rules over time as your stack changes</li>
+                        <li>Catch regressions when fixed vulnerabilities resurface</li>
+                        <li>Developer risk profiles will sharpen with every commit</li>
                     </ul>
                 </div>
 
                 <div class="future-card">
-                    <span class="future-card-number">03 &mdash; Agentic Tooling</span>
-                    <h3>Claude Code &amp; AI Agents</h3>
-                    <p>Developers can use <strong style="color: var(--foreground);">Claude Code, Cursor, or any agentic coding tool</strong> to interact with Signal directly&mdash;querying findings, applying fixes, and updating security policies without leaving their workflow.</p>
+                    <span class="future-card-number">03 &mdash; Compliance</span>
+                    <h3>Expanding Compliance Frameworks</h3>
+                    <p>Today Signal scores against <strong style="color: var(--foreground);">SOC 2, OWASP Top 10, and GDPR</strong>. Our modular compliance engine will make it straightforward to add new frameworks as customer needs grow.</p>
                     <ul class="use-cases">
-                        <li>Ask &ldquo;What are the open critical findings in auth?&rdquo; and get real answers from your data</li>
-                        <li>Auto-apply security fixes through agentic tools with full audit trails</li>
-                        <li>AI agents that proactively scan and remediate as part of CI/CD</li>
+                        <li>HIPAA, PCI-DSS, ISO 27001, NIST on the roadmap</li>
+                        <li>Industry-specific standards (FedRAMP, HITRUST)</li>
+                        <li>Custom internal policy frameworks</li>
+                    </ul>
+                </div>
+
+                <div class="future-card">
+                    <span class="future-card-number">04 &mdash; Scale</span>
+                    <h3>Cross-Repo &amp; Agentic Tooling</h3>
+                    <p>Our MCP server will enable <strong style="color: var(--foreground);">cross-repo intelligence</strong>&mdash;critical for companies running microservice architectures, monorepos, or distributed teams where a vulnerability in one service can cascade across the stack.</p>
+                    <ul class="use-cases">
+                        <li>Spot a leaked secret in a shared auth service affecting 12 downstream repos</li>
+                        <li>Org-wide risk posture dashboards for security leads</li>
+                        <li>AI agents that will proactively scan and remediate in CI/CD</li>
                     </ul>
                 </div>
             </div>
@@ -1994,15 +2006,15 @@
             <div class="future-flow reveal">
                 <div class="future-flow-step">Signal scans &amp; learns</div>
                 <span class="future-flow-arrow">&rarr;</span>
-                <div class="future-flow-step">Knowledge base grows</div>
+                <div class="future-flow-step">Memory sharpens</div>
                 <span class="future-flow-arrow">&rarr;</span>
-                <div class="future-flow-step">MCP exposes data</div>
+                <div class="future-flow-step">MCP connects everything</div>
                 <span class="future-flow-arrow">&rarr;</span>
-                <div class="future-flow-step">Custom apps &amp; agents</div>
+                <div class="future-flow-step">Org-wide intelligence</div>
             </div>
 
             <p class="reveal" style="text-align: center; max-width: 44em; margin: 0 auto; font-size: var(--small-size); color: var(--text-dim);">
-                <strong style="color: var(--foreground);">The moat deepens over time:</strong> the more you use Signal, the more valuable the knowledge base becomes&mdash;making it harder to leave and easier to build on.
+                <strong style="color: var(--foreground);">The moat will deepen over time:</strong> every scan, dismissal, and fix will make Signal smarter&mdash;compounding value that becomes impossible to replicate by switching tools.
             </p>
         </div>
     </section>
