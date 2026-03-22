@@ -960,6 +960,26 @@
         .vs-table--6col.vs-table--xl .cross {
             font-size: clamp(0.85rem, 1.25vw, 1.12rem);
         }
+        /* 7-column competitor matrix — roomier than 8col */
+        .vs-table--7col.vs-table--xl {
+            font-size: clamp(0.72rem, 1.15vw, 1.02rem);
+        }
+        .vs-table--7col.vs-table--xl th {
+            font-size: clamp(0.56rem, 0.88vw, 0.76rem);
+            padding: clamp(6px, 0.75vw, 11px) clamp(6px, 0.9vw, 12px);
+            letter-spacing: 0.03em;
+        }
+        .vs-table--7col.vs-table--xl td {
+            font-size: clamp(0.72rem, 1.15vw, 1.02rem);
+            padding: clamp(6px, 0.7vw, 11px) clamp(6px, 0.9vw, 12px);
+        }
+        .vs-table--7col.vs-table--xl td:first-child {
+            font-size: clamp(0.66rem, 1.02vw, 0.92rem);
+        }
+        .vs-table--7col.vs-table--xl .check,
+        .vs-table--7col.vs-table--xl .cross {
+            font-size: clamp(0.9rem, 1.35vw, 1.18rem);
+        }
 
         /* A4 slide 2: General LLM vs Signal */
         .llm-compare {
@@ -1608,14 +1628,22 @@
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
-                <h2 style="font-size: clamp(1.45rem, 4.2vw, 2.85rem);">How we&rsquo;re <span class="accent">different</span> &mdash; <span style="color: var(--text-secondary); font-weight: 600;">vs traditional AppSec</span></h2>
+                <h2 style="font-size: clamp(1.45rem, 4.2vw, 2.85rem);">How we&rsquo;re <span class="accent">different</span> &mdash; <span style="color: var(--text-secondary); font-weight: 600;">vs AppSec &amp; AI tools</span></h2>
             </div>
-            <p class="defend-kicker reveal">Snyk, SonarQube, CodeQL, and CodeRabbit cover rules, static analysis, or PR-time AI&mdash;Signal adds <strong style="color: var(--foreground);">AI-native semantics</strong>, <strong style="color: var(--foreground);">fix PRs</strong>, <strong style="color: var(--foreground);">compliance-ready reporting</strong>, and a <strong style="color: var(--foreground);">Memory Map</strong> to explore vectors &amp; findings in one product surface.</p>
-            <table class="vs-table vs-table--xl vs-table--6col reveal">
+            <div class="defend-kicker reveal" style="display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(0.3rem, 0.6vw, 0.5rem) clamp(0.8rem, 1.5vw, 1.2rem); margin-bottom: clamp(0.4rem, 0.8vw, 0.7rem);">
+                <span style="color: var(--text-secondary);"><strong style="color: var(--foreground);">Snyk &amp; SonarQube</strong> &rarr; rule-based</span>
+                <span style="color: var(--line);">&vert;</span>
+                <span style="color: var(--text-secondary);"><strong style="color: var(--foreground);">Claude Code</strong> &rarr; general coding assistant</span>
+                <span style="color: var(--line);">&vert;</span>
+                <span style="color: var(--text-secondary);"><strong style="color: var(--foreground);">CodeRabbit</strong> &rarr; PR reviews only</span>
+            </div>
+            <p class="defend-kicker reveal" style="font-size: clamp(0.78rem, 1.25vw, 1rem); margin-top: 0;"><strong style="color: var(--accent);">Signal</strong> is the only platform that combines <strong style="color: var(--foreground);">AI-native vulnerability detection</strong>, <strong style="color: var(--foreground);">automated fix PRs</strong>, <strong style="color: var(--foreground);">compliance reporting</strong>, and a <strong style="color: var(--foreground);">persistent Memory Map</strong> in one security-first tool.</p>
+            <table class="vs-table vs-table--xl vs-table--7col reveal">
                 <thead>
                     <tr>
                         <th>Capability</th>
                         <th class="col-signal">Signal</th>
+                        <th>Claude Code</th>
                         <th>Snyk</th>
                         <th>SonarQube</th>
                         <th>CodeQL</th>
@@ -1624,52 +1652,67 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>AI semantic analysis</td>
+                        <td>AI semantic vuln detection</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td>Manual prompts</td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td>Partial</td>
                     </tr>
                     <tr>
-                        <td>Automated fix PRs</td>
+                        <td>Automated fix PRs from findings</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
                     <tr>
-                        <td>One-click setup</td>
+                        <td>Full-repo scan (not just open files)</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td>File-by-file</td>
                         <td><span class="check">&#10003;</span></td>
-                        <td><span class="cross">&#10005;</span></td>
-                        <td><span class="cross">&#10005;</span></td>
                         <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td>PR diff only</td>
                     </tr>
                     <tr>
-                        <td>Compliance PDFs (e.g. SOC 2 themes)</td>
+                        <td>Security-specific (35 CWE/OWASP checks)</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td>Partial</td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>Compliance reports (SOC 2 themes)</td>
+                        <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
                         <td>Paid</td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                     </tr>
                     <tr>
-                        <td>Audit trail + diff tracking</td>
+                        <td>Persistent memory across scans</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
-                        <td>Partial</td>
-                        <td><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
-                        <td>Partial</td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
                     </tr>
                     <tr>
-                        <td>Memory Map view (vectors, scans &amp; relationships)</td>
+                        <td>One-click setup (no config files)</td>
                         <td class="col-signal"><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
                         <td><span class="cross">&#10005;</span></td>
                         <td><span class="cross">&#10005;</span></td>
-                        <td><span class="cross">&#10005;</span></td>
-                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
                     </tr>
                 </tbody>
             </table>
@@ -1689,26 +1732,28 @@
             </div>
             <div class="llm-compare reveal">
                 <div class="llm-compare-col">
-                    <span class="llm-compare-label">General-purpose LLM</span>
-                    <div class="llm-compare-title">Claude-style tools</div>
+                    <span class="llm-compare-label">AI coding assistants</span>
+                    <div class="llm-compare-title">Claude Code &amp; GitHub Copilot</div>
                     <ul class="llm-compare-list">
-                        <li>No durable <strong style="color: var(--foreground);">project memory</strong> across scans&mdash;each prompt is a one-off.</li>
-                        <li>Can hallucinate fixes without your repo, CI, or finding IDs as source of truth.</li>
-                        <li>Not integrated into the <strong style="color: var(--foreground);">developer workflow</strong> (PRs, audits, baselines).</li>
+                        <li><strong style="color: var(--foreground);">Built for writing code, not auditing it.</strong> They help you <em>create</em> features&mdash;not systematically find SQLi, XSS, or leaked secrets across an entire repo.</li>
+                        <li><strong style="color: var(--foreground);">No persistent security state.</strong> Each session starts fresh&mdash;no baselines, no regression tracking, no audit trail between scans.</li>
+                        <li><strong style="color: var(--foreground);">No structured output.</strong> Findings are chat responses, not trackable records with CWE IDs, severity scores, or compliance mappings.</li>
+                        <li><strong style="color: var(--foreground);">No automated remediation workflow.</strong> You get a code suggestion&mdash;not a fork, branch, commit, and PR with a reviewable diff.</li>
                     </ul>
                 </div>
                 <div class="llm-compare-col llm-compare-col--signal">
                     <span class="llm-compare-label">Signal</span>
-                    <div class="llm-compare-title">Stateful AppSec + workspace</div>
+                    <div class="llm-compare-title">Purpose-built security platform</div>
                     <ul class="llm-compare-list">
-                        <li><strong style="color: var(--foreground);">Memory graph:</strong> baselines, dismissals, regressions, and embeddings (Qdrant) tied to real entities&mdash;not a blank slate each time.</li>
-                        <li><strong style="color: var(--foreground);">VS Code extension:</strong> brings findings and context into the editor where code actually ships.</li>
-                        <li><strong style="color: var(--foreground);">Resolution agent + PRs:</strong> AI fixes land as reviewable merges, not pasted snippets.</li>
+                        <li><strong style="color: var(--foreground);">Full-repo deep scan:</strong> clones the repo and prioritizes auth, config, and DB files&mdash;analyzes up to 100 files concurrently with 35 CWE/OWASP checks.</li>
+                        <li><strong style="color: var(--foreground);">Memory graph:</strong> baselines, dismissals, regressions, and embeddings tied to real entities&mdash;not a blank slate each time.</li>
+                        <li><strong style="color: var(--foreground);">Resolution agent &rarr; PRs:</strong> one click turns a finding into a fork, branch, AI-generated patch, and a merge-ready pull request.</li>
+                        <li><strong style="color: var(--foreground);">Compliance &amp; reporting:</strong> exportable reports mapped to SOC 2 themes and OWASP categories&mdash;ready for auditors, not just developers.</li>
                     </ul>
                 </div>
             </div>
             <p class="defend-kicker reveal" style="margin-top: clamp(0.2rem, 0.8vw, 0.6rem);">
-                <strong style="color: var(--foreground);">Why it matters:</strong> competitors and generic LLMs don&rsquo;t maintain a <span class="accent-soft">living memory layer</span> for your codebase&mdash;Signal does, so analysis stays consistent, explainable, and defensible for auditors.
+                <strong style="color: var(--foreground);">Key insight:</strong> Claude Code and Copilot are <span class="accent-soft">productivity tools</span>&mdash;Signal is a <span class="accent-soft">security platform</span>. They help you write code faster; we make sure that code is safe, tracked, and auditable.
             </p>
         </div>
     </section>
