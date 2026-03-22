@@ -812,6 +812,38 @@
                 0 0 0 1px rgba(0, 0, 0, 0.35) inset;
             display: block;
         }
+        /* A3 slide 4: side-by-side PR screenshots */
+        .a3-pr-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(0.5rem, 1.2vw, 1rem);
+            width: 100%;
+            max-width: min(1120px, 96vw);
+            margin: 0 auto;
+            flex: 1 1 auto;
+            min-height: 0;
+            align-items: stretch;
+        }
+        .a3-pr-split img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: left top;
+            border-radius: clamp(8px, 1vw, 14px);
+            border: 1px solid rgba(255, 90, 52, 0.22);
+            box-shadow:
+                0 16px 48px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(0, 0, 0, 0.35) inset;
+            display: block;
+        }
+        @media (max-width: 820px) {
+            .a3-pr-split {
+                grid-template-columns: 1fr;
+            }
+            .a3-pr-split img {
+                height: min(35vh, 300px);
+            }
+        }
         .a3-intro-copy {
             text-align: center;
             max-width: min(42em, 92vw);
@@ -1092,7 +1124,97 @@
         }
 
         /* ======================================================
-           SLIDE 7: OVERVIEW / CLOSING
+           SLIDE 11: FUTURE / SCALABILITY
+           ====================================================== */
+        .future-slide .slide-content {
+            gap: clamp(0.5rem, 1.2vw, 1.2rem);
+            max-width: min(92vw, 1100px);
+            margin: 0 auto;
+        }
+        .future-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.6rem, 1.2vw, 1rem);
+        }
+        @media (max-width: 700px) { .future-grid { grid-template-columns: 1fr; } }
+        .future-card {
+            background: rgba(18, 6, 3, 0.7);
+            border: 1px solid rgba(255, 90, 52, 0.15);
+            border-radius: clamp(8px, 1vw, 14px);
+            padding: clamp(0.65rem, 1.5vw, 1.2rem);
+            backdrop-filter: blur(8px);
+            transition: border-color 0.3s ease, transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.25rem, 0.5vw, 0.5rem);
+        }
+        .future-card:hover {
+            border-color: rgba(255, 90, 52, 0.35);
+            transform: translateY(-2px);
+        }
+        .future-card-number {
+            font-family: var(--font-display);
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .future-card h3 {
+            font-size: clamp(0.85rem, 1.6vw, 1.15rem);
+            color: var(--foreground);
+            margin: 0;
+        }
+        .future-card p {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .future-card .use-cases {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.15rem, 0.3vh, 0.3rem);
+            margin-top: clamp(0.1rem, 0.2vw, 0.2rem);
+        }
+        .future-card .use-cases li {
+            font-size: clamp(0.6rem, 0.85vw, 0.75rem);
+            color: var(--text-dim);
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(4px, 0.4vw, 6px);
+        }
+        .future-card .use-cases li::before {
+            content: '\2192';
+            color: var(--accent);
+            flex-shrink: 0;
+            font-size: 0.85em;
+        }
+        .future-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(0.4rem, 1vw, 1rem);
+            flex-wrap: wrap;
+        }
+        .future-flow-step {
+            background: rgba(255, 90, 52, 0.08);
+            border: 1px solid rgba(255, 90, 52, 0.2);
+            border-radius: clamp(6px, 0.8vw, 10px);
+            padding: clamp(0.3rem, 0.8vw, 0.6rem) clamp(0.6rem, 1.2vw, 1rem);
+            font-family: var(--font-display);
+            font-size: clamp(0.6rem, 0.9vw, 0.8rem);
+            font-weight: 600;
+            color: var(--foreground);
+            text-align: center;
+        }
+        .future-flow-arrow {
+            font-size: clamp(0.8rem, 1.5vw, 1.2rem);
+            color: var(--accent);
+        }
+
+        /* ======================================================
+           SLIDE 12: OVERVIEW / CLOSING
            ====================================================== */
         .overview-slide .slide-content {
             gap: clamp(0.6rem, 1.5vw, 1.5rem);
@@ -1404,7 +1526,7 @@
     </section>
 
     <!-- ======================================================
-         A3: UNIQUE SELLING PROPOSITION — 3-slide tour (split layout: text | screenshot)
+         A3: UNIQUE SELLING PROPOSITION — 4-slide tour (split layout: text | screenshot)
          Rubric ref: A3 (13 pts)
          ====================================================== -->
 
@@ -1446,7 +1568,7 @@
                         <span>Auto-Fix PR</span>
                     </div>
                 </div>
-                <p class="a3-tour-step reveal">Product tour &middot; 1 of 3</p>
+                <p class="a3-tour-step reveal">Product tour &middot; 1 of 4</p>
             </div>
             <div class="a3-overview-under-tour reveal">
                 <p>Every scan surfaces <strong style="color: var(--foreground);">prioritized findings</strong>&mdash;severity, category, file and line context, and remediation-ready descriptions.</p>
@@ -1502,7 +1624,7 @@
                         <span>Auto-Fix PR</span>
                     </div>
                 </div>
-                <p class="a3-tour-step reveal">Product tour &middot; 2 of 3</p>
+                <p class="a3-tour-step reveal">Product tour &middot; 2 of 4</p>
             </div>
             <div class="a3-split a3-split--stack reveal">
                 <div class="a3-split-text">
@@ -1554,7 +1676,7 @@
                         <span>Auto-Fix PR</span>
                     </div>
                 </div>
-                <p class="a3-tour-step reveal">Product tour &middot; 3 of 3</p>
+                <p class="a3-tour-step reveal">Product tour &middot; 3 of 4</p>
             </div>
             <div class="a3-split a3-split--stack reveal">
                 <div class="a3-split-text">
@@ -1568,12 +1690,65 @@
         </div>
     </section>
 
+    <!-- A3 — Auto-Fix PR -->
+    <section class="slide usp-slide bg-subtle a3-tour a3-tour-continued" aria-label="Solution — auto-fix PR">
+        <span class="slide-number">07 / Solution</span>
+        <div class="slide-content">
+            <div class="a3-tour-header">
+                <div class="reveal">
+                    <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A3 &middot; Unique Selling Proposition</span>
+                    <h2>One click. Instant insights.<br><span class="accent">Automated fixes.</span></h2>
+                </div>
+                <div class="pipeline reveal">
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                        </div>
+                        <span>Connect Repo</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        </div>
+                        <span>AI Scan</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <span>Report</span>
+                    </div>
+                    <span class="pipeline-arrow">&#8594;</span>
+                    <div class="pipeline-step">
+                        <div class="icon-circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <span>Auto-Fix PR</span>
+                    </div>
+                </div>
+                <p class="a3-tour-step reveal">Product tour &middot; 4 of 4</p>
+            </div>
+            <div class="a3-split a3-split--stack reveal">
+                <div class="a3-split-text">
+                    <h3 class="a3-spotlight-title">Automated pull requests</h3>
+                    <p class="a3-spotlight-desc">Signal generates AI-powered patches and opens a GitHub PR with the fix&mdash;ready for review and merge.</p>
+                </div>
+                <div class="a3-pr-split">
+                    <img src="./assets/PR-1.png" alt="Signal auto-fix: generated pull request overview">
+                    <img src="./assets/PR-2.png" alt="Signal auto-fix: pull request code diff">
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ======================================================
-         SLIDE 7: ARCHITECTURE
+         SLIDE 8-9: ARCHITECTURE
          Rubric ref: B1 (10 pts) + B2 (8 pts)
          ====================================================== -->
     <section class="slide arch-slide bg-accent-glow" aria-label="Architecture">
-        <span class="slide-number">07 / Architecture</span>
+        <span class="slide-number">08 / Architecture</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">B1 &middot; Implementation</span>
@@ -1620,11 +1795,11 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 8: DEFENSIBILITY — COMPETITORS (A4a)
+         SLIDE 9: DEFENSIBILITY — COMPETITORS (A4a)
          Rubric ref: A4 (12 pts)
          ====================================================== -->
     <section class="slide defend-slide bg-subtle" aria-label="Defensibility — competitors">
-        <span class="slide-number">08 / Defensibility</span>
+        <span class="slide-number">09 / Defensibility</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
@@ -1720,11 +1895,11 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 9: DEFENSIBILITY — VS GENERAL LLM + MEMORY (A4b)
+         SLIDE 10: DEFENSIBILITY — VS GENERAL LLM + MEMORY (A4b)
          Rubric ref: A4 (12 pts)
          ====================================================== -->
     <section class="slide defend-slide bg-subtle" aria-label="Defensibility — LLM and memory">
-        <span class="slide-number">09 / Defensibility</span>
+        <span class="slide-number">10 / Defensibility</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A4 &middot; Defensibility &amp; Functionality</span>
@@ -1737,8 +1912,8 @@
                     <ul class="llm-compare-list">
                         <li><strong style="color: var(--foreground);">Built for writing code, not auditing it.</strong> They help you <em>create</em> features&mdash;not systematically find SQLi, XSS, or leaked secrets across an entire repo.</li>
                         <li><strong style="color: var(--foreground);">No persistent security state.</strong> Each session starts fresh&mdash;no baselines, no regression tracking, no audit trail between scans.</li>
-                        <li><strong style="color: var(--foreground);">No structured output.</strong> Findings are chat responses, not trackable records with CWE IDs, severity scores, or compliance mappings.</li>
-                        <li><strong style="color: var(--foreground);">No automated remediation workflow.</strong> You get a code suggestion&mdash;not a fork, branch, commit, and PR with a reviewable diff.</li>
+                        <li><strong style="color: var(--foreground);">No security-first data model.</strong> They can spot issues ad-hoc, but findings aren&rsquo;t stored as trackable records with CWE IDs, severity scores, or compliance mappings.</li>
+                        <li><strong style="color: var(--foreground);">Manual remediation.</strong> They can create PRs, but there&rsquo;s no one-click pipeline that goes from finding &rarr; patch &rarr; fork &rarr; merge-ready PR automatically.</li>
                     </ul>
                 </div>
                 <div class="llm-compare-col llm-compare-col--signal">
@@ -1759,11 +1934,11 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 10: BUSINESS CASE
+         SLIDE 11: BUSINESS CASE
          Rubric ref: A5 (5 pts) + A6 (5 pts)
          ====================================================== -->
     <section class="slide biz-slide bg-accent-glow" aria-label="Business Case">
-        <span class="slide-number">10 / Business Case</span>
+        <span class="slide-number">11 / Business Case</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A5 + A6 &middot; GTM Strategy &amp; Market</span>
@@ -1805,11 +1980,70 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 11: OVERVIEW & CLOSING
+         SLIDE 12: FUTURE PLANS & SCALABILITY
+         ====================================================== -->
+    <section class="slide future-slide bg-subtle" aria-label="Future Plans and Scalability">
+        <span class="slide-number">12 / Future</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">Future &middot; Scalability &amp; Platform</span>
+                <h2>Your Security Knowledge&mdash;<span class="accent">Owned</span>, <span class="accent">Portable</span>, <span class="accent">Extensible</span></h2>
+                <p style="max-width: 42em; margin: 0 auto; margin-top: clamp(0.1rem, 0.3vw, 0.25rem);">Unlike AI assistants where your data lives on someone else&rsquo;s infrastructure, Signal builds a <strong style="color: var(--foreground);">persistent knowledge base you control</strong>&mdash;and can extend in any direction.</p>
+            </div>
+
+            <div class="future-grid reveal">
+                <div class="future-card">
+                    <span class="future-card-number">01 &mdash; Own Your Data</span>
+                    <h3>Portable Knowledge Base</h3>
+                    <p>When companies use integrated model providers like Claude or ChatGPT for security reviews, all that institutional knowledge lives on the provider&rsquo;s servers&mdash;hard to export, impossible to query, lost when you switch tools.</p>
+                    <p><strong style="color: var(--foreground);">Signal stores everything locally:</strong> every finding, fix, pattern, and developer profile stays in <em>your</em> database. Switch AI models anytime&mdash;your security history stays with you.</p>
+                </div>
+
+                <div class="future-card">
+                    <span class="future-card-number">02 &mdash; MCP Server</span>
+                    <h3>Custom Integrations via MCP</h3>
+                    <p>We&rsquo;re building an <strong style="color: var(--foreground);">MCP (Model Context Protocol) server</strong> that exposes your codebase&rsquo;s security knowledge to any compatible tool&mdash;unlocking custom applications on top of your data.</p>
+                    <ul class="use-cases">
+                        <li>Developer onboarding apps that teach new hires the team&rsquo;s real vulnerability patterns</li>
+                        <li>Personalized coaching for developers who repeatedly introduce specific bug classes</li>
+                        <li>Custom dashboards and internal tools built on your actual security history</li>
+                    </ul>
+                </div>
+
+                <div class="future-card">
+                    <span class="future-card-number">03 &mdash; Agentic Tooling</span>
+                    <h3>Claude Code &amp; AI Agents</h3>
+                    <p>Developers can use <strong style="color: var(--foreground);">Claude Code, Cursor, or any agentic coding tool</strong> to interact with Signal directly&mdash;querying findings, applying fixes, and updating security policies without leaving their workflow.</p>
+                    <ul class="use-cases">
+                        <li>Ask &ldquo;What are the open critical findings in auth?&rdquo; and get real answers from your data</li>
+                        <li>Auto-apply security fixes through agentic tools with full audit trails</li>
+                        <li>AI agents that proactively scan and remediate as part of CI/CD</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="future-flow reveal">
+                <div class="future-flow-step">Signal scans &amp; learns</div>
+                <span class="future-flow-arrow">&rarr;</span>
+                <div class="future-flow-step">Knowledge base grows</div>
+                <span class="future-flow-arrow">&rarr;</span>
+                <div class="future-flow-step">MCP exposes data</div>
+                <span class="future-flow-arrow">&rarr;</span>
+                <div class="future-flow-step">Custom apps &amp; agents</div>
+            </div>
+
+            <p class="reveal" style="text-align: center; max-width: 44em; margin: 0 auto; font-size: var(--small-size); color: var(--text-dim);">
+                <strong style="color: var(--foreground);">The moat deepens over time:</strong> the more you use Signal, the more valuable the knowledge base becomes&mdash;making it harder to leave and easier to build on.
+            </p>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 13: OVERVIEW & CLOSING
          Rubric ref: C2 (7 pts) + B2 (8 pts)
          ====================================================== -->
     <section class="slide overview-slide bg-radial" aria-label="Overview and closing">
-        <span class="slide-number">11 / Overview</span>
+        <span class="slide-number">13 / Overview</span>
         <div class="slide-content">
             <div class="reveal">
                 <h2>Everything Maps to the <span class="accent">Rubric</span></h2>
@@ -1839,7 +2073,12 @@
                 <div class="rubric-card">
                     <div class="rubric-card-ref">A5&ndash;A6</div>
                     <div class="rubric-card-title">Business Case</div>
-                    <div class="rubric-card-weight">10% &middot; Slide 10</div>
+                    <div class="rubric-card-weight">10% &middot; Slide 11</div>
+                </div>
+                <div class="rubric-card">
+                    <div class="rubric-card-ref">Future</div>
+                    <div class="rubric-card-title">Scalability &amp; Platform</div>
+                    <div class="rubric-card-weight">Slide 12</div>
                 </div>
                 <div class="rubric-card">
                     <div class="rubric-card-ref">C1&ndash;C2</div>
