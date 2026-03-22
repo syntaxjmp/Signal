@@ -595,10 +595,10 @@
         }
         .pipeline {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
-            gap: clamp(0.3rem, 1vw, 1rem);
-            flex-wrap: wrap;
+            gap: 0;
+            flex-wrap: nowrap;
         }
         .pipeline-step {
             display: flex;
@@ -606,10 +606,14 @@
             align-items: center;
             gap: clamp(4px, 0.5vw, 8px);
             text-align: center;
+            width: clamp(70px, 10vw, 110px);
+            flex-shrink: 0;
         }
         .pipeline-step .icon-circle {
             width: clamp(36px, 5vw, 56px);
             height: clamp(36px, 5vw, 56px);
+            margin-bottom: 0;
+            overflow: visible;
         }
         .pipeline-step span {
             font-family: var(--font-display);
@@ -620,6 +624,11 @@
         .pipeline-arrow {
             font-size: clamp(0.8rem, 1.5vw, 1.2rem);
             color: var(--text-dim);
+            flex-shrink: 0;
+            width: clamp(20px, 3vw, 40px);
+            text-align: center;
+            /* vertically center with icons: half icon height */
+            margin-top: calc(clamp(36px, 5vw, 56px) / 2 - 0.5em);
         }
 
         /* === A3 multi-slide tour: tight vertical rhythm + corporate transitions === */
@@ -1958,32 +1967,36 @@
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">Future &middot; Scalability &amp; Platform</span>
                 <h2>Built to <span class="accent">Scale</span>, Built to <span class="accent">Last</span></h2>
-                <p style="max-width: 44em; margin: 0 auto; margin-top: clamp(0.1rem, 0.3vw, 0.25rem);">Signal won&rsquo;t stay a point-in-time scanner&mdash;we&rsquo;re building an <strong style="color: var(--foreground);">adaptive security platform</strong> that will grow smarter with every scan, extend across entire organizations, and keep you in full control of your data.</p>
+                <p style="max-width: 44em; margin-top: clamp(0.1rem, 0.3vw, 0.25rem);">We&rsquo;re building an <strong style="color: var(--foreground);">adaptive security platform</strong> that will grow smarter with every scan, extend across organizations, and keep you in full control of your data.</p>
             </div>
 
             <div class="future-grid reveal">
                 <div class="future-card">
                     <span class="future-card-number">01 &mdash; Own Your Data</span>
-                    <h3>Portable Knowledge Base &amp; MCP</h3>
-                    <p>Every finding, fix, pattern, and developer profile will live in <strong style="color: var(--foreground);">your database</strong>&mdash;never locked in a vendor&rsquo;s cloud. You&rsquo;ll be able to switch AI models anytime; your security history will stay with you.</p>
-                    <p>Our <strong style="color: var(--foreground);">MCP server</strong> will expose this knowledge to any compatible tool&mdash;enabling teams to build custom integrations, internal dashboards, onboarding apps, and developer coaching tools on top of their own security data.</p>
+                    <h3>Portable Knowledge &amp; MCP</h3>
+                    <p>Your findings, fixes, and developer profiles will live in <strong style="color: var(--foreground);">your database</strong>&mdash;never locked in a vendor&rsquo;s cloud. Switch AI models anytime.</p>
+                    <ul class="use-cases">
+                        <li>MCP server will let teams build custom integrations on their own data</li>
+                        <li>Connect to Claude Code, Cursor, or any MCP-compatible tool</li>
+                        <li>Power internal dashboards, onboarding apps, and coaching tools</li>
+                    </ul>
                 </div>
 
                 <div class="future-card">
                     <span class="future-card-number">02 &mdash; Living Memory</span>
-                    <h3>Adaptive Security Intelligence</h3>
-                    <p>Signal&rsquo;s memory won&rsquo;t be static. Teams will be able to <strong style="color: var(--foreground);">refine and adjust</strong> what the system remembers&mdash;dismissing false positives, accepting known risks, and updating baselines as their codebase evolves.</p>
+                    <h3>Adaptive Intelligence</h3>
+                    <p>Teams will <strong style="color: var(--foreground);">refine and adjust</strong> what Signal remembers&mdash;the intelligence will sharpen with every scan, not just accumulate.</p>
                     <ul class="use-cases">
-                        <li>Tune dismissal rules over time as your stack changes</li>
-                        <li>Catch regressions when fixed vulnerabilities resurface</li>
-                        <li>Developer risk profiles will sharpen with every commit</li>
+                        <li>Tune dismissal rules as your codebase evolves</li>
+                        <li>Catch regressions when fixed vulns resurface</li>
+                        <li>Developer risk profiles update with every commit</li>
                     </ul>
                 </div>
 
                 <div class="future-card">
                     <span class="future-card-number">03 &mdash; Compliance</span>
-                    <h3>Expanding Compliance Frameworks</h3>
-                    <p>Today Signal scores against <strong style="color: var(--foreground);">SOC 2, OWASP Top 10, and GDPR</strong>. Our modular compliance engine will make it straightforward to add new frameworks as customer needs grow.</p>
+                    <h3>Expanding Frameworks</h3>
+                    <p>Today: <strong style="color: var(--foreground);">SOC 2, OWASP, GDPR</strong>. Our modular engine will make adding new frameworks straightforward.</p>
                     <ul class="use-cases">
                         <li>HIPAA, PCI-DSS, ISO 27001, NIST on the roadmap</li>
                         <li>Industry-specific standards (FedRAMP, HITRUST)</li>
@@ -1992,13 +2005,13 @@
                 </div>
 
                 <div class="future-card">
-                    <span class="future-card-number">04 &mdash; Scale</span>
-                    <h3>Cross-Repo &amp; Agentic Tooling</h3>
-                    <p>Our MCP server will enable <strong style="color: var(--foreground);">cross-repo intelligence</strong>&mdash;critical for companies running microservice architectures, monorepos, or distributed teams where a vulnerability in one service can cascade across the stack.</p>
+                    <span class="future-card-number">04 &mdash; Cross-Repo</span>
+                    <h3>Organization-Wide Scale</h3>
+                    <p>Our MCP server will enable <strong style="color: var(--foreground);">cross-repo intelligence</strong>&mdash;essential for microservice architectures where a vulnerability in one service can cascade across the stack.</p>
                     <ul class="use-cases">
-                        <li>Spot a leaked secret in a shared auth service affecting 12 downstream repos</li>
+                        <li>A leaked secret in a shared auth service&mdash;flag all 12 downstream repos</li>
                         <li>Org-wide risk posture dashboards for security leads</li>
-                        <li>AI agents that will proactively scan and remediate in CI/CD</li>
+                        <li>AI agents that proactively scan and remediate in CI/CD</li>
                     </ul>
                 </div>
             </div>
@@ -2013,8 +2026,8 @@
                 <div class="future-flow-step">Org-wide intelligence</div>
             </div>
 
-            <p class="reveal" style="text-align: center; max-width: 44em; margin: 0 auto; font-size: var(--small-size); color: var(--text-dim);">
-                <strong style="color: var(--foreground);">The moat will deepen over time:</strong> every scan, dismissal, and fix will make Signal smarter&mdash;compounding value that becomes impossible to replicate by switching tools.
+            <p class="reveal" style="max-width: 44em; font-size: var(--small-size); color: var(--text-dim);">
+                <strong style="color: var(--foreground);">The moat will deepen over time:</strong> every scan, dismissal, and fix will make Signal smarter&mdash;compounding value that becomes impossible to replicate.
             </p>
         </div>
     </section>
