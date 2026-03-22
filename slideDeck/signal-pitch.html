@@ -1163,11 +1163,66 @@
     </section>
 
     <!-- ======================================================
-         SLIDE 2: THE VIBE CODING PARADOX
+         SLIDE 2: THE COST OF SHIPPING BLIND
+         Rubric ref: A1 continued + A2 (15 pts)
+         ====================================================== -->
+    <section class="slide problem-slide bg-accent-glow" aria-label="Problem — Financial Impact">
+        <span class="slide-number">02 / The Cost</span>
+        <div class="slide-content">
+            <div class="reveal">
+                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1&ndash;A2 &middot; Why Now?</span>
+                <h2>The Cost of <span class="accent">Shipping Blind</span></h2>
+            </div>
+
+            <div class="cost-grid reveal">
+                <div class="cost-card">
+                    <div class="stat-value">$4.88M</div>
+                    <div class="stat-label">average data breach<br>cost in 2025</div>
+                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">+25% for high tech-debt orgs</p>
+                </div>
+                <div class="cost-card">
+                    <div class="stat-value">67%</div>
+                    <div class="stat-label">of developers spend more time<br><em>debugging</em> AI code than they saved</div>
+                </div>
+                <div class="cost-card">
+                    <div class="stat-value">$8M</div>
+                    <div class="stat-label">annual rework cost per<br>250-developer org</div>
+                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">AI-induced technical debt</p>
+                </div>
+            </div>
+
+            <div class="reveal" style="margin-top: clamp(0.2rem, 0.4vw, 0.4rem);">
+                <h3 style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem);">Why is this happening?</h3>
+                <ul class="why-list">
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Context Blindness</strong> &mdash; LLMs predict the next most likely token but does not understand your business logic or security architecture</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Dependency Sprawl</strong> &mdash; AI tools import 2&times; more external libraries &ldquo;just in case,&rdquo; massively expanding the attack surface</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">The Junior Paradox</strong> &mdash; Senior devs automate chores; junior &ldquo;vibe coders&rdquo; write logic they can&rsquo;t audit, creating unowned code in production</span>
+                    </li>
+                    <li>
+                        <span class="why-icon">&#9671;</span>
+                        <span><strong style="color: var(--foreground);">Comprehension Debt</strong> &mdash; Teams average 7.6 hours to resolve AI-generated incidents vs 6.3 hours for human-written code</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="chart-source reveal">Maintenance costs reach 4&times; traditional levels within 2 years if AI-generated code debt goes unmanaged.</div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         SLIDE 3: THE VIBE CODING PARADOX
          Rubric ref: A1 (10 pts)
          ====================================================== -->
     <section class="slide problem-slide bg-subtle" aria-label="Problem — The Vibe Coding Paradox">
-        <span class="slide-number">02 / Problem</span>
+        <span class="slide-number">03 / Problem</span>
         <div class="slide-content">
             <div class="reveal">
                 <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1 &middot; Problem Identification</span>
@@ -1225,61 +1280,6 @@
                     <div class="stat-label">security failure rate for<br>AI-generated Java code</div>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <!-- ======================================================
-         SLIDE 3: THE COST OF SHIPPING BLIND
-         Rubric ref: A1 continued + A2 (15 pts)
-         ====================================================== -->
-    <section class="slide problem-slide bg-accent-glow" aria-label="Problem — Financial Impact">
-        <span class="slide-number">03 / The Cost</span>
-        <div class="slide-content">
-            <div class="reveal">
-                <span class="pill pill-accent" style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem); display: inline-flex;">A1&ndash;A2 &middot; Why Now?</span>
-                <h2>The Cost of <span class="accent">Shipping Blind</span></h2>
-            </div>
-
-            <div class="cost-grid reveal">
-                <div class="cost-card">
-                    <div class="stat-value">$4.88M</div>
-                    <div class="stat-label">average data breach<br>cost in 2025</div>
-                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">+25% for high tech-debt orgs</p>
-                </div>
-                <div class="cost-card">
-                    <div class="stat-value">67%</div>
-                    <div class="stat-label">of developers spend more time<br><em>debugging</em> AI code than they saved</div>
-                </div>
-                <div class="cost-card">
-                    <div class="stat-value">$8M</div>
-                    <div class="stat-label">annual rework cost per<br>250-developer org</div>
-                    <p style="font-size: clamp(0.5rem, 0.7vw, 0.6rem); color: var(--text-dim); margin-top: clamp(2px, 0.3vw, 4px);">AI-induced technical debt</p>
-                </div>
-            </div>
-
-            <div class="reveal" style="margin-top: clamp(0.2rem, 0.4vw, 0.4rem);">
-                <h3 style="margin-bottom: clamp(0.3rem, 0.6vw, 0.5rem);">Why is this happening?</h3>
-                <ul class="why-list">
-                    <li>
-                        <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">Context Blindness</strong> &mdash; LLMs predict the next most likely token but does not understand your business logic or security architecture</span>
-                    </li>
-                    <li>
-                        <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">Dependency Sprawl</strong> &mdash; AI tools import 2&times; more external libraries &ldquo;just in case,&rdquo; massively expanding the attack surface</span>
-                    </li>
-                    <li>
-                        <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">The Junior Paradox</strong> &mdash; Senior devs automate chores; junior &ldquo;vibe coders&rdquo; write logic they can&rsquo;t audit, creating unowned code in production</span>
-                    </li>
-                    <li>
-                        <span class="why-icon">&#9671;</span>
-                        <span><strong style="color: var(--foreground);">Comprehension Debt</strong> &mdash; Teams average 7.6 hours to resolve AI-generated incidents vs 6.3 hours for human-written code</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="chart-source reveal">Maintenance costs reach 4&times; traditional levels within 2 years if AI-generated code debt goes unmanaged.</div>
         </div>
     </section>
 
